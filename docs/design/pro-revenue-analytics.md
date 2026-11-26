@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Approved 2026-11-25** — the owner answered all thirteen questions of §17 at once, « Approve as recommended » (decisions 237–249). **R0w live 2026-11-25** (#866, `afd2de97`). **R1's production read done 2026-11-25** (§19). **R1 live 2026-11-26** (#872, migration **0052**, merged 2026-11-25 `3f3305a5`, deployed 2026-11-26 11:09 UTC, revision `myweli-api-00061-kwl`); the count after waits for real bookings, on the owner's word. **R2 built 2026-11-26** (#884, branch `feat/backend-revenue-r2-endpoints`; as built: §20); its merge and deploy wait for the owner's word. |
+| **Status** | **Approved 2026-11-25** — the owner answered all thirteen questions of §17 at once, « Approve as recommended » (decisions 237–249). **R0w live 2026-11-25** (#866, `afd2de97`). **R1's production read done 2026-11-25** (§19). **R1 live 2026-11-26** (#872, migration **0052**, merged 2026-11-25 `3f3305a5`, deployed 2026-11-26 11:09 UTC, revision `myweli-api-00061-kwl`); the count after waits for real bookings, on the owner's word. **R2 live 2026-11-26** (#884, merged `306a5d50`, deployed 19:40 UTC, revision `myweli-api-00062-f5c`; as built: §20). R3 and R4 next, each on the owner's word. |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-11-26 |
 | **PRD ref / phase** | FR-PRO-EARN-001 [V1] (« completed revenue by day/week/month ») + FR-PRO-DASH-001 [V1] (« no-show rate ») + the revenue half of **FR-PRO-OPS-004 [V3]** (« revenue, top services/staff, no-show analytics »), pulled forward on the owner's request of 2026-11-25 — Q1 |
@@ -1540,12 +1540,15 @@ p95 of 20 timed calls after 2 untimed:
 
 | Read | First draft (one driver row per booking) | As built | Budget |
 |---|---|---|---|
-| « Année » + the year before (~29 000 rows) | ≈ 420 ms, once over 500 | **≈ 165 ms** (≈ 280 with the two ranges read one after the other, ≈ 240 at once; **430 in CI** before the dates below) | 500 ms |
+| « Année » + the year before (~29 000 rows) | ≈ 420 ms, once over 500 | **≈ 165 ms** (≈ 280 with the two ranges read one after the other, ≈ 240 at once; **430 in CI** before the dates below, **331 in CI** after) | 500 ms |
 | « Mois » | ≈ 45 ms | **≈ 14 ms** | 200 ms |
 | A ledger page, filtered by prestation | ≈ 20 ms | **≈ 16 ms** | 200 ms |
 
 Measured on a Mac against Postgres in Docker; CI measures it again on every
-run, and the test fails over budget. **The two ranges are read at once** — two
+run, and the test fails over budget. **CI on the merged head** (`53ab3ab1`,
+the runner's Postgres 16, read in the job's log): « Année » + the year before
+**331 ms**, « Mois » 25 ms, a ledger page 30 ms: about twice the Mac's
+figures, and 169 ms under the budget. **The two ranges are read at once** — two
 connections, not more: an instance has four (`kMaxConnectionsPerInstance`),
 so the cheap « ever completed » `EXISTS` runs after them.
 

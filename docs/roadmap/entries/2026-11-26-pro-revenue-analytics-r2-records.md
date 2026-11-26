@@ -1,0 +1,11 @@
+- 🟡 **Registres : R2 des analyses de revenus fusionné et en production (docs · 2026-11-26 — BACKLOG B17.2, décisions 237, 239, 240, 244, 247, 249).** Spec : [pro-revenue-analytics.md](../../design/pro-revenue-analytics.md) §20.
+  - **R2 :**
+    - son entrée passe au vert, avec la fusion (`306a5d50`) et le déploiement (2026-11-26 à 19:40 UTC, révision `myweli-api-00062-f5c`) ;
+    - le statut de la spec, son index, le BACKLOG (ligne 17 et B17.2) et la menace T85 le disent aussi ;
+    - la spec §20.3 ajoute la mesure de la CI sur la tête fusionnée : « Année » avec l'année d'avant 331 ms (budget 500), « Mois » 25 ms, une page de la liste 30 ms.
+  - **Aussi :** l'entrée des registres de R1 passe au vert.
+  - **Reste, chacun sur le mot du propriétaire :**
+    - les collaborateurs du salon de démo et une nouvelle capture, avant R3 ;
+    - la lecture qui suit la réinitialisation du 2026-11-30 : elle verra aussi, pour la première fois, les 16 rendez-vous du nouvel agenda ;
+    - le comptage après R1, quand de vrais rendez-vous existeront ;
+    - R3 (l'application) et R4 (le site).

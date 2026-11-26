@@ -1,4 +1,4 @@
-- 🟡 **Serveur : les analyses de revenus du salon — R2, les deux points d'accès (backend · 2026-11-26 — BACKLOG B17.2, décisions 237, 239, 240, 244, 247, 249).** PR #884, branche `feat/backend-revenue-r2-endpoints`. Spec : [pro-revenue-analytics.md](../../design/pro-revenue-analytics.md) §7, §8.3, §11 et, tel que construit, §20.
+- 🟢 **Serveur : les analyses de revenus du salon — R2, les deux points d'accès (backend · 2026-11-26 — BACKLOG B17.2, décisions 237, 239, 240, 244, 247, 249).** PR #884, branche `feat/backend-revenue-r2-endpoints`. Spec : [pro-revenue-analytics.md](../../design/pro-revenue-analytics.md) §7, §8.3, §11 et, tel que construit, §20.
   - **Pourquoi :** pour que l'application (R3) et le site (R4) puissent afficher les revenus par collaborateur, par prestation et par canal, avec le panier moyen, le taux d'absence, le prévu, le « à clôturer » et une comparaison. Le serveur décide de tout ; les écrans ne font qu'afficher.
   - **Ce qui change :**
     - **Les chiffres** (`GET /providers/{id}/analytics/revenue`) : une période (jour, semaine, mois, année ou dates, 366 jours au plus), comptée dans le fuseau du salon, et sa comparaison (période précédente, l'an dernier ou rien).
@@ -28,4 +28,11 @@
     - le contrat OpenAPI des réponses ;
     - la suite backend complète, sur le code final : 2 900 tests en mémoire et 476 sur Postgres, verts.
     - **25 mutations, chacune rouge sur le test attendu** (spec §20.6), dont : la comparaison non coupée, le « à clôturer » daté au début, deux devises additionnées, le droit `finances.view` oublié sur l'un ou l'autre point d'accès, le nom du client sans l'accès aux clients, le reste d'arrondi donné à la première ligne, l'agenda de démo qui ne clôt pas ses rendez-vous, une date lue dans le fuseau de la session. Une modification témoin sans effet est restée verte. Trois premiers essais ne prouvaient rien et ont été refaits : deux ne s'étaient pas appliqués, un cassait la compilation.
-  - **Reste, chacun sur le mot du propriétaire :** la fusion, le déploiement et sa relecture ; les collaborateurs du salon de démo et une nouvelle capture, avant R3 ; puis R3 et R4.
+  - **Fusionnée le 2026-11-26** (#884, `306a5d50`, sur le mot du propriétaire) : l'arbre de `main` est celui de la tête testée (`53ab3ab1`). La CI de `main` est verte ; dans la CI de la PR, « Année » avec l'année d'avant mesurait 331 ms.
+  - **En production le 2026-11-26 à 19:40 UTC** (exécution 45885206695, `image_tag=306a5d5`, révision `myweli-api-00062-f5c`), sur le mot du propriétaire. La production tournait sur R1 (`3f3305a`), et entre les deux seul #884 touchait le serveur : le déploiement n'a ajouté que R2. Relu après :
+    - l'image servie est l'image linux/amd64 de l'étiquette `306a5d5`, vérifiée dans le registre ;
+    - les deux nouvelles adresses répondaient 404 sous R1, juste avant la bascule, et répondent 401 « non connecté » après ; une adresse inventée, lue les deux fois comme témoin, reste à 404 ;
+    - `/health` répond 200 ; démarrage propre, avec les deux messages habituels ; aucune réponse 5xx ;
+    - les 12 contrôles de production sont verts, relancés après le déploiement.
+    - **Pas encore lu :** un appel avec un compte propriétaire connecté. La première vraie lecture viendra avec R3, ou du propriétaire dans l'application.
+  - **Reste, chacun sur le mot du propriétaire :** les collaborateurs du salon de démo et une nouvelle capture, avant R3 ; le nouvel agenda de démo, créé pour la première fois à la prochaine réinitialisation, prévue le 2026-11-30 à 03:30 UTC, et à relire avec la lecture qui suit cette réinitialisation ; puis R3 et R4.
