@@ -35,7 +35,7 @@ test('the count is the server’s total; « Afficher plus » appends the rest an
   await expect(page).toHaveURL(/[?&]pages=2(&|$)/);
 });
 
-test('a reload, and « Retour » from another page, show the same thirty', async ({ page }) => {
+test('a reload shows the same thirty', async ({ page }) => {
   await page.goto('/recherche?q=nombreux');
   await page.getByRole('button', { name: 'Afficher plus de salons' }).click();
   await expect(rows(page)).toHaveCount(30);
@@ -43,11 +43,48 @@ test('a reload, and « Retour » from another page, show the same thirty', async
   await page.reload();
   await expect(rows(page)).toHaveCount(30);
   await expect(page.getByRole('button', { name: 'Afficher plus de salons' })).toHaveCount(0);
+});
 
-  await page.goto('/');
+test('« Retour » from a salon shows the same thirty — no reload between', async ({ page }) => {
+  await page.goto('/recherche?q=nombreux');
+  await page.getByRole('button', { name: 'Afficher plus de salons' }).click();
+  await expect(rows(page)).toHaveCount(30);
+
+  // A card is a plain link: the salon is a document of its own (here the stub's salon has no
+  // page, so it is the 404 — a document all the same).
+  await page.getByRole('link', { name: /Salon Nombreux 27/ }).click();
+  await expect(page).not.toHaveURL(/\/recherche/);
   await page.goBack();
   await expect(page).toHaveURL(/[?&]pages=2(&|$)/);
   await expect(rows(page)).toHaveCount(30);
+});
+
+test('« Retour » after a search from the header: the address and the rows agree', async ({
+  page,
+}) => {
+  await page.goto('/recherche?q=nombreux');
+  await page.getByRole('button', { name: 'Afficher plus de salons' }).click();
+  await expect(rows(page)).toHaveCount(30);
+  await expect(page).toHaveURL(/[?&]pages=2(&|$)/);
+
+  // The header's search navigates in place (`router.push`): no document load.
+  const field = page.getByLabel('Service ou salon');
+  await field.fill('vide');
+  await field.press('Enter');
+  await expect(page).toHaveURL(/\/recherche\?q=vide$/);
+
+  await page.goBack();
+  await expect(page).toHaveURL(/q=nombreux/);
+  // Next may give back its own copy of the first answer (24 rows), or ask the server again
+  // with pages=2 (30). Either way, the address says what is shown.
+  await expect(rows(page).first()).toBeVisible();
+  await expect
+    .poll(async () => {
+      const n = await rows(page).count();
+      const pages = new URL(page.url()).searchParams.get('pages');
+      return n === 30 ? pages === '2' : n === 24 ? pages === null : false;
+    })
+    .toBe(true);
 });
 
 test('a failed page: « Impossible d’afficher la suite. », the rows kept, « Réessayer » focused', async ({

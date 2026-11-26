@@ -25,8 +25,11 @@ export function hasMorePages(pages: number, total: number): boolean {
   return pages * RECHERCHE_PAGE_SIZE < total;
 }
 
-/// [more] after [rows], without a salon already shown: a salon unpublished between two reads
-/// shifts the rest by one, and the next page then starts with the last one shown.
+/// [more] after [rows], without a salon already shown. The pages are offsets: a salon
+/// published, or moved up the ranking (a new review under « Mieux notés »), between two reads
+/// pushes the rest down by one, and the next page starts with the last one shown. The other
+/// way — a salon unpublished — pulls the rest up and one is skipped, as in the app (§2.6);
+/// paging by offset cannot see that.
 export function appendNew(rows: Provider[], more: Provider[]): Provider[] {
   const seen = new Set(rows.map((p) => p.id));
   const out = [...rows];
@@ -74,9 +77,12 @@ export async function fetchSearchPage(
 }
 
 /// The address with [pages] in it, the rest kept — written with `replaceState` after each
-/// page, so it moves no history entry. It stops at [RECHERCHE_MAX_PAGES].
+/// page, so it moves no history entry. It stops at [RECHERCHE_MAX_PAGES]; one page is no
+/// `pages` at all, the address the search had.
 export function addressWithPages(current: string, pages: number): string {
   const url = new URL(current, 'https://myweli.com');
-  url.searchParams.set('pages', String(Math.min(pages, RECHERCHE_MAX_PAGES)));
-  return `${url.pathname}?${url.searchParams.toString()}`;
+  if (pages > 1) url.searchParams.set('pages', String(Math.min(pages, RECHERCHE_MAX_PAGES)));
+  else url.searchParams.delete('pages');
+  const qs = url.searchParams.toString();
+  return qs ? `${url.pathname}?${qs}` : url.pathname;
 }

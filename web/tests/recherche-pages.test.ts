@@ -89,7 +89,12 @@ describe('searchProviderPages', () => {
     await expect(searchProviderPages({}, 1)).rejects.toThrow();
   });
 
-  it('one page of three refused: it throws, never fewer salons under the count', async () => {
+  it('page 1 refused: it throws where the build fails closed', async () => {
+    GET.mockResolvedValue({ error: { error: 'x' }, response: new Response(null, { status: 500 }) });
+    await expect(searchProviderPages({}, 3)).rejects.toThrow();
+  });
+
+  it('a later page refused: the pages before it, and how many — the button offers the rest', async () => {
     paged(63);
     const good = GET.getMockImplementation()!;
     GET.mockImplementation(async (path: string, init: { params: { query: { page: number } } }) =>
@@ -97,13 +102,34 @@ describe('searchProviderPages', () => {
         ? { error: { error: 'x' }, response: new Response(null, { status: 500 }) }
         : good(path, init),
     );
-    await expect(searchProviderPages({}, 3)).rejects.toThrow();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const r = await searchProviderPages({ q: 'tresses' }, 3);
+    expect(r.items).toHaveLength(24);
+    expect(r.pages).toBe(1);
+    expect(r.total).toBe(63);
+    // Page 3 answered, but after a hole it is not shown.
+    expect(r.items.some((p) => p.id === 's48')).toBe(false);
+    expect(warn).toHaveBeenCalledOnce();
+    expect(String(warn.mock.calls[0][0])).not.toContain('tresses');
+    warn.mockRestore();
+  });
+
+  it('never past the last page page 1’s total says exists: pages=10 over 30 salons is 2 reads', async () => {
+    paged(30);
+    const r = await searchProviderPages({}, 10);
+    expect(GET).toHaveBeenCalledTimes(2);
+    expect(r).toMatchObject({ total: 30, pages: 2 });
+    expect(r.items).toHaveLength(30);
+    GET.mockClear();
+    paged(0);
+    expect(await searchProviderPages({}, 10)).toEqual({ items: [], total: 0, pages: 1 });
+    expect(GET).toHaveBeenCalledTimes(1);
   });
 
   it('on a Vercel preview (staging sleeps) it degrades to nothing', async () => {
     process.env.VERCEL_ENV = 'preview';
     GET.mockResolvedValue({ error: { error: 'x' }, response: new Response(null, { status: 500 }) });
-    expect(await searchProviderPages({}, 2)).toEqual({ items: [], total: 0 });
+    expect(await searchProviderPages({}, 2)).toEqual({ items: [], total: 0, pages: 1 });
   });
 });
 
@@ -128,6 +154,21 @@ describe('/recherche reads what the address asks', () => {
     expect(GET).toHaveBeenCalledTimes(1);
     expect(p.results).toHaveLength(24);
     expect(p.pages).toBe(1);
+  });
+
+  it('a later page refused: pages 1 for the button, not the address’s 2', async () => {
+    paged(63);
+    const good = GET.getMockImplementation()!;
+    GET.mockImplementation(async (path: string, init: { params: { query: { page: number } } }) =>
+      init.params.query.page === 2
+        ? { error: { error: 'x' }, response: new Response(null, { status: 500 }) }
+        : good(path, init),
+    );
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const p = clientProps(await RecherchePage({ searchParams: { pages: '2' } }));
+    expect(p.results).toHaveLength(24);
+    expect(p.pages).toBe(1);
+    warn.mockRestore();
   });
 
   it('pages=99: read as 1, not 99 reads', async () => {

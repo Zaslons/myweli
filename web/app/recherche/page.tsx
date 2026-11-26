@@ -70,7 +70,8 @@ export default async function RecherchePage({
         title={title}
         results={found.items}
         total={found.total}
-        pages={pages}
+        // The pages the server could read: fewer than asked when a later page failed.
+        pages={found.pages}
         q={q}
         commune={commune}
         category={category}

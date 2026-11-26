@@ -15,12 +15,15 @@ function req(query: string): NextRequest {
 }
 
 let asked: string[];
+let inits: (RequestInit | undefined)[];
 function server(answer: () => Response) {
   asked = [];
+  inits = [];
   vi.stubGlobal(
     'fetch',
-    vi.fn(async (url: string) => {
+    vi.fn(async (url: string, init?: RequestInit) => {
       asked.push(String(url));
+      inits.push(init);
       return answer();
     }),
   );
@@ -53,6 +56,11 @@ describe('GET /api/recherche', () => {
       page: '3',
       pageSize: '24',
     });
+  });
+
+  it('asks the API afresh each time: Next 14 would otherwise cache the read', async () => {
+    await GET_ROUTE(req('q=tresses&page=2'));
+    expect(inits[0]?.cache).toBe('no-store');
   });
 
   it('drops what is not the search’s, and a page size the caller sent', async () => {

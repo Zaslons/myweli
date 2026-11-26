@@ -7,7 +7,8 @@ vi.mock('next/dynamic', () => ({ default: () => () => null }));
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn(), back: vi.fn() }),
   usePathname: () => '/recherche',
-  useSearchParams: () => new URLSearchParams(),
+  // The address as Next's router would give it (`replaceState(null, …)` keeps them in step).
+  useSearchParams: () => new URLSearchParams(window.location.search),
 }));
 
 import { RechercheClient } from '../components/discovery/RechercheClient';
@@ -95,13 +96,21 @@ function page({
 const rows = () => screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent);
 const more = () => screen.queryByRole('button', { name: 'Afficher plus de salons' });
 
+/// The addresses written, in order. The spy calls through: the real address moves, so the
+/// page's own reading of it is under test too.
+let replaceSpy: ReturnType<typeof vi.spyOn>;
 let replaced: string[];
 beforeEach(() => {
   vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
-  replaced = [];
-  vi.spyOn(window.history, 'replaceState').mockImplementation((_s, _t, url) => {
-    replaced.push(String(url));
-  });
+  window.history.replaceState(null, '', '/recherche');
+  replaceSpy = vi.spyOn(window.history, 'replaceState');
+  replaced = new Proxy([], {
+    get: (_t, k) => {
+      const urls = replaceSpy.mock.calls.map((c) => String(c[2]));
+      const v = Reflect.get(urls, k);
+      return typeof v === 'function' ? v.bind(urls) : v;
+    },
+  }) as string[];
 });
 afterEach(() => {
   cleanup();
@@ -164,7 +173,8 @@ describe('« Afficher plus de salons » (§3.3 item 2)', () => {
   });
 
   it('appends the next page without a salon twice, and goes when nothing is left', async () => {
-    // s23 again on page 2: a salon unpublished between the two reads shifted the rest by one.
+    // s23 again on page 2: a salon published, or moved up the ranking, between the two reads
+    // pushed the rest down by one.
     server(json(200, { items: salons(23, 47), page: 2, pageSize: 24, total: 47 }));
     page({ results: salons(0, 24), total: 47 });
     await act(async () => {
@@ -381,4 +391,127 @@ it('an older search’s page still out does not hold the new search’s button',
   await waitFor(() => expect(rows()).toHaveLength(48));
   expect(rows()[24]).toBe('Salon s124');
   held[0](new Response(JSON.stringify({ items: salons(24, 48), page: 2, pageSize: 24, total: 63 })));
+});
+
+describe('the review’s findings, each held', () => {
+  it('the address is written with no state of its own, so Next’s router learns it', async () => {
+    server(json(200, { items: salons(24, 48), page: 2, pageSize: 24, total: 63 }));
+    page({ results: salons(0, 24), total: 63 });
+    await act(async () => {
+      fireEvent.click(more()!);
+    });
+    await waitFor(() => expect(rows()).toHaveLength(48));
+    // `history.state` carries Next's `__NA` mark, and Next's patched replaceState then skips
+    // its router (next/dist/client/components/app-router.js).
+    expect(replaceSpy.mock.calls.at(-1)![0]).toBeNull();
+    expect(new URLSearchParams(window.location.search).get('pages')).toBe('2');
+  });
+
+  it('the address asks for more pages than are shown (a soft « Retour »): it comes down', () => {
+    server();
+    window.history.replaceState(null, '', '/recherche?q=tresses&pages=2');
+    replaceSpy.mockClear();
+    page({ results: salons(0, 24), total: 63, pages: 1 });
+    expect(replaced.at(-1)).toBe('/recherche?q=tresses');
+    expect(rows()).toHaveLength(24);
+  });
+
+  it('the same search asked again from the header (the address drops pages): it starts again', async () => {
+    server(json(200, { items: salons(24, 48), page: 2, pageSize: 24, total: 63 }));
+    window.history.replaceState(null, '', '/recherche?q=tresses');
+    const first = salons(0, 24);
+    const view = page({ results: first, total: 63 });
+    await act(async () => {
+      fireEvent.click(more()!);
+    });
+    await waitFor(() => expect(rows()).toHaveLength(48));
+    // Next's router cache answers the same search with the same array; only the address moved.
+    window.history.pushState(null, '', '/recherche?q=tresses');
+    view.rerender(
+      <RechercheClient
+        title="Salons"
+        results={first}
+        total={63}
+        pages={1}
+        q="tresses"
+        commune="Cocody"
+        category="salon"
+        sort="rating"
+        dispo={true}
+        tree={emptyTree}
+      />,
+    );
+    await waitFor(() => expect(rows()).toHaveLength(24));
+    expect(more()).toBeInTheDocument();
+  });
+
+  it('a page that lands after the person moved the focus leaves it where they put it', async () => {
+    const { held } = server(undefined as unknown as Answer);
+    page({ results: salons(0, 24), total: 63 });
+    act(() => {
+      fireEvent.click(more()!);
+    });
+    const field = screen.getByLabelText('Service ou salon');
+    field.focus();
+    await act(async () => {
+      held[0](new Response(JSON.stringify({ items: salons(24, 48), page: 2, pageSize: 24, total: 63 })));
+    });
+    await waitFor(() => expect(rows()).toHaveLength(48));
+    expect(field).toHaveFocus();
+  });
+
+  it('a page of salons already shown adds none, and says so', async () => {
+    server(json(200, { items: salons(0, 24), page: 2, pageSize: 24, total: 63 }));
+    page({ results: salons(0, 24), total: 63 });
+    await act(async () => {
+      fireEvent.click(more()!);
+    });
+    await waitFor(() =>
+      expect(screen.getAllByRole('status').map((s) => s.textContent)).toContain(
+        'Aucun salon de plus, 24 sur 63',
+      ),
+    );
+    expect(rows()).toHaveLength(24);
+  });
+
+  it('the status region is there before its first sentence (WEB-SYSTEM §7)', async () => {
+    server(json(200, { items: salons(24, 48), page: 2, pageSize: 24, total: 63 }));
+    page({ results: salons(0, 24), total: 63 });
+    const before = screen.getAllByRole('status').filter((s) => s.textContent === '');
+    expect(before.length).toBeGreaterThan(0);
+    await act(async () => {
+      fireEvent.click(more()!);
+    });
+    await waitFor(() => expect(rows()).toHaveLength(48));
+    const after = screen
+      .getAllByRole('status')
+      .find((s) => s.textContent === '24 salons de plus, 48 sur 63');
+    expect(before).toContain(after);
+  });
+
+  it('back to a list whose old read is still out: the button works, the old read is dropped', async () => {
+    const { held, asked } = server(
+      undefined as unknown as Answer,
+      json(200, { items: salons(24, 48), page: 2, pageSize: 24, total: 63 }),
+    );
+    const first = salons(0, 24);
+    const view = page({ results: first, total: 63 });
+    act(() => {
+      fireEvent.click(more()!);
+    });
+    const props = { title: 'Salons', total: 63, pages: 1, q: 'tresses', commune: 'Cocody', category: 'salon', sort: 'rating', dispo: true, tree: emptyTree };
+    view.rerender(<RechercheClient {...props} results={[salon('m1')]} total={1} />);
+    // A soft « Retour »: Next gives back the same array.
+    view.rerender(<RechercheClient {...props} results={first} />);
+    await act(async () => {
+      fireEvent.click(more()!);
+    });
+    expect(asked).toHaveLength(2);
+    await waitFor(() => expect(rows()).toHaveLength(48));
+    await act(async () => {
+      held[0](new Response(JSON.stringify({ items: salons(100, 124), page: 2, pageSize: 24, total: 63 })));
+    });
+    expect(rows()).toHaveLength(48);
+    expect(rows()).not.toContain('Salon s100');
+  });
 });
