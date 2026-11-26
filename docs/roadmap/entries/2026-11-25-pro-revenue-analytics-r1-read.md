@@ -1,4 +1,4 @@
-- 🟡 **Production : la lecture avant R1 des analyses de revenus — rien ne s’affichera « estimé » aujourd’hui (production · lecture seule · 2026-11-25 — BACKLOG B17.1, décision 248).** Sur le « Yes, read it » du propriétaire. Spec : [pro-revenue-analytics.md](../../design/pro-revenue-analytics.md) §19.
+- 🟢 **Production : la lecture avant R1 des analyses de revenus — rien ne s’affichera « estimé » aujourd’hui (production · lecture seule · 2026-11-25 — BACKLOG B17.1, décision 248).** Sur le « Yes, read it » du propriétaire. Spec : [pro-revenue-analytics.md](../../design/pro-revenue-analytics.md) §19.
   - **La méthode, celle du lot 14 et de B16.1 :**
     - le proxy Cloud SQL sur la boucle locale, arrêté après ;
     - l’adresse de la base dans une variable du shell seulement ;
@@ -17,4 +17,4 @@
     - le registre de R2 décode les deux formes de `service_ids` ;
     - une ligne de rendez-vous à une seule prestation est exacte, donc pas marquée « estimé ».
   - **Aussi :** #863 et #866 fusionnés, leurs entrées passent au vert.
-  - **Ensuite :** R1, construit sur le mot du propriétaire, déployé sur son mot.
+  - **Ensuite :** R1, construit sur le mot du propriétaire, déployé sur son mot. **Fait :** fusionné le 2026-11-25 (#872), en production le 2026-11-26.
