@@ -325,6 +325,11 @@ void accountEmailContract({
 
       final again = await bySocial(r, 'google', gA, email: x);
       expect(again.id, a.id, reason: '[by sub first] by its sub');
+      expect(
+        again.emailVerified,
+        isTrue,
+        reason: '[by sub first] the sign-in\'s own answer says proven too',
+      );
       final after = (await r.userById(a.id))!;
       expect(after.email, x);
       expect(
