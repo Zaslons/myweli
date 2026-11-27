@@ -1,4 +1,4 @@
-- 🟡 **Registre : la lecture après le déploiement de B16.3a ; #888 consignée comme fusionnée (documentation · 2026-11-26 — BACKLOG B16.3, spec §9 étape 4).** Branche `docs/records-b16-3a-read-after`, créée depuis `main` (`343a1f4d`). Documentation seule : aucun code ne change, rien n’est construit ni déployé.
+- 🟢 **Registre : la lecture après le déploiement de B16.3a ; #888 consignée comme fusionnée (documentation · 2026-11-26 — BACKLOG B16.3, spec §9 étape 4).** Branche `docs/records-b16-3a-read-after`, créée depuis `main` (`343a1f4d`). Documentation seule : aucun code ne change, rien n’est construit ni déployé.
   - **Ce qui est consigné :**
     - [account-email-change.md](../../design/account-email-change.md) : son statut et, dans la §9.1 « As run », la lecture après (étape 4) ;
     - le BACKLOG : la ligne 16, B16.3 et une ligne au journal de l’ordre proposé ;
@@ -10,4 +10,5 @@
     - les journaux : aucune connexion depuis le déploiement ; sur `/me/email/`, seulement les sondes de la relecture et de la règle Cloudflare.
   - **Ce qu’elle ne montre pas :** personne n’a encore traversé les règles nouvelles en production ; `/me/email/` n’a pas d’appelant avant B16.3b.
   - **Une entrée passe au vert,** sa fusion relue : le registre de B16.3 (#888, `343a1f4d` ; l’arbre de `main` égal à la tête testée `0e842797`, 12 contrôles sur 12, aucune ligne d’attribution).
-  - **Reste :** la fusion de cette PR, sur le mot du propriétaire ; son entrée passe au vert dans le registre suivant. Puis, sur son mot, B16.3b (l’application).
+  - **Fusionnée le 2026-11-27** (#889) en `7f08c725`, 08:10 UTC : l’arbre de `main` égal à la tête testée `d82e1780`, 12 contrôles sur 12, aucune ligne d’attribution.
+  - **Puis,** sur le mot du propriétaire, B16.3b (l’application), construite et fusionnée le même jour (#892).
