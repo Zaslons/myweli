@@ -1,0 +1,15 @@
+- 🟡 **Registres : R3 des analyses de revenus fusionné, et les collaborateurs du salon de démo (docs · 2026-11-27 — BACKLOG B17.2, B17.3, décisions 238, 240, 244, 249).** PR #897. Spec : [pro-revenue-analytics.md](../../design/pro-revenue-analytics.md) §20.5, §21.
+  - **R3 :** son entrée passe au vert, avec la fusion (#893, `6b1ed6a9`, sur le mot du propriétaire) : l'arbre de `main` est celui de la tête testée, la CI de `main` et la compilation iOS sont vertes. Le statut de la spec, son index et le BACKLOG (ligne 17 et B17.3) le disent aussi. Elle arrive chez les salons avec la prochaine version de MyWeli Pro dans les stores.
+  - **Les collaborateurs du salon de démo, consignés** (spec §20.5, qui disait « jusqu'à ce que le propriétaire agisse ») :
+    - ajoutés en production le 2026-11-27 à 00:03 UTC, sur le mot du propriétaire : Adjoua K. (Tresses et soins), Salimata O. (Coupe femme et brushing), Koffi A. (Coupe homme), sans photo, aux horaires du salon ;
+    - par le même code serveur que « Ajouter un collaborateur », puis recopiés dans l'instantané seul, sans en toucher les dates : la réinitialisation tombe toujours le 30 novembre à 03:30 UTC et remettra toujours les horaires du 14 octobre (choix du propriétaire, B16.2). Une nouvelle capture aurait figé les horaires actuels et repoussé la réinitialisation au 4 décembre environ ;
+    - lu avant en lecture seule, relu après (sept contrôles, puis une lecture indépendante : 3 en ligne, 3 dans l'instantané, mêmes identifiants ; prestations et rendez-vous inchangés) ;
+    - répété d'abord sur une base jetable, avec la vraie réinitialisation : sans le script, aucun collaborateur ne restait ; avec, les trois restaient et les 16 rendez-vous se répartissaient à 4 chacun, plus 4 sans collaborateur ;
+    - l'opération n'est pas dans `audit_log` (ce n'est pas une route d'administration) : cette entrée en est la trace ;
+    - à savoir : renommer l'un d'eux dans l'application sur le compte démo est défait à chaque réinitialisation.
+  - **Aussi :** l'entrée des registres de R2 (#887) passe au vert.
+  - **Reste, chacun sur le mot du propriétaire :**
+    - la lecture qui suit la réinitialisation du 2026-11-30 : les horaires remis, les trois collaborateurs gardés, l'agenda réparti entre eux ;
+    - la prochaine version de MyWeli Pro dans les stores, qui portera R3 ;
+    - le comptage après R1, quand de vrais rendez-vous existeront ;
+    - R4 (le site).
