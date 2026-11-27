@@ -21,6 +21,7 @@ import { TextField } from '../TextField';
 import { GoogleSignInButton } from '../auth/GoogleSignInButton';
 import { LegalConsentText } from '../LegalConsentText';
 import { AppleSignInButton } from '../auth/AppleSignInButton';
+import { CodeSentTo } from '../auth/CodeSentTo';
 import { appleIdentity } from '../../lib/auth/apple';
 import { forgetSalon } from '../../lib/pro/remembered-salon';
 import { signInMethods } from '../../lib/pro/signInMethods';
@@ -208,9 +209,7 @@ export function ProLoginOptions({ onSuccess }: { onSuccess: () => void }) {
   if (step === 'code') {
     return (
       <div className="flex flex-col gap-s">
-        <p className="text-bodyLarge text-textSecondary">
-          Entrez le code reçu par e-mail à {email.trim()}.
-        </p>
+        <CodeSentTo email={email} />
         <TextField
           label="Code à 6 chiffres"
           type="text"
