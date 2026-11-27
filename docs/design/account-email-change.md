@@ -537,12 +537,17 @@ Numbered from **260**, after batch 18's 255–259.
 - **A PATCH that fails after the avatar's promotion leaves the photo unreferenced** (§2.2). This build moves the e-mail refusal before the promotion; the route's one other late failure is `not_found`, an account deleted under the request. Not decided here.
 - **The phone's twin of the trap.** `verifyOtp` finds an account by `phone_number` whatever `phone_verified` says (`postgres_auth_repository.dart:392-405`, `auth_repository.dart:565-571`), and `PATCH /me` writes the phone unproven. Only `AUTH_METHODS` holds it shut (phone sign-in is dormant, T34). **A condition for ever turning phone sign-in back on:** the same rule as §5.1, for the phone.
 - **`PATCH /me` with a provider's token** answers `404 not_found` (pros are not in `users`). Harmless; the new routes answer `403`.
-- **At 200 %, « Entrez le code reçu par e-mail à {adresse}. » broke a long address inside a word** — ✅ **fixed 2026-11-27** on the owner's approval, the profile row included (branch `fix/code-sent-to-address-breaks`; SYSTEM.md §13.3, §21 row 99).
+- **At 200 %, « Entrez le code reçu par e-mail à {adresse}. » broke a long address inside a word** — ✅ **fixed 2026-11-27** on the owner's approval, the profile row included (PR #895, branch `fix/code-sent-to-address-breaks`; SYSTEM.md §13.3, §21 row 99).
   - **The mechanism, as measured** (real font, 360 dp × 2×, a 312 px line), not as this line first put it. A short address was never cut: the engine moves a word that fits a line to the next one whole (« awa@exemple.ci », 248 px). What broke was any address wider than a line, which at that size is about 18 characters and so most real addresses. It began on the line « à » had started and was cut where that line ran out (« par e-mail à aminata. » / « kone@exemple.ci. »). Alone on a line it was still cut mid-word (« aminata.kone@exem » / « ple.ci. »). So a line of its own was needed, but was not enough on its own.
   - **Now:**
     - `CodeSentTo` draws the sentence, then the address on a line of its own, in ink, with no period drawn. A screen reader hears one node, the sentence as it was.
     - `Formatters.breakableEmail` lets the address break only before its « @ » or a « . » of its name part (« aminata.kone » / « @exemple.ci »).
   - **Sites:** five. The sign-in; the Pro sign-in; the Android Pro sign-up (the same sentence, found while checking); the change's two sentences (the second loses its drawn comma and keeps it spoken); and « Modifier le profil »'s row.
+  - **Verified:**
+    - red first on all five sites;
+    - the full app suite: 4,520 passed, 98 skipped;
+    - three Linux goldens, each looked at;
+    - 24 mutations on committed code, all red. The seam check first survived: on correct code it has nothing to catch. It is now held by four falsifiers, wrong drawings each made to fail the gate for its own reason.
   - **Still open:** a name part or a domain longer than a line still breaks inside, and no layout has more to give. The website's two sign-ins say the same sentence (`LoginOptions.tsx`, `ProLoginOptions.tsx`).
 
 ---
@@ -550,7 +555,6 @@ Numbered from **260**, after batch 18's 255–259.
 ## 13. Review log
 
 - 2026-11-26 — drafted: the code read, P1–P6 proven on both twins (§2.4), the probe and its database deleted.
-- 2026-11-27 — §12's address line fixed (branch `fix/code-sent-to-address-breaks`): its mechanism measured first, corrected in §12 and §8.5, then built on the owner's approval.
 - 2026-11-26 — **read once by an independent reviewer, told to refute it against the code.** 20 findings (2 blocking, 14 should-fix, 4 nits), each re-read in the code before being folded in:
   - **Blocking:**
     - « the Google 500 » cannot happen through a route: the Google token check refuses an unverified address (401), and Apple addresses are always verified. P6 is now repository-only, and Q1's third option is rejected for the right reason;
@@ -576,3 +580,4 @@ Numbered from **260**, after batch 18's 255–259.
 - 2026-11-26 — **B16.3a read once by an independent reviewer, told to refute it against the code.** No rule broken, no twin difference, no enumeration. Found, each re-read in the code and fixed: the take's filter is a real guard (a concurrent proof), and §8.4's first draft said otherwise; a deadlock between a change and a code sign-in; a raced insert answering 500; the scrubber's pattern cut short by the detail; a 429 after a code had gone out; seven missing route and contract tests; two comments. Then 36 mutations, every one red.
 - 2026-11-27 — **B16.3b built** (§8.5), on the owner's « Yes, build B16.3b »: red first (10), green; the title shortened and the row laid out again after the gate and the first picture; 39 mutations red.
 - 2026-11-27 — **B16.3b read once by an independent reviewer, told to refute it against the spec and the server.** Nothing blocking. Fixed: the mock's link-first sign-in and its decision 265 by link, the edge's 429, the resend's address, the signed-out back, and tests for every guard found unexercised; one vacuous assertion was already replaced.
+- 2026-11-27 — §12's address line fixed (branch `fix/code-sent-to-address-breaks`): its mechanism measured first, corrected in §12 and §8.5, then built on the owner's approval.
