@@ -510,7 +510,7 @@ L = a week or more. **Risk** is to the submission or to a user's trust.
 
 **2026-11-27 — A6's spec approved and merged** ([consumer-location.md](consumer-location.md), decisions 272–276 as recommended; #890, `3a2cb1d7`).
 
-**2026-11-27 — A6 built** ([consumer-location.md](consumer-location.md) §15): gap 13 and the location half of 22 in the code. Read on APKs built that day: the client APK from `main` declared `ACCESS_FINE_LOCATION`; with A6 it declares `ACCESS_COARSE_LOCATION` alone, and MyWeli Pro's declares both. The map asks before any dialog, once, and every refusal has its way out, as « Près de moi » and Pro's « Utiliser ma position » do. They reach people with the next client build and Pro's next; the device rows (§8.4) wait for them.
+**2026-11-27 — A6 built** (#896, [consumer-location.md](consumer-location.md) §15): gap 13 and the location half of 22 in the code. Read on APKs built that day: the client APK from `main` declared `ACCESS_FINE_LOCATION`; with A6 it declares `ACCESS_COARSE_LOCATION` alone, and MyWeli Pro's declares both. The map asks before any dialog, once, and every refusal has its way out, as « Près de moi » and Pro's « Utiliser ma position » do. They reach people with the next client build and Pro's next; the device rows (§8.4) wait for them.
 
 ---
 
