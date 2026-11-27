@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   deName,
+  emailSeams,
   formatDateCompactFr,
   formatDateFr,
   formatDateTimeFr,
@@ -153,5 +154,35 @@ describe('formatDateCompactFr', () => {
       const words = formatDateCompactFr(`2026-${mm}-15T09:00:00.000Z`).split(/\s+/);
       expect(words.every((w) => w.length <= 5), words.join(' ')).toBe(true);
     }
+  });
+});
+
+describe('emailSeams — where an address may break (twin of Formatters.breakableEmail)', () => {
+  it.each([
+    ['awa@exemple.ci', ['awa', '@exemple.ci']],
+    ['aminata.kone@exemple.ci', ['aminata', '.kone', '@exemple.ci']],
+    ['awa.kone.nouvelle@exemple.ci', ['awa', '.kone', '.nouvelle', '@exemple.ci']],
+    // Never a dot of the domain: a line would end on « gmail » and leave
+    // « .com » alone on the next (SYSTEM.md §13.3).
+    ['koffi.yao@gmail.com', ['koffi', '.yao', '@gmail.com']],
+    ['awa@mail.exemple.co.ci', ['awa', '@mail.exemple.co.ci']],
+    // The LAST « @ » splits name from domain, as the app's does.
+    ['"a@b".kone@exemple.ci', ['"a@b"', '.kone', '@exemple.ci']],
+  ])('%s → %j', (address, pieces) => {
+    expect(emailSeams(address)).toEqual(pieces);
+    // The pieces are the address, nothing added, nothing lost.
+    expect(emailSeams(address).join('')).toBe(address);
+  });
+
+  it.each([
+    ['no « @ »', 'awa.exemple.ci'],
+    ['an « @ » first', '@exemple.ci'],
+    ['empty', ''],
+  ])('%s: one piece, as it is', (_, address) => {
+    expect(emailSeams(address)).toEqual([address]);
+  });
+
+  it('a name that starts with a dot gets no empty piece', () => {
+    expect(emailSeams('.awa@exemple.ci')).toEqual(['.awa', '@exemple.ci']);
   });
 });

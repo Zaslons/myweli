@@ -98,6 +98,39 @@ export function formatPhoneNumber(phone: string): string {
   return phone; // other country / unexpected length → as-is
 }
 
+/// « aminata.kone@exemple.ci » → `['aminata', '.kone', '@exemple.ci']`: an
+/// address cut at its seams, where it may break across lines (SYSTEM.md §13.3,
+/// docs/design/web-code-sent-to.md). The caller puts a `<wbr>` between the
+/// pieces, so the browser breaks there and nowhere else.
+///
+/// The twin of the app's `Formatters.breakableEmail`, same seams: before the
+/// « @ » (the LAST one), and before each « . » of the name part. **Never a « . »
+/// of the domain**: a line is filled greedily, so it would end on « gmail » and
+/// leave « .com » alone on the next. The app marks the seams with U+200B; the
+/// web cuts the string instead, because a `<wbr>` copies as nothing while a
+/// U+200B would ride along into a pasted address.
+///
+/// No « @ », or one in first place: one piece, as it came. A run of dots stays
+/// with the piece it starts, so no piece is empty.
+export function emailSeams(address: string): string[] {
+  const at = address.lastIndexOf('@');
+  if (at <= 0) return [address];
+  const pieces: string[] = [];
+  let piece = '';
+  let hasNonDot = false;
+  for (const ch of address.slice(0, at)) {
+    if (ch === '.' && hasNonDot) {
+      pieces.push(piece);
+      piece = '';
+      hasNonDot = false;
+    }
+    piece += ch;
+    if (ch !== '.') hasNonDot = true;
+  }
+  pieces.push(piece, address.slice(at));
+  return pieces;
+}
+
 /// "1 h 30" · "2 h" · "45 min".
 export function formatDuration(minutes: number): string {
   const h = Math.floor(minutes / 60);

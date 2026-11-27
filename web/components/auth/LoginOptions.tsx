@@ -22,6 +22,7 @@ import { TextField } from '../TextField';
 import { appleIdentity } from '../../lib/auth/apple';
 import { type SignInRefusal, codeRefusal, sendRefusal } from '../../lib/auth/otp-failure';
 import { AppleSignInButton } from './AppleSignInButton';
+import { CodeSentTo } from './CodeSentTo';
 import { GoogleSignInButton } from './GoogleSignInButton';
 import { LegalConsentText } from '../LegalConsentText';
 
@@ -178,9 +179,7 @@ export function LoginOptions({ onSuccess }: { onSuccess: () => void }) {
   if (step === 'code') {
     return (
       <div className="flex flex-col gap-s">
-        <p className="text-bodyLarge text-textSecondary">
-          Entrez le code reçu par e-mail à {email.trim()}.
-        </p>
+        <CodeSentTo email={email} />
         <TextField
           label="Code à 6 chiffres"
           type="text"

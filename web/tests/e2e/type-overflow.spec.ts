@@ -1614,3 +1614,134 @@ async function stepNumbersPastTheColumn(page: Page) {
     return { count: items.length, outside };
   });
 }
+
+/// The sign-ins' code step with a long address (docs/design/web-code-sent-to.md).
+///
+/// The step names the address the code went to, and a browser never cuts
+/// inside a word. So an address wider than the line did not break: in the
+/// Android mode it pushed the layout viewport to **408×725**
+/// (« aminata.kone@exemple.ci ») and **483×858** (« awa.kone.nouvelle@exemple.ci »)
+/// on a 320×568 phone, on both sign-ins — measured on main (da6e947b) before a
+/// line was written. No row of this file reached the step: the sign-in rows
+/// measure each page as it opens, before an address is typed.
+///
+/// What the step must draw (SYSTEM.md §13.3, the app's `CodeSentTo`): the
+/// sentence, then the address on a line of its own, with no period, broken only
+/// at its seams — « aminata.kone » / « @exemple.ci ». What a screen reader hears
+/// does not change: one paragraph, the sentence it always read, period included.
+const CODE_STEP_TEXT = [{ name: 'normal text', use: {}, css: null }, ...DOUBLED_TEXT];
+const CODE_STEP_LEAD = 'Entrez le code reçu par e-mail à';
+
+/// [address, its lines at 32px in a 288px column]. At 16px each fits one line.
+const LONG_ADDRESSES: [address: string, doubled: string[]][] = [
+  ['aminata.kone@exemple.ci', ['aminata.kone', '@exemple.ci']],
+  ['awa.kone.nouvelle@exemple.ci', ['awa.kone.nouvelle', '@exemple.ci']],
+  // A piece wider than a line by itself: no seam can help, so `break-words`
+  // cuts inside it — the fallback, and the app's limit too. Without it the
+  // page grows to 332px. The only row that holds the fallback in a layout:
+  // with the two above, removing `break-words` left this block green.
+  ['ouattaraaminatakone@exemple.ci', ['ouattaraaminatako', 'ne@exemple.ci']],
+];
+
+/// The code step's paragraph as it is DRAWN: its visible text, line by line
+/// (a line is the characters that share a top), and the drawn font size. Words
+/// only a screen reader reads (`sr-only`: placed absolutely and clipped) are
+/// not drawn, so they are not read here — see `Toast.tsx`'s `unseen`.
+async function codeStepLines(page: Page, lead: string) {
+  return page.evaluate((lead) => {
+    const p = [...document.querySelectorAll('p')].find((el) => el.textContent?.includes(lead));
+    if (!p) return null;
+    const unseen = (node: Node) => {
+      for (let el = node.parentElement; el && el !== p.parentElement; el = el.parentElement) {
+        const s = getComputedStyle(el);
+        if (s.position === 'absolute' && s.clip && s.clip !== 'auto') return true;
+      }
+      return false;
+    };
+    const rows = new Map<number, string>();
+    let font = 0;
+    const walker = document.createTreeWalker(p, NodeFilter.SHOW_TEXT);
+    for (let t = walker.nextNode(); t; t = walker.nextNode()) {
+      if (unseen(t)) continue;
+      font = Math.max(font, parseFloat(getComputedStyle(t.parentElement!).fontSize));
+      const s = t.nodeValue ?? '';
+      for (let i = 0; i < s.length; i++) {
+        const r = document.createRange();
+        r.setStart(t, i);
+        r.setEnd(t, i + 1);
+        const rect = [...r.getClientRects()].find((x) => x.width > 0);
+        if (!rect) continue; // a space the line ended on
+        const top = Math.round(rect.top);
+        rows.set(top, (rows.get(top) ?? '') + s[i]);
+      }
+    }
+    return {
+      lines: [...rows.entries()].sort((a, b) => a[0] - b[0]).map(([, text]) => text.trim()),
+      font,
+      root: parseFloat(getComputedStyle(document.documentElement).fontSize),
+    };
+  }, lead);
+}
+
+test.describe('the sign-ins’ code step with a long address (web-code-sent-to)', () => {
+  for (const mode of CODE_STEP_TEXT) {
+    test.describe(mode.name, () => {
+      test.use({ viewport: PHONE_320, ...mode.use });
+
+      for (const [surface, url] of [['the sign-in', '/connexion'], ['the Pro sign-in', '/pro/connexion']]) {
+        for (const [address, doubled] of LONG_ADDRESSES) {
+          test(`${mode.name} — ${surface}: « ${address} » on a line of its own, broken at its seams, at 320×568`, async ({ page }) => {
+            if (mode.css) {
+              await page.addInitScript((css) => {
+                const add = () => {
+                  const style = document.createElement('style');
+                  style.textContent = css;
+                  document.head.appendChild(style);
+                };
+                if (document.head) add();
+                else document.addEventListener('DOMContentLoaded', add);
+              }, mode.css);
+            }
+            await page.goto(url);
+            await page.getByLabel('Votre e-mail').fill(address);
+            await page.getByRole('button', { name: 'Continuer avec e-mail' }).click();
+            await expect(page.getByLabel('Code à 6 chiffres'), 'the code step did not open (wrong DOM — vacuous scan)').toBeVisible();
+
+            // What a screen reader hears, before and after: one paragraph, the
+            // whole sentence, period included — never the drawing's two runs.
+            expect(await page.locator('p', { hasText: CODE_STEP_LEAD }).ariaSnapshot()).toBe(
+              `- paragraph: ${CODE_STEP_LEAD} ${address}.`,
+            );
+
+            const read = await codeStepLines(page, CODE_STEP_LEAD);
+            expect(read, 'the code step’s sentence is not on the page').not.toBeNull();
+            // The vacuity guard for the mode, read at the moment of measuring:
+            // Chromium's autosizer recomputes on DOM changes (WEB-SYSTEM §9).
+            const androidMode = 'isMobile' in mode.use;
+            if (androidMode) expect(read!.font, 'the address is not doubled — the mode did not apply').toBe(32);
+            else expect(read!.font, 'the address is not at its normal size').toBe(16);
+            if (mode.css && !androidMode) expect(read!.root, 'the root is not 32px — the mode did not apply').toBe(32);
+
+            expect(
+              await page.evaluate(() => [window.innerWidth, window.innerHeight]),
+              'the layout viewport grew past the screen — the address is wider than the phone',
+            ).toEqual([PHONE_320.width, PHONE_320.height]);
+            expect(await horizontalOverflow(page), 'the page scrolls sideways').toEqual([]);
+            expect(await overflowingText(page), 'text spills out of its own box').toEqual([]);
+
+            // The sentence ends a line of its own: the address never starts on
+            // a line the sentence has begun (« par e-mail à awa » / « .kone… »).
+            const lines = read!.lines;
+            let i = 0;
+            let lead = '';
+            while (i < lines.length && lead !== CODE_STEP_LEAD) lead = lead ? `${lead} ${lines[i++]}` : lines[i++];
+            expect(lead, `the address shares a line with the sentence: ${JSON.stringify(lines)}`).toBe(CODE_STEP_LEAD);
+            // Then the address, line by line: whole when it fits, else cut only
+            // at its seams — and no period drawn after it.
+            expect(lines.slice(i), 'the address, line by line').toEqual(androidMode ? doubled : [address]);
+          });
+        }
+      }
+    });
+  }
+});
