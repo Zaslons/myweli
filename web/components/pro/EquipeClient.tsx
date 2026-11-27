@@ -35,6 +35,7 @@ import { ChangeRoleDialog } from './ChangeRoleDialog';
 import { InviteMemberDialog } from './InviteMemberDialog';
 import { TeamRoleChip } from './TeamRoleChip';
 import { UNNAMED_OWN_SALON, salonNameOr } from '../../lib/salon-name';
+import { BreakableEmail, EmailSeams } from '../BreakableEmail';
 
 function initials(email: string): string {
   const base = email.split('@')[0] ?? email;
@@ -155,7 +156,8 @@ export function EquipeClient() {
       return;
     }
     upsert(r.member);
-    show(`Invitation renvoyée à ${m.email}.`, 'success');
+    // The row names who; the toast says what happened (web-email-seams.md §5).
+    show('Invitation renvoyée.', 'success');
   }
 
   async function doRevoke() {
@@ -170,7 +172,7 @@ export function EquipeClient() {
       return;
     }
     upsert(r.member);
-    show(`Accès de ${m.email} révoqué.`, 'success');
+    show('Accès révoqué.', 'success');
   }
 
   if (loading) return <SkeletonRows count={4} className="mt-l" />;
@@ -251,7 +253,10 @@ export function EquipeClient() {
       <div className="mt-l">
         <DataTable
           columns={[
-            { label: 'Membre', flex: 3 },
+            // 5 parts, not 3: at 200 % a third of the row was narrower than
+            // « @exemple.ci », so even an address cut at its seams was cut
+            // again inside (web-email-seams.md §3).
+            { label: 'Membre', flex: 5 },
             { label: 'Rôle', flex: 2 },
             { label: 'Employé', flex: 2 },
             { label: 'Statut', flex: 3 },
@@ -274,9 +279,9 @@ export function EquipeClient() {
                       repeats it in an `aria-label` and nowhere on screen. It was
                       being cut from 213px to 108 at every viewport including
                       375, so the roster showed « proprietaire@beaute-div… » and
-                      called it a name. `break-all` because an address has no
-                      spaces to wrap on. */}
-                  <span className="min-w-0 break-all text-textPrimary">{m.email}</span>
+                      called it a name. It wraps, at its seams only
+                      (web-email-seams.md; `break-all` cut it anywhere). */}
+                  <BreakableEmail address={m.email} className="min-w-0 text-textPrimary" />
                 </div>,
                 <TeamRoleChip key="role" role={m.role as TeamRole} />,
                 <span key="artist" className="text-textSecondary">
@@ -366,10 +371,10 @@ export function EquipeClient() {
           artists={artists}
           onArtistCreated={(a) => setArtists((prev) => [...prev, a])}
           onClose={() => setInviteOpen(false)}
-          onInvited={(member, email) => {
+          onInvited={(member) => {
             upsert(member);
             setInviteOpen(false);
-            show(`Invitation envoyée à ${email}.`, 'success');
+            show('Invitation envoyée.', 'success');
           }}
         />
       ) : null}
@@ -398,9 +403,21 @@ export function EquipeClient() {
           // SYSTEM §15: the cancel path is the safe default and gets focus.
           initialFocusRef={revokeCancelRef}
         >
+          {/* §9: a sentence that names an address gives it a line of its
+              own, here its first. A screen reader hears the sentence as it
+              always did, from the hidden copy; the drawing is hidden from it
+              (web-email-seams.md §4). */}
           <p className="mt-m text-bodyMedium text-textSecondary">
-            {revokeTarget.email} perdra immédiatement l’accès à {salonName}.
-            Son compte MyWeli n’est pas supprimé.
+            <span className="sr-only">
+              {`${revokeTarget.email} perdra immédiatement l’accès à ${salonName}. Son compte MyWeli n’est pas supprimé.`}
+            </span>
+            <span aria-hidden="true">
+              <span className="block break-words text-textPrimary">
+                <EmailSeams address={revokeTarget.email} />
+              </span>
+              perdra immédiatement l’accès à {salonName}. Son compte MyWeli
+              n’est pas supprimé.
+            </span>
           </p>
           <div className="mt-l flex justify-end gap-s">
             <Button

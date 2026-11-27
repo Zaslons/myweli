@@ -17,6 +17,7 @@ import { UnreadBadge } from './UnreadBadge';
 import { UNNAMED_SALON, salonNameOr } from '../../lib/salon-name';
 import { STATE_LINE, goLiveState } from '../../lib/pro/salon-validation';
 import type { SalonMembership } from '../../lib/pro/team';
+import { BreakableEmail } from '../BreakableEmail';
 
 /// A « Mes salons » row's state line (docs/design/web-salon-validation.md
 /// §4.3), or null for a server before B0.18 (no `validation` key).
@@ -281,7 +282,9 @@ export function ProSidebar({
           {membership && role && role !== 'owner' ? (
             <div className="mt-l space-y-xs rounded-lg border border-border bg-surface p-s">
               {email ? (
-                <p className="break-all text-bodySmall text-textSecondary">{email}</p>
+                <p className="text-bodySmall text-textSecondary">
+                  <BreakableEmail address={email} />
+                </p>
               ) : null}
               <TeamRoleChip role={role as TeamRole} />
             </div>

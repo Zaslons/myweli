@@ -1759,3 +1759,428 @@ test.describe('the sign-ins’ code step with a long address (web-code-sent-to)'
     });
   }
 });
+
+/// Every other place on the website that draws an e-mail address
+/// (docs/design/web-email-seams.md, §9's rule: an address breaks only before
+/// its « @ » or a « . » of its name part; a sentence that names one gives it a
+/// line of its own).
+///
+/// #898 measured the code step and named four other places; a sweep found
+/// twelve. Measured on #898's head (`a36f06d8`) before a line was written, at
+/// 320×568 in the Android mode: the roster, the sidebar and Profil cut the
+/// address anywhere (`break-all`: « aminat » / « a.kone » / « @exem » / « ple.ci »,
+/// and at 1024 even with normal text, « aminata.kone@exem » / « ple.ci »); the two
+/// dialogs drew it off the screen (to 437 px; a fixed dialog does not grow the
+/// page, so nothing saw it); « Alertes par e-mail » grew the page to 450×799,
+/// `/mon-compte/donnees` to 520×923, `/mentions-legales` to 343 and `/support`
+/// to 352; the team's toast ran off both edges.
+///
+/// **What a screen reader is given is read off Chromium's own tree (CDP), not
+/// Playwright's**: Playwright computes its own names and hides what Chromium
+/// does to a `<wbr>` — a text node per piece, and a space in a link's name
+/// (« support@ myweli.com », today's `Email`).
+const SEAM_ADDRESSES = ['aminata.kone@exemple.ci', 'awa.kone.nouvelle@exemple.ci'];
+/// A name piece wider than a line by itself: no seam can help, so the
+/// `break-words` fallback cuts inside it — and only inside it.
+const WIDE_PIECE = 'ouattaraaminatakone@exemple.ci';
+const SEAM_TEXT = CODE_STEP_TEXT;
+const PRO_DESKTOP = { width: 1024, height: 768 };
+
+/// Where an address may break: before its last « @ », and before each « . »
+/// of its name part (the first of a run of dots). Written here, not imported:
+/// the gate must not take the rule from the code it checks.
+function seamsOf(address: string): number[] {
+  const at = address.lastIndexOf('@');
+  const seams = [at];
+  for (let i = 1; i < at; i++) if (address[i] === '.' && address[i - 1] !== '.') seams.push(i);
+  return seams;
+}
+
+/// The index of every break the drawing made, from its lines.
+function breaksOf(lines: string[]): number[] {
+  const out: number[] = [];
+  let i = 0;
+  for (const line of lines.slice(0, -1)) out.push((i += line.length));
+  return out;
+}
+
+async function inMode(page: Page, css: string | null) {
+  if (!css) return;
+  await page.addInitScript((css) => {
+    const add = () => {
+      const style = document.createElement('style');
+      style.textContent = css;
+      document.head.appendChild(style);
+    };
+    if (document.head) add();
+    else document.addEventListener('DOMContentLoaded', add);
+  }, css);
+}
+
+/// Puts `to` wherever the API's JSON says one of `from`: the stub's accounts
+/// keep their own addresses, the page draws a long one.
+async function serveAddress(page: Page, from: string[], to: string) {
+  await page.route('**/api/**', async (route) => {
+    const r = await route.fetch();
+    if (!(r.headers()['content-type'] ?? '').includes('json')) return route.fulfill({ response: r });
+    let body = await r.text();
+    for (const f of from) body = body.split(f).join(to);
+    await route.fulfill({ response: r, body });
+  });
+}
+
+type DrawnAddress = {
+  lines: string[];
+  font: number;
+  /// The right edge of its drawn text; of the column it is laid out in (the
+  /// content edge of its nearest block, not its own inline box, which grows
+  /// with the text); and of the screen.
+  textRight: number;
+  boxRight: number;
+  /// The box whose content edge `boxRight` is, for the failure message.
+  column: string;
+  screen: number;
+  /// No character outside the address is drawn on one of its lines.
+  ownLine: boolean;
+};
+
+/// Every element under `scope` that DRAWS `address`: its text is the address
+/// alone and it is drawn (not the screen reader's clipped copy, not a closed
+/// drawer). The innermost ones, each read line by line (a line is the
+/// characters that share a top).
+async function drawnAddresses(page: Page, address: string, scope: string): Promise<DrawnAddress[]> {
+  return page.evaluate(
+    ([address, scope]) => {
+      const root = document.querySelector(scope);
+      if (!root) return [];
+      const clipped = (node: Node) => {
+        for (let el = node.parentElement; el; el = el.parentElement) {
+          const s = getComputedStyle(el);
+          if (s.position === 'absolute' && s.clip && s.clip !== 'auto') return true;
+        }
+        return false;
+      };
+      const chars = (host: Element) => {
+        const out: { ch: string; top: number; right: number; node: Node }[] = [];
+        const walker = document.createTreeWalker(host, NodeFilter.SHOW_TEXT);
+        for (let t = walker.nextNode(); t; t = walker.nextNode()) {
+          if (clipped(t)) continue;
+          const s = t.nodeValue ?? '';
+          for (let i = 0; i < s.length; i++) {
+            const r = document.createRange();
+            r.setStart(t, i);
+            r.setEnd(t, i + 1);
+            const rect = [...r.getClientRects()].find((x) => x.width > 0);
+            if (rect && rect.right > 0) out.push({ ch: s[i], top: Math.round(rect.top), right: rect.right, node: t });
+          }
+        }
+        return out;
+      };
+      const all = [...root.querySelectorAll('*')].filter(
+        (el) => el.textContent === address && chars(el).length === address.length,
+      );
+      const inner = all.filter((el) => !all.some((o) => o !== el && el.contains(o)));
+      return inner.map((el) => {
+        const own = chars(el);
+        const rows = new Map<number, string>();
+        for (const c of own) rows.set(c.top, (rows.get(c.top) ?? '') + c.ch);
+        const tops = new Set(own.map((c) => c.top));
+        const block = el.closest('p, li, dd, td, [role="cell"], div') ?? el;
+        const others = chars(block.closest('[aria-hidden="true"]')?.parentElement ?? block).filter(
+          (c) => !el.contains(c.node) && c.ch.trim() !== '',
+        );
+        return {
+          lines: [...rows.entries()].sort((a, b) => a[0] - b[0]).map(([, x]) => x),
+          font: Math.max(...[...el.querySelectorAll('*'), el].map((e) => parseFloat(getComputedStyle(e).fontSize))),
+          textRight: Math.round(Math.max(...own.map((c) => c.right))),
+          // The tightest content edge among the boxes it is laid out in, up
+          // to the first that scrolls or clips sideways (the roster's table
+          // scroller): a flex item that cannot shrink below its text
+          // overflows its row by the text's excess, so its own box would
+          // hide the spill (the data row without `min-w-0`, by 1 px).
+          ...(() => {
+            let edge = Infinity;
+            let column = '';
+            for (let a: Element | null = el; a && a !== document.body; a = a.parentElement) {
+              const s = getComputedStyle(a);
+              const r = a.getBoundingClientRect();
+              // An inline box grows with its text, and a `contents` or empty
+              // box lays nothing out: neither is a column.
+              if (s.display !== 'inline' && s.display !== 'contents' && r.width > 0) {
+                const right = r.right - parseFloat(s.paddingRight) - parseFloat(s.borderRightWidth);
+                if (right < edge) {
+                  edge = right;
+                  column = `<${a.tagName.toLowerCase()} class="${(a.getAttribute('class') ?? '').slice(0, 60)}">`;
+                }
+              }
+              if (s.overflowX !== 'visible') break;
+            }
+            return { boxRight: Math.round(edge), column };
+          })(),
+          screen: window.screen.width,
+          ownLine: !others.some((c) => [...tops].some((t) => Math.abs(t - c.top) <= 1)),
+        };
+      });
+    },
+    [address, scope] as const,
+  );
+}
+
+/// What Chromium gives a screen reader: every node of its accessibility tree
+/// that is not ignored, with its role and name.
+async function heardByChromium(page: Page) {
+  const cdp = await page.context().newCDPSession(page);
+  const { nodes } = (await cdp.send('Accessibility.getFullAXTree')) as {
+    nodes: { ignored: boolean; role?: { value: string }; name?: { value: unknown } }[];
+  };
+  await cdp.detach();
+  return nodes
+    .filter((n) => !n.ignored)
+    .map((n) => ({ role: n.role?.value ?? '', name: String(n.name?.value ?? '') }));
+}
+
+/// The address reaches a screen reader whole: never as its pieces (a text node
+/// per `<wbr>`), and a link that draws it is named exactly it.
+async function expectHeardWhole(page: Page, address: string, links = 0) {
+  const heard = await heardByChromium(page);
+  const cuts = seamsOf(address).sort((a, b) => a - b);
+  const pieces = [0, ...cuts].map((from, i) => address.slice(from, [...cuts, address.length][i])).filter(Boolean);
+  expect(
+    heard.filter((n) => n.role === 'StaticText' && pieces.includes(n.name.trim())).map((n) => n.name),
+    'a screen reader is given the address in pieces',
+  ).toEqual([]);
+  expect(heard.some((n) => n.name.includes(address)), 'a screen reader is not given the address').toBe(true);
+  if (links) {
+    const named = heard.filter((n) => n.role === 'link' && n.name.replace(/\s+/g, '').includes(address));
+    expect(named.map((n) => n.name), 'the link is not named exactly the address').toEqual(Array(links).fill(address));
+  }
+}
+
+/// Drawn at its seams only, inside its box and the screen; broken at least
+/// once when `broken` (the vacuity guard: a check of breaks that never break
+/// proves nothing); on a line of its own in a sentence.
+function expectDrawnAtItsSeams(
+  d: DrawnAddress,
+  address: string,
+  opts: { font: number; broken: boolean; sentence?: boolean },
+) {
+  expect(d.font, 'the address is not at the size this mode draws it — the mode did not apply').toBe(opts.font);
+  expect(d.lines.join(''), 'the address’s lines do not spell it').toBe(address);
+  const seams = seamsOf(address);
+  const at = address.lastIndexOf('@');
+  const outside = breaksOf(d.lines).filter((i) => !seams.includes(i));
+  if (address === WIDE_PIECE) {
+    // Only the name piece that is wider than a line may be cut inside.
+    expect(outside.filter((i) => i > at), `cut inside its domain: ${JSON.stringify(d.lines)}`).toEqual([]);
+  } else {
+    expect(outside, `broken outside its seams: ${JSON.stringify(d.lines)}`).toEqual([]);
+  }
+  if (opts.broken) expect(d.lines.length, 'the address never broke here (vacuous)').toBeGreaterThan(1);
+  expect(d.textRight, `the address spills its column: ${JSON.stringify(d)}`).toBeLessThanOrEqual(d.boxRight + 1);
+  expect(d.textRight, `the address runs off the screen: ${JSON.stringify(d)}`).toBeLessThanOrEqual(d.screen + 1);
+  if (opts.sentence) expect(d.ownLine, `the address shares a line with its sentence: ${JSON.stringify(d.lines)}`).toBe(true);
+}
+
+async function expectScreenSize(page: Page, vp: { width: number; height: number }) {
+  expect(
+    await page.evaluate(() => [window.innerWidth, window.innerHeight]),
+    'the layout viewport grew past the screen — something is wider than the phone',
+  ).toEqual([vp.width, vp.height]);
+  expect(await horizontalOverflow(page), 'the page scrolls sideways').toEqual([]);
+}
+
+const longMember = (email: string) => ({
+  id: 'm-long',
+  providerId: 'p1',
+  accountId: null,
+  email,
+  role: 'staff',
+  artistId: null,
+  artistName: null,
+  status: 'invited',
+  invitedAt: '2026-11-20T00:00:00.000Z',
+  acceptedAt: null,
+  revokedAt: null,
+  expiresAt: '2026-12-20T00:00:00.000Z',
+  expired: false,
+  resendsLeft: 3,
+});
+
+test.describe('every other place that draws an address (web-email-seams)', () => {
+  for (const mode of SEAM_TEXT) {
+    const android = 'isMobile' in mode.use;
+    /// The drawn size of a token in this mode: doubled by Android's setting,
+    /// untouched by a 32px root (the type tokens are px, §9).
+    const size = (px: number) => (android ? 2 * px : px);
+
+    test.describe(mode.name, () => {
+      for (const vp of [PHONE_320, PRO_DESKTOP]) {
+        test.describe(`${vp.width}`, () => {
+          test.use({ viewport: vp, ...mode.use });
+          const addresses = vp === PHONE_320 ? [...SEAM_ADDRESSES, WIDE_PIECE] : SEAM_ADDRESSES;
+
+          for (const address of addresses) {
+            test(`${mode.name} at ${vp.width} — Équipe: « ${address} » in the roster, both dialogs and the toast`, async ({ page }) => {
+              await inMode(page, mode.css);
+              await page.route('**/api/pro/members', async (route) => {
+                if (route.request().method() !== 'GET') return route.fallback();
+                const r = await route.fetch();
+                const json = await r.json();
+                json.items.push(longMember(address));
+                await route.fulfill({ response: r, json });
+              });
+              await page.route('**/api/pro/members/m-long/resend', (route) =>
+                route.fulfill({ status: 200, json: longMember(address) }),
+              );
+              await signInPro(page);
+              await page.goto('/pro/equipe');
+              const dots = page.getByRole('button', { name: `Actions pour ${address}` });
+              await expect(dots, 'the long member is not in the roster (wrong DOM — vacuous scan)').toBeVisible();
+
+              const roster = await drawnAddresses(page, address, '[role="table"]');
+              expect(roster.length, 'the roster draws the address once').toBe(1);
+              expectDrawnAtItsSeams(roster[0], address, { font: size(14), broken: android });
+              await expectHeardWhole(page, address);
+              await expectScreenSize(page, vp);
+
+              if (vp === PHONE_320) {
+                await dots.click();
+                await page.getByRole('button', { name: 'Changer le rôle' }).click();
+                const roleDialog = await drawnAddresses(page, address, '[role="dialog"]');
+                expect(roleDialog.length, '« Changer le rôle » draws the address once').toBe(1);
+                expectDrawnAtItsSeams(roleDialog[0], address, { font: size(14), broken: android });
+                await page.keyboard.press('Escape');
+                await expect(page.getByRole('dialog')).toBeHidden();
+
+                await dots.click();
+                await page.getByRole('button', { name: 'Révoquer l’accès' }).click();
+                const revoke = await drawnAddresses(page, address, '[role="dialog"]');
+                expect(revoke.length, '« Révoquer l’accès » draws the address once').toBe(1);
+                expectDrawnAtItsSeams(revoke[0], address, { font: size(14), broken: android, sentence: true });
+                // Rename-tolerant: pro.spec's profil journey renames the shared
+                // stub salon to « Beauté Divine Web », in whatever order the
+                // workers run.
+                expect(
+                  await page.getByRole('dialog').locator('p').first().ariaSnapshot(),
+                  'what a screen reader hears of the sentence',
+                ).toMatch(
+                  new RegExp(
+                    `^- paragraph: ${address.replace(/\./g, '\\.')} perdra immédiatement l’accès à Beauté Divine( Web)?\\. Son compte MyWeli n’est pas supprimé\\.$`,
+                  ),
+                );
+                await expectHeardWhole(page, address);
+                await page.keyboard.press('Escape');
+                await expect(page.getByRole('dialog')).toBeHidden();
+
+                await dots.click();
+                await page.getByRole('button', { name: /Renvoyer l’invitation/ }).click();
+                const toast = page.getByRole('status').filter({ hasText: 'Invitation renvoyée' });
+                await expect(toast).toHaveText('Invitation renvoyée.');
+                const pill = await toast.locator('div').first().boundingBox();
+                expect(pill!.x, 'the toast runs off the left edge').toBeGreaterThanOrEqual(0);
+                expect(pill!.x + pill!.width, 'the toast runs off the right edge').toBeLessThanOrEqual(vp.width);
+              }
+            });
+
+            test(`${mode.name} at ${vp.width} — a member’s own address: « ${address} » in the sidebar and Profil`, async ({ page }) => {
+              await inMode(page, mode.css);
+              await serveAddress(page, ['fatou.reception@equipe.test'], address);
+              await signInPro(page, 'fatou.reception@equipe.test');
+              await page.goto('/pro/profil');
+              await expect(page.getByRole('heading', { level: 1, name: 'Profil' })).toBeVisible();
+
+              const profil = await drawnAddresses(page, address, 'main');
+              expect(profil.length, 'Profil draws the address once').toBe(1);
+              // Profil's column is wide at 1024: there the address fits whole.
+              expectDrawnAtItsSeams(profil[0], address, { font: size(14), broken: android && vp === PHONE_320 });
+              await expectScreenSize(page, vp);
+
+              if (vp === PHONE_320) {
+                // The drawer slides in; without the motion it is where it stops.
+                await page.emulateMedia({ reducedMotion: 'reduce' });
+                await page.getByRole('button', { name: 'Ouvrir le menu' }).click();
+                await expect
+                  .poll(() => page.locator('aside').evaluate((el) => el.getBoundingClientRect().left))
+                  .toBe(0);
+              }
+              const sidebar = await drawnAddresses(page, address, 'aside');
+              expect(sidebar.length, 'the sidebar draws the address once').toBe(1);
+              expectDrawnAtItsSeams(sidebar[0], address, { font: size(12), broken: android });
+              await expectHeardWhole(page, address);
+            });
+          }
+        });
+      }
+
+      test.describe('320', () => {
+        test.use({ viewport: PHONE_320, ...mode.use });
+
+        // The wide piece here too: with the two others every piece fits these
+        // columns, so the fallback and the `min-w-0` that lets it narrow a
+        // flex item went untested (two mutations survived, web-email-seams.md §6).
+        for (const address of [...SEAM_ADDRESSES, WIDE_PIECE]) {
+          test(`${mode.name} at 320 — « Alertes par e-mail »: « ${address} » ends the sentence on a line of its own`, async ({ page }) => {
+            await inMode(page, mode.css);
+            await serveAddress(page, ['salon@example.com'], address);
+            await signInPro(page);
+            await page.goto('/pro/notifications');
+            await expect(page.getByRole('switch', { name: 'Alertes par e-mail' })).toBeVisible();
+
+            const drawn = await drawnAddresses(page, address, 'main');
+            expect(drawn.length, '« Alertes par e-mail » draws the address once').toBe(1);
+            expectDrawnAtItsSeams(drawn[0], address, { font: size(12), broken: android, sentence: true });
+            expect(
+              await page.locator('p', { hasText: 'nous vous écrivons à' }).first().ariaSnapshot(),
+              'what a screen reader hears of the sentence',
+            ).toBe(
+              `- paragraph: Si une notification de l’app MyWeli Pro ne peut pas vous parvenir (nouvelle demande, report, annulation, justificatif d’acompte), nous vous écrivons à ${address}.`,
+            );
+            await expectHeardWhole(page, address);
+            await expectScreenSize(page, PHONE_320);
+          });
+
+          test(`${mode.name} at 320 — the client’s account: « ${address} » on /mon-compte and /mon-compte/donnees`, async ({ page }) => {
+            await inMode(page, mode.css);
+            await serveAddress(page, ['awa@example.com', 'client@example.com'], address);
+            await signInConsumer(page);
+            await expect(page.getByRole('heading', { level: 2, name: 'Mes rendez-vous' })).toBeVisible();
+
+            const account = await drawnAddresses(page, address, 'main');
+            expect(account.length, '/mon-compte draws the address once').toBe(1);
+            expectDrawnAtItsSeams(account[0], address, { font: size(14), broken: android });
+            await expectHeardWhole(page, address);
+            // No screen-size check here: in the Android mode the page is
+            // already 466 wide with ANY address — « Exporter mes données » is
+            // `shrink-0` (web-email-seams.md §7, a follow-up). The address's
+            // own edge is held above, against the screen.
+
+            await page.goto('/mon-compte/donnees');
+            await expect(page.getByRole('heading', { level: 1, name: 'Mes données' })).toBeVisible();
+            const data = await drawnAddresses(page, address, 'main');
+            expect(data.length, '/mon-compte/donnees draws the address once').toBe(1);
+            expectDrawnAtItsSeams(data[0], address, { font: size(14), broken: android });
+            await expectHeardWhole(page, address);
+            await expectScreenSize(page, PHONE_320);
+          });
+        }
+
+        test(`${mode.name} at 320 — the support address on /pro/suppression-compte, /mentions-legales and /support`, async ({ page }) => {
+          await inMode(page, mode.css);
+          for (const [path, count] of [
+            ['/pro/suppression-compte', 3],
+            ['/mentions-legales', 1],
+            ['/support', 1],
+          ] as const) {
+            await page.goto(path);
+            await expect(page.getByRole('heading', { level: 1 }), `${path} did not render (wrong DOM — vacuous scan)`).toBeVisible();
+            const drawn = await drawnAddresses(page, 'support@myweli.com', 'main');
+            expect(drawn.length, `${path} draws the address ${count} time(s)`).toBe(count);
+            for (const d of drawn) expectDrawnAtItsSeams(d, 'support@myweli.com', { font: size(16), broken: android });
+            await expectHeardWhole(page, 'support@myweli.com', count);
+            await expectScreenSize(page, PHONE_320);
+          }
+        });
+      });
+    });
+  }
+});

@@ -11,6 +11,7 @@ import { breadcrumbJsonLd, siteUrl, webPageJsonLd } from '../../lib/seo/jsonld';
 import { SUPPORT, supportMailto } from '../../lib/support';
 import { ButtonLink } from '../ButtonLink';
 import { JsonLd } from '../JsonLd';
+import { EmailLink } from '../BreakableEmail';
 
 /// The shell every legal document renders through (L1), and **the only file in
 /// this feature that contains a `className`**.
@@ -244,17 +245,18 @@ export function Cta({ href, children }: { href: string; children: ReactNode }) {
   );
 }
 
-/// The support address, printed. Its text breaks after « @ » (`<wbr>`): at
-/// doubled text « support@myweli.com » is one unbreakable word wider than a
-/// 320px column, which is what widens `/mentions-legales` to 343px (WEB-SYSTEM
-/// §15 row 38). `supportMailto()` with no subject, as `/mentions-legales`
-/// calls it. The shared `A` is left alone: it renders on the frozen five.
+/// The support address, printed: it breaks only at its seams, before its
+/// « @ » (« support » / « @myweli.com »): at doubled text it is one word wider
+/// than a 320px column, which widened `/mentions-legales` to 343px (WEB-SYSTEM
+/// §15 row 38). In the prose it keeps its place: short, fixed, whole at normal
+/// text (web-email-seams.md §4). Named by its `aria-label` (`EmailLink`).
+/// `supportMailto()` with no subject.
 export function Email() {
-  const [user, domain] = SUPPORT.email.split('@');
   return (
-    <a href={supportMailto()} className="underline hover:text-textPrimary">
-      {user}@<wbr />
-      {domain}
-    </a>
+    <EmailLink
+      address={SUPPORT.email}
+      href={supportMailto()}
+      className="underline hover:text-textPrimary"
+    />
   );
 }
