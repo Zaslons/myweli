@@ -492,6 +492,22 @@ void main() {
     );
     expect(find.text('Réessayer'), findsNothing);
     expect(find.text('Chargement impossible'), findsNothing);
+    expect(
+      find.byTooltip('Période précédente'),
+      findsNothing,
+      reason: 'no period to choose when nothing can be shown',
+    );
+  });
+
+  testWidgets('the first load: the period titled at once, from the salon’s '
+      'today, before the server answers', (tester) async {
+    final auth = await signInPro(tester);
+    final service = FakeRevenueService()..hold = Completer<void>();
+    await pumpRevenue(tester, auth: auth, service: service);
+    expect(service.asked.single.date, isNull, reason: 'the server’s today');
+    expect(find.text('Novembre 2026'), findsOneWidget);
+    service.hold!.complete();
+    await settleMocks(tester);
   });
 
   testWidgets('a failure: « Chargement impossible », « Réessayer » asks the '

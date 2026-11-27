@@ -297,16 +297,23 @@ class _RevenueAnalyticsPageState extends State<RevenueAnalyticsPage> {
             ),
             const SizedBox(height: AppTheme.spacingM),
           ],
-          _PeriodBar(
-            query: query,
-            analytics: a,
-            lastToday: _lastToday,
-            onPeriod: (p) => _reload(switchRevenuePeriod(a, query, p)),
-            onCustom: () => _chooseRange(query, a),
-            onStep: _reload,
-            onCompare: () => _chooseCompare(query),
-          ),
-          const SizedBox(height: AppTheme.spacingM),
+          // A refusal has no period to choose: nothing on the bar could
+          // succeed (§4.11 « Access refused »).
+          if (view?.refused != true) ...[
+            _PeriodBar(
+              query: query,
+              analytics: a,
+              // Before the first answer, the salon's today by the phone's
+              // clock — for the title only, which the answer replaces; the
+              // query itself still asks the server's today (§3.5).
+              lastToday: _lastToday ?? salonToday(tz: auth.salonTimezone),
+              onPeriod: (p) => _reload(switchRevenuePeriod(a, query, p)),
+              onCustom: () => _chooseRange(query, a),
+              onStep: _reload,
+              onCompare: () => _chooseCompare(query),
+            ),
+            const SizedBox(height: AppTheme.spacingM),
+          ],
           ..._content(context, auth, provider, view, query),
         ],
       ),
@@ -854,7 +861,7 @@ class _PeriodBar extends StatelessWidget {
                     headingLevel: 2,
                     liveRegion: true,
                     child: Text(
-                      title ?? '…',
+                      title ?? '',
                       textAlign: TextAlign.center,
                       style: AppTextStyles.titleMedium.copyWith(
                         color: AppColors.textPrimary,

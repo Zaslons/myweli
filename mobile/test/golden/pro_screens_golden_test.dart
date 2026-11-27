@@ -465,7 +465,9 @@ void main() {
       await revenue(
         tester,
         'pro_revenus_registre',
-        screen: const RevenueLedgerScreen(routeQuery: {'period': 'month'}),
+        screen: const RevenueLedgerScreen(
+          routeQuery: {'period': 'month', 'date': '2026-11-01'},
+        ),
         size: const Size(390, 844),
       );
     });
