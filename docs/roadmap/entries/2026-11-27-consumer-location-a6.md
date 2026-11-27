@@ -28,7 +28,11 @@
     - 3 notés comme limites connues, dont une fenêtre fermée par « Retour » que le greffon lit comme un refus définitif ;
     - les images n’étaient pas encore dans le commit relu : elles l’ont été ensuite.
   - **Trouvé en construisant :** sur les images, à 360 dp et 200 %, « Ouvrir les réglages » se coupait sous un « Fermer » aligné à droite : ses lignes finissent maintenant au même bord ; deux mutations restées vertes ont donné deux tests de plus (la carte lit en précision « moyenne », un retour qui n’en est pas un), et une troisième a montré qu’un test sur un téléphone haut ne pouvait pas échouer.
-  - **Tests :** RESULTS.
+  - **Tests :**
+    - la suite complète de l’app, sur l’arbre fusionné avec `main` : 4 582 réussis et 103 sautés (les images, faites sur Linux) ; `flutter analyze` à 0 ;
+    - 39 mutations, chacune vue rouge sur le code commité ;
+    - le vérificateur de l’APK sur les lignes réelles des APK d’avant et d’après, et l’épingle des manifestes ;
+    - les images de la carte faites par `goldens.yml` (dernier passage 45984126615), chaque image changée ouverte ; les 87 autres identiques à l’octet.
   - **Reste :**
     - la fusion, sur le mot du propriétaire ;
     - les essais sur téléphone (§8.4), avec le premier build client et le prochain build Pro : non faits ;
