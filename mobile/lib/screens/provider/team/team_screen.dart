@@ -239,20 +239,17 @@ class _MemberRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final initial = member.email.isEmpty ? '?' : member.email[0].toUpperCase();
     return AppCard(
       padding: EdgeInsets.zero,
       child: ListTile(
         onTap: onTap,
-        leading: CircleAvatar(
-          backgroundColor: AppColors.surfaceVariant,
-          child: Text(initial, style: AppTextStyles.titleMedium),
-        ),
         // The address is the row's name, and it is drawn whole, breaking only
         // at its seams (SYSTEM.md §13.3). Beside the chip it was cut at every
         // size — « aminata.kone… » at 1×, « a… » at 200 % on 360 dp — so the
-        // chip moved under it (docs/design/app-team-email-seams.md §4). The
-        // marks are drawn, never heard.
+        // chip moved under it; and the initial avatar is gone, because a
+        // domain is one piece and the 192 dp it left at 200 % could not hold
+        // « @hotmail.com » (docs/design/app-team-email-seams.md §3, §5.3).
+        // The marks are drawn, never heard.
         title: Text(
           Formatters.breakableEmail(member.email),
           semanticsLabel: member.email,
