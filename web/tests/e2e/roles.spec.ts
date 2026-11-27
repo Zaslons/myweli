@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { type Page, expect, test } from '@playwright/test';
+import { drawnEmail } from './_email';
 
 /// Team access R5b — the role-shaped web (docs/design/web-team-access-r5.md
 /// §2.4). Hermetic: member logins get role tokens from the stub; the owner
@@ -30,7 +31,7 @@ test('manager: filtered sidebar, identity block, counts sans revenus', async ({
   await expect(page.getByRole('link', { name: 'Abonnement' })).toHaveCount(0);
 
   // The member identity block: who, as what, where.
-  await expect(page.getByText('awa.manager@equipe.test')).toBeVisible();
+  await expect(drawnEmail(page, 'awa.manager@equipe.test')).toBeVisible();
   await expect(page.getByText('Manager', { exact: true })).toBeVisible();
 
   // Dashboard: counts yes, the money row NEVER (field-gated server-side).
@@ -213,7 +214,7 @@ test('a re-invited former member joins from « Invitations » and lands on '
     page.getByText(/^Vous avez rejoint Beauté Divine( Web)?$/),
   ).toBeVisible();
   // The identity block: the member's own address, in the joined salon.
-  await expect(page.getByText('ancien.rejoint@equipe.test')).toBeVisible();
+  await expect(drawnEmail(page, 'ancien.rejoint@equipe.test')).toBeVisible();
 });
 
 test('a re-invited former member who declines is signed out onto the banner', async ({
