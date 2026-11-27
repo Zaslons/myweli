@@ -3368,6 +3368,10 @@ export interface paths {
          * A salon's reviews, newest first (B-reviews, public)
          * @description Public, paginated. `pageSize` is clamped (default 20, max 50). The provider's `GET /providers/{id}` also embeds the latest 10 — both are `active`-only (Decision C).
          *
+         *     **Order:** newest first, then by id (A5-api), so a page boundary never falls between two reviews of the same instant and paging by offset never shows one twice. The embedded ten are the same order: page 1 at `pageSize=10`.
+         *
+         *     **`summary` (A5-api, docs/design/salon-team-and-reviews.md §3)** rides every page: the WHOLE salon's average, count and 5 → 1 split over its visible reviews, the same as `GET /me/provider/reviews` sends. A client draws its « Avis » card from it, never from the page it holds.
+         *
          *     **Behaviour change (PR1d):** an UNKNOWN id now 404s as well. It used to return `200 {items: [], total: 0}`, and closing only the hidden case would have made 404 mean « exists but hidden » — exactly the enumeration oracle T51 forbids, on a route that takes the salon id in its path.
          *
          *     The salon's OWN « Avis » is `GET /me/provider/reviews`, which is membership-scoped and deliberately unfiltered: a `draft` salon can hold reviews (T53 erasure, T54 billing unpublish).
@@ -3397,6 +3401,7 @@ export interface paths {
                             page: number;
                             pageSize: number;
                             total: number;
+                            summary: components["schemas"]["ReviewSummary"];
                         };
                     };
                 };
@@ -8127,7 +8132,7 @@ export interface components {
             /** @description Optional in-app deep link (e.g. /bookings). */
             route?: string | null;
         };
-        /** @description The « Avis » card for the WHOLE salon, sent with every page of `/me/provider/reviews`: the average to one decimal (the salon's public `rating`), the count, and how many reviews give each star — all over the visible reviews (hidden ones count nowhere). Design: docs/design/salon-reviews-summary.md. */
+        /** @description The « Avis » card for the WHOLE salon, sent with every page of `/me/provider/reviews` and, since A5-api, of the public `/providers/{id}/reviews`: the average to one decimal (the salon's public `rating`), the count, and how many reviews give each star — all over the visible reviews (hidden ones count nowhere). Design: docs/design/salon-reviews-summary.md, docs/design/salon-team-and-reviews.md §3. */
         ReviewSummary: {
             /** @description 0 when there is no review. */
             average: number;

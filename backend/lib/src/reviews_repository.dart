@@ -117,15 +117,24 @@ class InMemoryReviewsRepository implements ReviewsRepository {
       (r['moderationStatus'] ?? 'visible') != 'hidden';
 
   /// Provider's **visible** reviews, newest first (public reads hide moderated).
+  ///
+  /// **Then by id, descending** — the Postgres twin's `ORDER BY created_at
+  /// DESC, id DESC` (A5-api, docs/design/salon-team-and-reviews.md §3). With
+  /// the date alone, two reviews written in the same instant had no order, so
+  /// a page boundary could fall either side of them and a client reading page
+  /// after page would see one twice and miss the other.
   List<Map<String, dynamic>> _forProvider(String providerId) {
     final list =
         _reviews
             .where((r) => r['providerId'] == providerId && _visible(r))
             .toList()
-          ..sort(
-            (a, b) =>
-                (b['createdAt'] as String).compareTo(a['createdAt'] as String),
-          );
+          ..sort((a, b) {
+            final byDate = (b['createdAt'] as String).compareTo(
+              a['createdAt'] as String,
+            );
+            if (byDate != 0) return byDate;
+            return (b['id'] as String).compareTo(a['id'] as String);
+          });
     return list;
   }
 

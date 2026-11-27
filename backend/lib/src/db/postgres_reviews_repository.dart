@@ -57,7 +57,10 @@ ON CONFLICT (appointment_id) DO UPDATE SET
       Sql.named(
         "SELECT * FROM reviews WHERE provider_id = @pid "
         "AND moderation_status <> 'hidden' "
-        "ORDER BY created_at DESC LIMIT @lim OFFSET @off",
+        // Ends on the id (A5-api): equal dates had no order, so OFFSET could
+        // put a review on two pages and skip another. `recentForProvider` below
+        // is the same order, so the salon read's embedded ten are page 1 of 10.
+        "ORDER BY created_at DESC, id DESC LIMIT @lim OFFSET @off",
       ),
       parameters: {
         'pid': providerId,
@@ -87,7 +90,7 @@ ON CONFLICT (appointment_id) DO UPDATE SET
       Sql.named(
         "SELECT * FROM reviews WHERE provider_id = @pid "
         "AND moderation_status <> 'hidden' "
-        "ORDER BY created_at DESC LIMIT @lim",
+        "ORDER BY created_at DESC, id DESC LIMIT @lim",
       ),
       parameters: {'pid': providerId, 'lim': limit},
     );
