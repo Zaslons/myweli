@@ -1,0 +1,295 @@
+{
+  "period": "custom",
+  "from": "2026-10-01",
+  "to": "2026-11-27",
+  "inProgress": true,
+  "timezone": "Africa/Abidjan",
+  "asOf": "2026-11-27T09:05:54.023393Z",
+  "bucket": "week",
+  "comparison": {
+    "mode": "previous",
+    "from": "2026-08-04",
+    "to": "2026-09-30",
+    "likeForLike": true,
+    "cutoff": "2026-09-30T09:05:54.023393Z"
+  },
+  "filters": {
+    "artistId": null,
+    "serviceId": null,
+    "channel": null,
+    "label": null,
+    "state": null
+  },
+  "everCompleted": true,
+  "groups": [
+    {
+      "currency": "XOF",
+      "current": {
+        "completedAmount": 130000.0,
+        "completedCount": 12,
+        "averageTicket": 10833.0,
+        "upcomingAmount": 0.0,
+        "upcomingCount": 0,
+        "pendingAmount": 0.0,
+        "pendingCount": 0,
+        "toCloseAmount": 10000.0,
+        "toCloseCount": 1,
+        "noShowAmount": 10000.0,
+        "noShowCount": 1,
+        "noShowRate": 0.07692307692307693,
+        "cancelledAmount": 0.0,
+        "cancelledCount": 0,
+        "estimated": false
+      },
+      "previous": {
+        "completedAmount": 0.0,
+        "completedCount": 0,
+        "averageTicket": null,
+        "upcomingAmount": 0.0,
+        "upcomingCount": 0,
+        "pendingAmount": 0.0,
+        "pendingCount": 0,
+        "toCloseAmount": 0.0,
+        "toCloseCount": 0,
+        "noShowAmount": 0.0,
+        "noShowCount": 0,
+        "noShowRate": null,
+        "cancelledAmount": 0.0,
+        "cancelledCount": 0,
+        "estimated": false
+      },
+      "series": [
+        {
+          "start": "2026-10-01",
+          "end": "2026-10-04",
+          "completedAmount": 0.0,
+          "completedCount": 0
+        },
+        {
+          "start": "2026-10-05",
+          "end": "2026-10-11",
+          "completedAmount": 20000.0,
+          "completedCount": 2
+        },
+        {
+          "start": "2026-10-12",
+          "end": "2026-10-18",
+          "completedAmount": 10000.0,
+          "completedCount": 1
+        },
+        {
+          "start": "2026-10-19",
+          "end": "2026-10-25",
+          "completedAmount": 20000.0,
+          "completedCount": 1
+        },
+        {
+          "start": "2026-10-26",
+          "end": "2026-11-01",
+          "completedAmount": 20000.0,
+          "completedCount": 2
+        },
+        {
+          "start": "2026-11-02",
+          "end": "2026-11-08",
+          "completedAmount": 10000.0,
+          "completedCount": 1
+        },
+        {
+          "start": "2026-11-09",
+          "end": "2026-11-15",
+          "completedAmount": 20000.0,
+          "completedCount": 2
+        },
+        {
+          "start": "2026-11-16",
+          "end": "2026-11-22",
+          "completedAmount": 20000.0,
+          "completedCount": 2
+        },
+        {
+          "start": "2026-11-23",
+          "end": "2026-11-27",
+          "completedAmount": 10000.0,
+          "completedCount": 1
+        }
+      ],
+      "byArtist": [
+        {
+          "key": null,
+          "label": null,
+          "state": "unassigned",
+          "share": 0.3077,
+          "current": {
+            "completedAmount": 40000.0,
+            "completedCount": 3,
+            "averageTicket": 13333.0
+          },
+          "previous": {
+            "completedAmount": 0.0,
+            "completedCount": 0,
+            "averageTicket": null
+          },
+          "estimated": false
+        },
+        {
+          "key": "artist_adjoua",
+          "label": "Adjoua K.",
+          "state": "active",
+          "share": 0.2308,
+          "current": {
+            "completedAmount": 30000.0,
+            "completedCount": 3,
+            "averageTicket": 10000.0
+          },
+          "previous": {
+            "completedAmount": 0.0,
+            "completedCount": 0,
+            "averageTicket": null
+          },
+          "estimated": false
+        },
+        {
+          "key": "artist_koffi",
+          "label": "Koffi A.",
+          "state": "active",
+          "share": 0.2308,
+          "current": {
+            "completedAmount": 30000.0,
+            "completedCount": 3,
+            "averageTicket": 10000.0
+          },
+          "previous": {
+            "completedAmount": 0.0,
+            "completedCount": 0,
+            "averageTicket": null
+          },
+          "estimated": false
+        },
+        {
+          "key": "artist_salimata",
+          "label": "Salimata O.",
+          "state": "active",
+          "share": 0.2307,
+          "current": {
+            "completedAmount": 30000.0,
+            "completedCount": 3,
+            "averageTicket": 10000.0
+          },
+          "previous": {
+            "completedAmount": 0.0,
+            "completedCount": 0,
+            "averageTicket": null
+          },
+          "estimated": false
+        }
+      ],
+      "byService": [
+        {
+          "key": "svc-Tresses",
+          "label": "Tresses",
+          "state": "active",
+          "share": 0.3077,
+          "current": {
+            "completedAmount": 40000.0,
+            "completedCount": 4,
+            "averageTicket": 10000.0
+          },
+          "previous": {
+            "completedAmount": 0.0,
+            "completedCount": 0,
+            "averageTicket": null
+          },
+          "estimated": false
+        },
+        {
+          "key": "svc-Coupe",
+          "label": "Coupe",
+          "state": "active",
+          "share": 0.2308,
+          "current": {
+            "completedAmount": 30000.0,
+            "completedCount": 3,
+            "averageTicket": 10000.0
+          },
+          "previous": {
+            "completedAmount": 0.0,
+            "completedCount": 0,
+            "averageTicket": null
+          },
+          "estimated": false
+        },
+        {
+          "key": "svc-Brushing",
+          "label": "Brushing",
+          "state": "active",
+          "share": 0.1539,
+          "current": {
+            "completedAmount": 20000.0,
+            "completedCount": 2,
+            "averageTicket": 10000.0
+          },
+          "previous": {
+            "completedAmount": 0.0,
+            "completedCount": 0,
+            "averageTicket": null
+          },
+          "estimated": false
+        },
+        {
+          "key": "svc-Manucure",
+          "label": "Manucure",
+          "state": "active",
+          "share": 0.1538,
+          "current": {
+            "completedAmount": 20000.0,
+            "completedCount": 2,
+            "averageTicket": 10000.0
+          },
+          "previous": {
+            "completedAmount": 0.0,
+            "completedCount": 0,
+            "averageTicket": null
+          },
+          "estimated": false
+        },
+        {
+          "key": "svc-Soin visage",
+          "label": "Soin visage",
+          "state": "active",
+          "share": 0.1538,
+          "current": {
+            "completedAmount": 20000.0,
+            "completedCount": 2,
+            "averageTicket": 10000.0
+          },
+          "previous": {
+            "completedAmount": 0.0,
+            "completedCount": 0,
+            "averageTicket": null
+          },
+          "estimated": false
+        }
+      ],
+      "byChannel": [
+        {
+          "key": "salon",
+          "label": null,
+          "state": "active",
+          "share": 1.0,
+          "current": {
+            "completedAmount": 130000.0,
+            "completedCount": 12,
+            "averageTicket": 10833.0
+          },
+          "previous": {
+            "completedAmount": 0.0,
+            "completedCount": 0,
+            "averageTicket": null
+          },
+          "estimated": false
+        }
+      ]
+    }
+  ]
+}

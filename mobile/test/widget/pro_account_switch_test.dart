@@ -22,11 +22,11 @@ import 'package:myweli/providers/pro_before_after_provider.dart';
 import 'package:myweli/providers/pro_clients_provider.dart';
 import 'package:myweli/providers/pro_dashboard_provider.dart';
 import 'package:myweli/providers/pro_deposit_settings_provider.dart';
-import 'package:myweli/providers/pro_earnings_provider.dart';
 import 'package:myweli/providers/pro_gallery_provider.dart';
 import 'package:myweli/providers/pro_journal_provider.dart';
 import 'package:myweli/providers/pro_kyc_provider.dart';
 import 'package:myweli/providers/pro_onboarding_provider.dart';
+import 'package:myweli/providers/pro_revenue_provider.dart';
 import 'package:myweli/providers/pro_reviews_provider.dart';
 import 'package:myweli/providers/pro_salon_profile_provider.dart';
 import 'package:myweli/providers/pro_service_provider.dart';
@@ -295,7 +295,7 @@ void main() {
       context.read<ProClientsProvider>(),
       context.read<ProJournalProvider>(),
       context.read<ProAvailabilityProvider>(),
-      context.read<ProEarningsProvider>(),
+      context.read<ProRevenueProvider>(),
       context.read<ProReviewsProvider>(),
       context.read<ProSalonProfileProvider>(),
       context.read<ProDepositSettingsProvider>(),

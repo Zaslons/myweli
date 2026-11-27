@@ -1,3 +1,5 @@
+import 'dart:ui' show Size;
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
@@ -7,14 +9,14 @@ import 'package:myweli/core/utils/formatters.dart';
 import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/appointment.dart';
+import 'package:myweli/models/revenue_analytics.dart';
 import 'package:myweli/providers/pro_appointment_provider.dart';
 import 'package:myweli/providers/pro_auth_provider.dart';
-import 'package:myweli/providers/pro_earnings_provider.dart';
 import 'package:myweli/providers/pro_journal_provider.dart';
+import 'package:myweli/providers/pro_revenue_provider.dart';
 import 'package:myweli/screens/provider/appointments/appointment_list_screen.dart';
 import 'package:myweli/screens/provider/appointments/pro_appointment_detail_screen.dart';
-import 'package:myweli/screens/provider/earnings/earnings_screen.dart';
-import 'package:myweli/services/interfaces/pro_service_interface.dart';
+import 'package:myweli/screens/provider/earnings/revenue_screen.dart';
 import 'package:myweli/services/mock/mock_auth_service.dart';
 import 'package:myweli/services/mock/mock_device_registration_service.dart';
 import 'package:myweli/services/mock/mock_pro_service.dart';
@@ -26,9 +28,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../support/frozen_clock.dart';
 import '../support/pump_app.dart';
+import '../support/revenue_fixtures.dart';
 import '../support/secure_storage.dart';
 import '../support/settle.dart';
 import '../support/sign_in.dart';
+import '../support/surface.dart';
 
 /// Each booking's amount is in the currency the booking was made in, on every
 /// Pro screen that shows ONE booking (docs/design/appointment-currency-stamp.md
@@ -50,28 +54,52 @@ class _StampedPro extends MockProService {
     DateTime? endDate,
   }) async => ApiResponse.success([_stamped]);
 
+  // « Revenus » (pro-revenue-analytics.md §4.9): the figures are XOF, the
+  // salon's group; the booking behind them was made in EUR, and its row in
+  // the ledger says so.
   @override
-  Future<ApiResponse<EarningsData>> getEarnings(
-    SalonId providerId, {
-    DateTime? startDate,
-    DateTime? endDate,
+  Future<ApiResponse<RevenueAnalytics>> getRevenueAnalytics(
+    SalonId providerId,
+    RevenueQuery query,
+  ) async => ApiResponse.success(
+    RevenueAnalytics.fromJson(
+      revenueAnalyticsJson(
+        asOf: kFixedNow.toIso8601String(),
+        groups: [
+          revenueGroup(
+            current: revenueFigures(
+              completedAmount: 15000,
+              completedCount: 1,
+              averageTicket: 15000,
+              toCloseCount: 0,
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+
+  @override
+  Future<ApiResponse<RevenueLedgerPage>> getRevenueLedger(
+    SalonId providerId,
+    RevenueQuery query, {
+    RevenueLedgerStatus status = RevenueLedgerStatus.completed,
+    int page = 1,
+    int pageSize = 20,
+    DateTime? asOf,
   }) async => ApiResponse.success(
-    // Through `fromJson`, as the API service builds it: the row's own
-    // `currency` is what the server sends (provider_earnings_service.dart).
-    EarningsData.fromJson({
-      'totalEarnings': 15000,
-      'currency': 'XOF',
-      'transactions': [
-        {
-          'id': 'transaction_a_eur',
-          'appointmentId': 'a_eur',
-          'amount': 15000,
-          'currency': 'EUR',
-          'date': kFixedNow.toIso8601String(),
-          'status': 'completed',
-        },
-      ],
-    }),
+    RevenueLedgerPage.fromJson(
+      revenueLedgerJson(
+        items: [
+          revenueLedgerRow(
+            id: 'a_eur',
+            amount: 15000,
+            totalPrice: 15000,
+            currency: 'EUR',
+          ),
+        ],
+      ),
+    ),
   );
 }
 
@@ -212,28 +240,29 @@ void main() {
     );
   });
 
-  testWidgets('Revenus: each row is in its own currency', (tester) async {
+  testWidgets('Revenus: each booking is in its own currency', (tester) async {
     final auth = await signInPro(tester);
     expectSalonIsXof(auth);
+    pinSurface(tester, size: const Size(390, 2400));
     await tester.pumpWidget(
       wrapApp(
         providers: [
           ChangeNotifierProvider<ProAuthProvider>.value(value: auth),
-          ChangeNotifierProvider(create: (_) => ProEarningsProvider()),
+          ChangeNotifierProvider(create: (_) => ProRevenueProvider()),
         ],
-        home: const EarningsScreen(),
+        home: const RevenueScreen(),
       ),
     );
     await settleMocks(tester, rounds: 3);
     expect(
-      find.textContaining(_digits15000),
-      findsNWidgets(2),
-      reason: 'the control: the total AND the row are on screen',
+      find.textContaining('Fatou B.'),
+      findsOneWidget,
+      reason: 'the control: the booking’s row is on screen',
     );
     expect(
       find.text(_eur(15000)),
       findsOneWidget,
-      reason: 'the row is EUR; the total above it stays in the salon’s',
+      reason: 'the row is EUR; the figures above it stay in their group’s',
     );
   });
 }

@@ -81,6 +81,11 @@ void main() {
           path: '/pro/dashboard',
           builder: (_, _) => const DashboardScreen(),
         ),
+        // Where the money cards lead (pro-revenue-analytics.md §4.1).
+        GoRoute(
+          path: '/pro/earnings',
+          builder: (_, s) => Scaffold(body: Text('Revenus ${s.uri.query}')),
+        ),
       ],
     );
     return wrapApp(
@@ -243,6 +248,52 @@ void main() {
     expect(find.text('Revenus prévus'), findsNWidgets(2));
     expect(find.text('Revenus'), findsOneWidget);
     expect(find.text('Services'), findsOneWidget);
+  });
+
+  // docs/design/pro-revenue-analytics.md §4.1 (Q2): the two « Revenus
+  // prévus » cards open « Revenus » on their own period — « Jour » and
+  // « Mois », today (no date: the server's) — for the owner. The two count
+  // cards stay figures, not buttons.
+  testWidgets('OWNER: each money card opens « Revenus » on its period', (
+    tester,
+  ) async {
+    // The first-visit push sheet would slide over the cards
+    // (core/push/push_registration.dart's persisted « asked » flag).
+    SharedPreferences.setMockInitialValues({'myweli_push_asked': true});
+    addTearDown(() => SharedPreferences.setMockInitialValues({}));
+    await loginAs(tester, _owner);
+    for (final (index, period) in [(0, 'day'), (1, 'month')]) {
+      await tester.pumpWidget(app(await readyAuth(tester)));
+      await settle(tester);
+      final cards = find.ancestor(
+        of: find.text('Revenus prévus'),
+        matching: find.byType(AppCard),
+      );
+      expect(cards, findsNWidgets(2));
+      expect(
+        tester.widget<AppCard>(cards.at(index)).onTap,
+        isNotNull,
+        reason: 'card $index is tappable',
+      );
+      await tester.ensureVisible(cards.at(index));
+      await tester.pumpAndSettle();
+      await tester.tap(cards.at(index));
+      await settle(tester);
+      expect(find.text('Revenus period=$period'), findsOneWidget);
+    }
+  });
+
+  testWidgets('OWNER: the count cards are not buttons', (tester) async {
+    await loginAs(tester, _owner);
+    await tester.pumpWidget(app(await readyAuth(tester)));
+    await settle(tester);
+    for (final count in ['Rendez-vous', 'Demandes']) {
+      final card = find.ancestor(
+        of: find.text(count),
+        matching: find.byType(AppCard),
+      );
+      expect(tester.widget<AppCard>(card.first).onTap, isNull, reason: count);
+    }
   });
 
   /// The stat cards (docs/design/amounts-that-fit.md §2, and

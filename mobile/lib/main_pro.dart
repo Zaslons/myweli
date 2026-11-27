@@ -34,11 +34,11 @@ import 'providers/pro_before_after_provider.dart';
 import 'providers/pro_clients_provider.dart';
 import 'providers/pro_dashboard_provider.dart';
 import 'providers/pro_deposit_settings_provider.dart';
-import 'providers/pro_earnings_provider.dart';
 import 'providers/pro_gallery_provider.dart';
 import 'providers/pro_journal_provider.dart';
 import 'providers/pro_kyc_provider.dart';
 import 'providers/pro_onboarding_provider.dart';
+import 'providers/pro_revenue_provider.dart';
 import 'providers/pro_reviews_provider.dart';
 import 'providers/pro_salon_profile_provider.dart';
 import 'providers/pro_service_provider.dart';
@@ -234,7 +234,7 @@ List<SingleChildWidget> proAppProviders(
     create: (_) => ProSalonScope.track(ProAvailabilityProvider()),
   ),
   ChangeNotifierProvider(
-    create: (_) => ProSalonScope.track(ProEarningsProvider()),
+    create: (_) => ProSalonScope.track(ProRevenueProvider()),
   ),
   ChangeNotifierProvider(
     create: (_) => ProSalonScope.track(ProReviewsProvider()),

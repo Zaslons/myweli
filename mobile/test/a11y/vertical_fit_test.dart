@@ -4,14 +4,16 @@ import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/theme/app_theme.dart';
 import 'package:myweli/core/utils/app_clock.dart';
 import 'package:myweli/providers/pro_auth_provider.dart';
-import 'package:myweli/providers/pro_earnings_provider.dart';
-import 'package:myweli/screens/provider/earnings/earnings_screen.dart';
+import 'package:myweli/providers/pro_revenue_provider.dart';
+import 'package:myweli/screens/provider/earnings/revenue_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../support/fonts.dart';
 import '../support/frozen_clock.dart';
 import '../support/pump_app.dart';
+import '../support/revenue_fixtures.dart';
+import '../support/revenue_service.dart';
 import '../support/secure_storage.dart';
 import '../support/settle.dart';
 import '../support/sign_in.dart';
@@ -62,51 +64,65 @@ void main() {
   tearDownAll(AppClock.restore);
   setUp(() => freezeClock(kFixedNow));
 
+  // « Revenus » (pro-revenue-analytics.md §4.11): a salon with no completed
+  // booking ever — the « Prévu » tile and the empty state under the period
+  // bar — on the floor phone. The body is a list, so it may scroll; what it
+  // must not do is overflow or clip on the way.
   for (final scale in [1.0, 2.0]) {
-    testWidgets('the pro earnings empty tab fits a phone at ${scale}x', (
+    testWidgets('« Revenus » with no revenue yet fits a phone at ${scale}x', (
       tester,
     ) async {
       final auth = await signInPro(tester);
-      // `pumpAtWidth` would give this 1600dp of height, which is the whole
-      // reason the defect has never been visible. Pin the real phone instead.
       pinSurface(tester, size: kFloorPhone, scale: scale);
-      // **The safe area is part of the phone.** 780pt is the SCREEN; the
-      // usable body is that minus the status bar and the home indicator, and
-      // on the iPhone 13 mini that is 50 + 34. Without them this pumps ~84dp
-      // more height than the device had, which is why the first version of
-      // this test was green about a defect a device had already shown.
+      // **The safe area is part of the phone** (the status bar and the home
+      // indicator of a 360×780pt iPhone 13 mini).
       tester.view.padding = const FakeViewPadding(top: 50, bottom: 34);
       tester.view.viewPadding = const FakeViewPadding(top: 50, bottom: 34);
       addTearDown(tester.view.resetPadding);
       addTearDown(tester.view.resetViewPadding);
+      final service = FakeRevenueService()
+        ..analytics = (_) => revenueAnalyticsJson(
+          everCompleted: false,
+          groups: [
+            revenueGroup(
+              current: revenueFigures(
+                completedAmount: 0,
+                completedCount: 0,
+                averageTicket: null,
+                noShowAmount: 0,
+                noShowCount: 0,
+                noShowRate: null,
+              ),
+              withPrevious: false,
+              byArtist: [],
+              byService: [],
+              byChannel: [],
+            ),
+          ],
+        );
       await pumpApp(
         tester,
         providers: [
           ChangeNotifierProvider<ProAuthProvider>.value(value: auth),
-          ChangeNotifierProvider(create: (_) => ProEarningsProvider()),
+          ChangeNotifierProvider(
+            create: (_) => ProRevenueProvider(service: service),
+          ),
         ],
         theme: AppTheme.themeData(fontFamily: kRealFont),
-        home: const EarningsScreen(),
+        home: const RevenueScreen(),
       );
       await settleMocks(tester, rounds: 3);
 
-      // C — the empty state is the subject, so it must actually be on screen.
-      // « Aujourd'hui » is the first tab and `MockData` seeds provider1 at
-      // now+2d / now−10d / now−7d, never today, so this is the default view.
-      expect(
-        find.text('Aucune transaction'),
-        findsOneWidget,
-        reason: 'the empty state is not showing — this would measure a list',
-      );
-
+      // C — the period bar is on screen (the empty state is below it).
+      expect(find.text('Novembre 2026'), findsOneWidget, reason: 'C');
       expect(
         tester.takeException(),
         isNull,
         reason:
-            'the empty state does not fit the space the earnings tab '
-            'leaves it on a ${kFloorPhone.height.toInt()}dp phone at ${scale}x',
+            '« Revenus » overflows a ${kFloorPhone.height.toInt()}dp '
+            'phone at ${scale}x',
       );
-      expectNoVerticalClip(tester, context: 'earnings empty tab at ${scale}x');
+      expectNoVerticalClip(tester, context: 'Revenus, empty, at ${scale}x');
     });
   }
 }

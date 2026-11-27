@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| **Status** | **Approved 2026-11-25** — the owner answered all thirteen questions of §17 at once, « Approve as recommended » (decisions 237–249). **R0w live 2026-11-25** (#866, `afd2de97`). **R1's production read done 2026-11-25** (§19). **R1 live 2026-11-26** (#872, migration **0052**, merged 2026-11-25 `3f3305a5`, deployed 2026-11-26 11:09 UTC, revision `myweli-api-00061-kwl`); the count after waits for real bookings, on the owner's word. **R2 live 2026-11-26** (#884, merged `306a5d50`, deployed 19:40 UTC, revision `myweli-api-00062-f5c`; as built: §20). R3 and R4 next, each on the owner's word. |
+| **Status** | **Approved 2026-11-25** — the owner answered all thirteen questions of §17 at once, « Approve as recommended » (decisions 237–249). **R0w live 2026-11-25** (#866, `afd2de97`). **R1's production read done 2026-11-25** (§19). **R1 live 2026-11-26** (#872, migration **0052**, merged 2026-11-25 `3f3305a5`, deployed 2026-11-26 11:09 UTC, revision `myweli-api-00061-kwl`); the count after waits for real bookings, on the owner's word. **R2 live 2026-11-26** (#884, merged `306a5d50`, deployed 19:40 UTC, revision `myweli-api-00062-f5c`; as built: §20). **R3 built 2026-11-27** (#893, branch `feat/pro-revenue-r3-app`; as built: §21); it reaches users with the next Pro store build. R4 next, on the owner's word. |
 | **Owner** | Sadreddine |
-| **Last updated** | 2026-11-26 |
+| **Last updated** | 2026-11-27 |
 | **PRD ref / phase** | FR-PRO-EARN-001 [V1] (« completed revenue by day/week/month ») + FR-PRO-DASH-001 [V1] (« no-show rate ») + the revenue half of **FR-PRO-OPS-004 [V3]** (« revenue, top services/staff, no-show analytics »), pulled forward on the owner's request of 2026-11-25 — Q1 |
 | **Module** | `analytics` (MODULES §10) on top of `finance` (§9); authz from `access` (§11) |
 | **ROADMAP entry** | [2026-11-25-pro-revenue-analytics-spec.md](../roadmap/entries/2026-11-25-pro-revenue-analytics-spec.md) |
@@ -1638,3 +1638,181 @@ named test red. A no-op edit (the control) stayed green.
 
 Three first attempts proved nothing and were redone: two did not apply
 (the formatter had reflowed the line), one broke the build instead of a test.
+
+---
+
+## 21. R3 as built (2026-11-27)
+
+On the owner's « Oui, construire R3 » (2026-11-27), to the plan approved
+with it. PR #893, branch `feat/pro-revenue-r3-app`, one PR (Q12).
+
+**Where it lives** (`mobile/`):
+- `lib/models/revenue_analytics.dart` — `RevenueQuery` and the answers,
+  read field for field and strictly (a body without its parts is
+  `unreadable`, never a screen of zeros; an unknown enum value too);
+- `lib/core/utils/revenue_periods.dart` — the period bar's calendar, stepped
+  from the server's answer (§3.5), the titles, the comparison's words; pure;
+- `lib/core/utils/revenue_wording.dart` — §3.3's labels, §3.6's deltas,
+  §4.13's counts and the footnotes; pure;
+- `ProServiceInterface.getRevenueAnalytics` / `getRevenueLedger` on the API
+  service and the mock — `MockRevenueWorld` (`services/mock/mock_revenue.dart`)
+  folds a deterministic history by §3's rules;
+- `lib/providers/pro_revenue_provider.dart` — one view per screen, keyed;
+- `lib/widgets/pro/revenue/` — `KpiGrid` / `KpiTile`, `DeltaBadge`,
+  `ShareBar`, `BarSeries` (+ `BarSeriesList`), `RevenueLedgerTile`;
+- `lib/screens/provider/earnings/` — `revenue_screen.dart` (« Revenus » and
+  the page its details share), `revenue_detail_screen.dart`,
+  `revenue_ledger_screen.dart`, `revenue_sheets.dart`;
+- the routes of §4.1 in `pro_router.dart`; the Accueil on `KpiGrid`.
+
+**Deleted:** `earnings_screen.dart` (with `EarningsTotal`),
+`pro_earnings_provider.dart`, `reports_analytics_screen.dart` (Q2) and their
+tests (`earnings_total_fit_test`, `pro_earnings_wording_test`).
+`getEarnings` stays: the salon export reads it.
+
+### 21.1 Precisions to §4 (nothing reversed)
+
+1. **A detail's bar names the kind of row** — « Collaborateur »,
+   « Prestation », « Canal » — and **the row's name is the page's heading**
+   (level 2), which wraps. §4.8 said « Title = the row's label »; an app-bar
+   title has one line and no wrap (SYSTEM §13.3, A15: « a title is a label,
+   not a sentence »), and `layout_test` failed on « Prestation supprimée » at
+   200 %. The name rides with the link (`libelle`), so it shows at once.
+2. **The period chips and the ledger's filter chips wrap** instead of
+   scrolling sideways: at the default text size, on 360–390 dp, « Dates… »
+   and « Annulés » sat past the edge. Found by a test whose tap missed.
+3. **`KpiTile` keeps the Accueil's card** (a `bodySmall` title, an optional
+   glyph), where §4.5 wrote `bodyMedium` — the precision approved with the
+   plan. The Accueil renders as before.
+4. **`EarningsTotal` left with the old screen** (the shrinking headline,
+   B7.10's owner exception): the grid measures every figure and goes one
+   tile per row when one would not fit.
+5. **The latest five bookings** under « Revenus » are a second, small
+   request (`pageSize` 5), sent after the figures land and only when
+   something was completed in the period. A period change is still one
+   request for the figures (§11).
+6. **The currency segments follow the server's order** (the salon's own
+   first, §20.1 item 6), not « the largest Réalisé first »: two currencies'
+   amounts cannot be compared to sort them.
+7. **« Estimé »'s footnote shows where « estimé » is printed**: the figures,
+   or a row of the tab on screen.
+8. **A salon with no completed booking ever** still sees, above « Pas encore
+   de revenus », the « À clôturer » banner and « Prévu » when bookings are
+   coming (the demo salon's state before its first « Terminé »).
+9. **The comparison's words**: « 1er – 25 oct. 2026, même avancement » while
+   in progress; « octobre 2026 » for a whole month; « 2025 » for a whole
+   year; else the range. A delta's sentence ends « par rapport à … » (« à la
+   période … » before a range).
+10. **The one « encaiss » allowed is the footnote's negation**, « MyWeli
+    n'encaisse rien » (§4.10's text). The wording test forbids « encaissé »,
+    « encaissement », « paiements reçus », « chiffre d'affaires » on every
+    tab, and any other « encaiss ».
+11. **A ledger link's `asOf` older than 23 hours is dropped** (the server
+    refuses one older than 24) and the server's now is asked instead.
+12. **The mock's latency is the house's `mockDelay`** (300 ms), on which the
+    tests settle — not 300–900 ms.
+13. **A refusal shows no period bar**: nothing on it could succeed. Found
+    looking at the refusal's golden, where the bar sat with an empty title
+    and two dead arrows.
+14. **The first load is titled at once** (« Novembre 2026 ») from the
+    salon's today by the phone's clock — for the title only, which the
+    answer replaces; the query still asks the server's today (§3.5). Found
+    on the same golden.
+
+### 21.2 Tests (§13.2)
+
+- `test/unit/revenue_analytics_test.dart` — the model on the contract's
+  shapes (strict), the query ⇄ route, the calendar (‹ › by kind, custom
+  ranges, 2020, today + 366, the anchor), the titles, §3.6's deltas, §3.3's
+  labels row by row, the mock's fold (the ledger lists what the figures
+  count, shares add up to 1, two currencies, the server's codes).
+- `test/unit/pro_revenue_provider_test.dart` — the old figures leave at
+  once, a late answer is dropped, one view per screen, a salon switch, 403
+  refused (no retry), « Réessayer » asks the same period, the ledger's pages.
+- `test/unit/pro_late_answers_test.dart` — `ProRevenueProvider` in the
+  salon-switch guard, `load` and `loadLedger`, answered and thrown.
+- `test/widget/pro_revenue_screen_test.dart` — every state of §4.11, the
+  labels on each tab, « estimé », the banner's « Voir » (status, `asOf`,
+  reload on return), the period bar (the provisional title while the answer
+  is held), « Comparé à », « Dates… » (MyWeli's picker, the error under
+  « Au », no Material picker), a row's detail and its `none`, the currency
+  segments, the semantics sentences, the chart's one node, the ledger.
+- `test/widget/pro_revenue_wording_test.dart` — the real mock world, every
+  tab: no payment words.
+- `test/widget/dashboard_role_test.dart` — each « Revenus prévus » card opens
+  its period; the count cards are not buttons; the three other roles still
+  have no money card.
+- `test/a11y/layout_test.dart` — « Revenus », a detail and the ledger at
+  360/375/390 × 1×/2× with seven- and eight-digit amounts: no truncation,
+  crush, clip or broken token, the bar title whole, `androidTapTargetGuideline`
+  (the chart one target); `test/a11y/vertical_fit_test.dart` — the empty
+  salon on the floor phone.
+- `test/golden/pro_screens_golden_test.dart` — `pro_revenus`,
+  `pro_revenus_vide`, `pro_revenus_periode_vide`, `pro_revenus_refuse`,
+  `pro_revenus_detail`, `pro_revenus_registre`, `pro_revenus_w360_x2`,
+  authored on Linux; `pro_earnings*.png` removed.
+- `test/unit/revenue_r2_answers_test.dart` — **the model on the R2 server's
+  own answers** (`test/support/revenue_r2/`): month, week, year, a custom
+  range, a prestation's detail and two ledger pages, answered on 2026-11-27
+  by `main`'s backend (`dart_frog build`) on a throwaway local Postgres
+  holding a demo salon with three collaborateurs and the agenda the real
+  weekly reset generates. Nothing from production.
+
+### 21.3 In the simulator, on the real endpoints (2026-11-27)
+
+The Pro app (debug, `USE_API_BACKEND=true`, `API_BASE_URL` the local
+server) on an iPhone 17 Pro simulator, signed in as the demo account
+through the demo seam (a local code):
+- the Accueil read « Ce mois · 100 000 FCFA · Revenus prévus »; its card
+  opened « Revenus » on « Mois »;
+- « Novembre 2026 (en cours) », « Comparé à : 1er – 27 oct. 2026, même
+  avancement », « 1 rendez-vous passé à clôturer », Réalisé 70 000 FCFA,
+  7 terminés, taux d'absence 12,5 %, Prévu 20 000 FCFA; the three
+  collaborateurs and « Sans collaborateur attribué » under « Répartition »;
+- a collaborateur's detail: « Collaborateur » in the bar, « Adjoua K. » as
+  the heading, her figures;
+- « Voir » → « À clôturer » listed the one booking; opened, marked
+  « Terminé »; back on « Revenus »: no banner, Réalisé 80 000 FCFA,
+  8 terminés — and 80 000 + 20 000 « Prévu » = the Accueil's 100 000
+  (§3.2's equality).
+
+**One thing read there and traced, not a defect:** the ledger's rows read
+« Client » where the booking's detail reads the typed name. The local
+script built its `BookingService` without the clients service, so no client
+card was written; in production `bookManual` records the card with the
+typed name (`ClientsService.recordBooking`, `displayName: clientName`), and
+the ledger shows it. **Inferred from the code**, not read on the demo salon.
+
+The server was stopped and the database container removed after.
+
+### 21.4 Mutations watched red (on committed code)
+
+Each applied alone, its target tests run, the file restored and read back
+clean. A no-op edit (the control) stayed green.
+
+| # | Mutation | Red on |
+|---|---|---|
+| 1 | a late answer kept (the request id dropped) | « a late answer is dropped », the late-answers guard |
+| 2 | a 403 read as a failure | « 403: refused, no error to retry », the screen's 403 |
+| 3 | a period change keeps the old figures | « a load empties the view first » |
+| 4 | ‹ on a month stays on it | « ‹ and › one unit, by kind » |
+| 5 | another kind always anchored on `from` | « another kind keeps the anchor », the period bar |
+| 6 | no « stable » | « percent, stable, nouveau, nothing » |
+| 7 | absences: up is good | « the no-show rate: points, one decimal, up is bad » |
+| 8 | a removed collaborateur labelled as active | the labels table, the screen's labels |
+| 9 | `KpiGrid` unmeasured (always two across) | `layout_test` (« Revenus », a detail), the Accueil's stat cards |
+| 10 | the currency choice ignored | « two currencies: one segment each, never a sum » |
+| 11 | a ledger row in the salon's currency | « Revenus: each booking is in its own currency » |
+| 12 | the chart's selection not by fill | « the chart: one node … told apart by fill » |
+| 13 | the footnote says « encaissé » | the wording tests (screen and words) |
+| 14 | the ledger sends `compare` | the API service's ledger test |
+| 15 | the banner's « Voir » forgets `asOf` | « the banner's « Voir » … » |
+| 16 | a stale `asOf` kept | « a ledger link's asOf … dropped » |
+| 17 | the mock's ledger: « À clôturer » by the start | « a booking under way is « Prévu » … » — **green first**: the mock's ledger test could not see it; the under-way test was written, then it turned red |
+| 18 | « Estimé » explained on every tab | « the labels of §3.3 on each tab, « estimé » and its footnote » |
+| 19 | the Accueil's day card not tappable | « OWNER: each money card opens « Revenus » on its period » |
+| 20 | the period chips scroll again | « « Dates… »: MyWeli's picker … » (the tap misses) |
+| 21 | the row's name in the app bar | `layout_test`: a detail at 360/375/390 × 2× |
+| 22 | a body without `groups` read as none | « strict: a body without its parts throws », the API's unreadable |
+| 23 | the first load untitled | « the first load: the period titled at once … » |
+| 24 | a period bar on a refusal | « 403: « Réservé au propriétaire », no « Réessayer » » |
