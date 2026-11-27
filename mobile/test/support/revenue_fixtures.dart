@@ -293,3 +293,50 @@ Map<String, dynamic> revenueLedgerJson({
     'asOf': asOf,
   };
 }
+
+/// The figures that can break (B7.10, SYSTEM §21 row 96): seven and eight
+/// digits, and the longest labels §3.3 can print — for the layout gates.
+Map<String, dynamic> revenueLargeJson() => revenueAnalyticsJson(
+  groups: [
+    revenueGroup(
+      current: revenueFigures(
+        completedAmount: 12345678,
+        completedCount: 1234,
+        averageTicket: 1234567,
+        upcomingAmount: 98765432,
+        upcomingCount: 345,
+        pendingCount: 12,
+        noShowAmount: 1234567,
+        noShowCount: 56,
+      ),
+      byArtist: [
+        revenueRow(
+          key: 'artist1',
+          label: 'Marie-Laure Kouassi-Ouattara',
+          share: 0.5,
+          amount: 6172839,
+          count: 617,
+        ),
+        revenueRow(
+          key: 'artist_parti',
+          label: 'Adjoua Konan-Bédié',
+          state: 'removed',
+          share: 0.5,
+          amount: 6172839,
+          count: 617,
+        ),
+      ],
+      byService: [
+        revenueRow(
+          key: 'svc_tresses',
+          label: 'Tresses africaines avec rajouts',
+          state: 'removed',
+          share: 1,
+          amount: 12345678,
+          count: 1234,
+          estimated: true,
+        ),
+      ],
+    ),
+  ],
+);

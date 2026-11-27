@@ -8,6 +8,7 @@ import 'package:myweli/core/utils/app_clock.dart';
 import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/core/utils/salon_time.dart';
 import 'package:myweli/models/api_response.dart';
+import 'package:myweli/models/revenue_analytics.dart';
 import 'package:myweli/models/salon_subscription.dart';
 import 'package:myweli/models/team_member.dart';
 import 'package:myweli/providers/locality_provider.dart';
@@ -18,8 +19,8 @@ import 'package:myweli/providers/pro_auth_provider.dart';
 import 'package:myweli/providers/pro_availability_provider.dart';
 import 'package:myweli/providers/pro_dashboard_provider.dart';
 import 'package:myweli/providers/pro_deposit_settings_provider.dart';
-import 'package:myweli/providers/pro_earnings_provider.dart';
 import 'package:myweli/providers/pro_journal_provider.dart';
+import 'package:myweli/providers/pro_revenue_provider.dart';
 import 'package:myweli/providers/pro_reviews_provider.dart';
 import 'package:myweli/providers/pro_subscription_provider.dart';
 import 'package:myweli/providers/pro_team_provider.dart';
@@ -27,7 +28,9 @@ import 'package:myweli/screens/provider/appointments/appointment_list_screen.dar
 import 'package:myweli/screens/provider/auth/pro_login_screen.dart';
 import 'package:myweli/screens/provider/availability/availability_screen.dart';
 import 'package:myweli/screens/provider/dashboard/dashboard_screen.dart';
-import 'package:myweli/screens/provider/earnings/earnings_screen.dart';
+import 'package:myweli/screens/provider/earnings/revenue_detail_screen.dart';
+import 'package:myweli/screens/provider/earnings/revenue_ledger_screen.dart';
+import 'package:myweli/screens/provider/earnings/revenue_screen.dart';
 import 'package:myweli/screens/provider/journal/pro_journal_screen.dart';
 import 'package:myweli/screens/provider/reviews/reviews_screen.dart';
 import 'package:myweli/screens/provider/settings/deposit_settings_screen.dart';
@@ -52,6 +55,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../support/frozen_clock.dart';
 import '../support/golden.dart';
 import '../support/rejoin.dart';
+import '../support/revenue_fixtures.dart';
+import '../support/revenue_service.dart';
 import '../support/tab_flows.dart';
 
 /// The pro app, under the real theme (docs/design/SYSTEM.md §20).
@@ -353,48 +358,128 @@ void main() {
       await expectGolden(tester, 'pro_journal_own_mode');
     });
 
-    // **Two pictures, and the first one is now honest.** Until A11 C4 this
-    // screen's first load passed no date bounds at all while every tab tap
-    // passed them, so the golden photographed « Aujourd'hui » listing every
-    // transaction the salon had ever taken — including « dimanche 1 mars 2026 »
-    // under a tab labelled today, with the clock frozen to 11 March. C4 made the
-    // first load the selected tab's load, so this picture is what a salon
-    // actually sees on opening: `MockData` seeds `provider1` at `now + 2d`,
-    // `now - 10d` and `now - 7d` — never today — so « Aujourd'hui » is empty.
+    // ---- « Revenus » (docs/design/pro-revenue-analytics.md §13.2) -------
     //
-    // That is a real state and worth a baseline: it pins the shared `EmptyState`
-    // that replaced a bare `Center(Text(…))` in the same commit. But one picture
-    // of an empty state is not a photograph of a screen, which is why the second
-    // one exists — the same argument, and the same shape, as `pro_journal_day`.
-    testWidgets('the earnings buckets, on the day the salon opens it', (
+    // The states of §4.11, from the contract's own bodies
+    // (test/support/revenue_fixtures.dart): the success screen whole, a salon
+    // with no revenue yet, a period with nothing completed, the refusal, a
+    // detail, the ledger, and the floor phone at 200 %. They replace
+    // `pro_earnings*.png`, whose screen is gone.
+    Future<void> revenue(
+      WidgetTester tester,
+      String name, {
+      Widget screen = const RevenueScreen(),
+      FakeRevenueService? service,
+      Size size = const Size(390, 2600),
+      double scale = 1,
+    }) async {
+      await _pumpPro(
+        tester,
+        screen,
+        extra: [
+          ChangeNotifierProvider(
+            create: (_) =>
+                ProRevenueProvider(service: service ?? FakeRevenueService()),
+          ),
+        ],
+        size: size,
+        scale: scale,
+      );
+      await expectGolden(tester, name);
+    }
+
+    Map<String, dynamic> nothingCompleted({bool ever = true}) =>
+        revenueAnalyticsJson(
+          everCompleted: ever,
+          groups: [
+            revenueGroup(
+              current: revenueFigures(
+                completedAmount: 0,
+                completedCount: 0,
+                averageTicket: null,
+                noShowAmount: 0,
+                noShowCount: 0,
+                noShowRate: null,
+                toCloseCount: ever ? 0 : 4,
+              ),
+              withPrevious: ever,
+              byArtist: [],
+              byService: [],
+              byChannel: [],
+            ),
+          ],
+        );
+
+    testWidgets('« Revenus »: November in progress, compared like for like', (
       tester,
     ) async {
-      await _pumpPro(
-        tester,
-        const EarningsScreen(),
-        extra: [ChangeNotifierProvider(create: (_) => ProEarningsProvider())],
-        size: const Size(390, 1200),
-      );
-      expect(
-        find.text('Aucune transaction'),
-        findsOneWidget,
-        reason:
-            'the first load must be the SELECTED tab\'s load — if this '
-            'shows rows, `initState` has drifted back to loading unbounded and '
-            'the picture is of a bug',
-      );
-      await expectGolden(tester, 'pro_earnings');
+      await revenue(tester, 'pro_revenus');
     });
 
-    testWidgets('the earnings buckets, with takings in them', (tester) async {
-      await _pumpPro(
+    testWidgets('« Revenus »: a salon with no completed booking yet', (
+      tester,
+    ) async {
+      await revenue(
         tester,
-        const EarningsScreen(),
-        extra: [ChangeNotifierProvider(create: (_) => ProEarningsProvider())],
+        'pro_revenus_vide',
+        service: FakeRevenueService()
+          ..analytics = (_) => nothingCompleted(ever: false),
         size: const Size(390, 1200),
       );
-      await openEarningsAll(tester);
-      await expectGolden(tester, 'pro_earnings_all');
+    });
+
+    testWidgets('« Revenus »: a period with nothing completed', (tester) async {
+      await revenue(
+        tester,
+        'pro_revenus_periode_vide',
+        service: FakeRevenueService()..analytics = (_) => nothingCompleted(),
+        size: const Size(390, 1400),
+      );
+    });
+
+    testWidgets('« Revenus »: refused (403)', (tester) async {
+      await revenue(
+        tester,
+        'pro_revenus_refuse',
+        service: FakeRevenueService()
+          ..failure = ApiResponse.error(
+            'Action non autorisée pour ce salon.',
+            code: 'forbidden',
+          ),
+        size: const Size(390, 844),
+      );
+    });
+
+    testWidgets('« Revenus »: a collaborateur’s detail', (tester) async {
+      await revenue(
+        tester,
+        'pro_revenus_detail',
+        screen: const RevenueDetailScreen(
+          axis: RevenueAxis.artist,
+          rowKey: 'artist1',
+        ),
+      );
+    });
+
+    testWidgets('« Revenus »: the ledger', (tester) async {
+      await revenue(
+        tester,
+        'pro_revenus_registre',
+        screen: const RevenueLedgerScreen(routeQuery: {'period': 'month'}),
+        size: const Size(390, 844),
+      );
+    });
+
+    testWidgets('« Revenus » at 360dp, 200 % text, large amounts', (
+      tester,
+    ) async {
+      await revenue(
+        tester,
+        'pro_revenus_w360_x2',
+        service: FakeRevenueService()..analytics = (_) => revenueLargeJson(),
+        size: const Size(360, 5200),
+        scale: 2,
+      );
     });
 
     // ---- A11 C7: the floor ---------------------------------------------

@@ -142,3 +142,32 @@ bool revenueHasFuture(RevenueAnalytics a) => !a.to.isBefore(revenueToday(a));
 
 /// The period has not begun (§4.11 « A future period »).
 bool revenueIsFuture(RevenueAnalytics a) => a.from.isAfter(revenueToday(a));
+
+/// The title of [q] before its answer lands, so the bar updates at once
+/// (§4.11 « Period change ») — the same words as [revenuePeriodTitle], from
+/// the query's own dates: the day, its month, its year, the Monday of its
+/// week (§3.5's rule), or the custom range. The answer's dates replace it.
+/// [today] is the salon's today from the last answer, for a query with no
+/// date; null when no answer has said it yet.
+String? provisionalRevenueTitle(RevenueQuery q, {DateTime? today}) {
+  if (q.period == RevenuePeriod.custom) {
+    return Formatters.formatDayRange(q.from!, q.to!);
+  }
+  final d = q.date ?? today;
+  if (d == null) return null;
+  return switch (q.period) {
+    RevenuePeriod.day => Formatters.formatPeriodDay(
+      d,
+      currentYear: (today ?? d).year,
+    ),
+    RevenuePeriod.week => () {
+      final monday = addRevenueDays(d, -(d.weekday - DateTime.monday));
+      return Formatters.formatDayRange(monday, addRevenueDays(monday, 6));
+    }(),
+    RevenuePeriod.month => Formatters.capitalized(
+      Formatters.formatMonthYear(revenueDay(d.year, d.month, 1)),
+    ),
+    RevenuePeriod.year => '${d.year}',
+    RevenuePeriod.custom => null,
+  };
+}

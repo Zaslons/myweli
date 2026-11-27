@@ -6,9 +6,10 @@ import 'settle.dart';
 
 /// Reaching the data behind a tab, once (A11 C7).
 ///
-/// Both sequences below were already written twice — `_openProList` and
-/// `_openEarningsAll` are `_`-private in `test/a11y/layout_test.dart`, and the
-/// earnings one is inline a second time in `pro_screens_golden_test.dart`. A
+/// Both sequences were already written twice — `_openProList` and
+/// `_openEarningsAll` were `_`-private in `test/a11y/layout_test.dart`, and the
+/// earnings one was inline a second time in `pro_screens_golden_test.dart`
+/// (`openEarningsAll` left with the old « Revenus » screen, R3). A
 /// golden file cannot import a private helper, so C7's third subject would have
 /// made a third copy, which §11 calls a review failure.
 ///
@@ -17,51 +18,6 @@ import 'settle.dart';
 /// one round short, produces an *empty state* — and an empty state is a test
 /// that passes about nothing. That failure looks identical to success in a
 /// finder-based assertion and identical to a screen in a picture.
-
-/// Taps « Tout » on the pro earnings screen and proves rows arrived.
-///
-/// Until C4 the screen's first load passed no date bounds while every tab tap
-/// passed them, so it opened showing every transaction the salon had ever taken.
-/// C4 made the first load the selected tab's load, so « Aujourd'hui » is now
-/// correctly empty — `MockData` seeds `provider1` at `now + 2d`, `now - 10d` and
-/// `now - 7d`, never today — and anything that wants to see takings has to go
-/// where they are.
-///
-/// `ensureVisible` first: the bar is scrollable since C4 and « Tout » is the
-/// last of four, which at 200% text sits well outside a 360dp viewport.
-Future<void> openEarningsAll(WidgetTester tester) async {
-  await tester.ensureVisible(find.text('Tout'));
-  await tester.tap(find.text('Tout'));
-  await settleMocks(tester, rounds: 3);
-
-  // **`findsNothing` on the empty state is not enough**, and the gap is not
-  // theoretical: when `earnings == null` — a failed load, or a null response —
-  // the screen renders `Center(Text(error ?? 'Aucune donnée disponible'))`
-  // (`earnings_screen.dart:146-154`), which contains neither « Aucune
-  // transaction » nor a single row. The old guard passed on that branch, and
-  // `pro_screens_golden_test.dart` photographs immediately after calling this,
-  // so `pro_earnings_all.png` could have been baselined from an ERROR SCREEN
-  // with nothing objecting.
-  //
-  // « Total réalisé » is not a sufficient replacement either: the summary
-  // card renders it whether or not the transaction list has anything in it.
-  // Assert the rows.
-  expect(
-    find.text('Aucune transaction'),
-    findsNothing,
-    reason:
-        'the « Tout » tap did not land, or the salon has no takings at all '
-        '— either way the tab bar would be the only thing this measured',
-  );
-  expect(
-    find.byType(ListTile),
-    findsWidgets,
-    reason:
-        'no transaction ROW is on screen. The empty state is absent too, '
-        'which means this is the `earnings == null` branch — an error message '
-        'in a Center, and a picture of it would become the baseline',
-  );
-}
 
 /// Reaches the four-tab bar on `AppointmentListScreen`, and proves it arrived.
 ///

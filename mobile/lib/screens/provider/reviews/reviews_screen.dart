@@ -202,9 +202,11 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                               // are `Expanded` or full width — and the text on
                               // both sides of it grows with the scale while it
                               // did not, which is the 4.3dp overflow at 360×2×.
-                              // `reports_analytics_screen.dart:233` is the
-                              // house answer to this exact shape: the bar
-                              // flexes, the numbers keep their intrinsic width.
+                              // The house answer to this exact shape (it was
+                              // `reports_analytics_screen.dart:233`'s, deleted
+                              // with R3 — pro-revenue-analytics.md §9.2): the
+                              // bar flexes, the numbers keep their intrinsic
+                              // width.
                               // The `ClipRRect` + `minHeight` come with it —
                               // this bar alone shipped 4dp tall with square
                               // ends while its three siblings did not.
