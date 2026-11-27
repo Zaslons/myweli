@@ -1,0 +1,8 @@
+- 🟡 **Registres : R4 des analyses de revenus fusionné et en ligne sur le site (docs · 2026-11-27 — BACKLOG B17.4, décisions 238, 244, 246).** PR #904. Spec : [pro-revenue-analytics.md](../../design/pro-revenue-analytics.md) §22.5.
+  - **R4 :** son entrée passe au vert, avec la fusion (#900, `cee647eb`, sur le mot du propriétaire) : l'arbre de `main` est celui de la tête testée, la CI de `main` est verte, et Vercel a mis la page en ligne sur myweli.com le soir même. Le statut de la spec, son index et le BACKLOG (ligne 17 et B17.4) le disent aussi.
+  - **Relue sur myweli.com** (spec §22.5) : un témoin pris avant le déploiement (les nouvelles adresses répondaient 404), puis la même lecture après (l'API répond « non connecté » sans session, les pages s'ouvrent, un identifiant invalide donne toujours 404, et le code servi contient la page). Pas lue : la page une fois connecté.
+  - **Aussi :** l'entrée des registres de R3 (#897) passe au vert.
+  - **Toutes les tranches des analyses de revenus sont fusionnées.** Reste, chacun sur le mot du propriétaire :
+    - la lecture qui suit la réinitialisation du salon de démo, le 2026-11-30 ;
+    - la prochaine version de MyWeli Pro dans les stores, qui portera R3 ;
+    - le comptage après R1, quand de vrais rendez-vous existeront.
