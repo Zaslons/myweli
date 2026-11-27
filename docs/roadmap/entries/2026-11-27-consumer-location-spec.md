@@ -1,4 +1,4 @@
-- 🟡 **MyWeli (client) et MyWeli Pro, A6 : la localisation — la spec, avant tout code (documentation · app · 2026-11-27 — BACKLOG B0.10, décision 160, piste A ; écart 13 et première moitié du 22 de l’audit ; FR-DISC-005, FR-DISC-002).** Branche `docs/consumer-location-spec`, depuis `main` `343a1f4d`. Spec : [consumer-location.md](../../design/consumer-location.md). Documentation seule : aucun code, aucun build, aucune console.
+- 🟢 **MyWeli (client) et MyWeli Pro, A6 : la localisation — la spec, avant tout code (documentation · app · 2026-11-27 — BACKLOG B0.10, décision 160, piste A ; écart 13 et première moitié du 22 de l’audit ; FR-DISC-005, FR-DISC-002).** Branche `docs/consumer-location-spec`, depuis `main` `343a1f4d`. Spec : [consumer-location.md](../../design/consumer-location.md). Documentation seule : aucun code, aucun build, aucune console.
   - **Pourquoi :**
     - les deux apps partagent un manifeste Android qui demande la position précise ; l’app client n’en a pas besoin, et Google exige à partir du 2027-01-27 une déclaration qui justifie pourquoi l’approximative ne suffit pas ;
     - la carte ouvre la fenêtre de localisation du système dès qu’on l’ouvre, sans un mot d’explication ;
@@ -17,4 +17,5 @@
     - une phrase était fausse (« Aucune commune trouvée près de vous ») : la commune la plus proche n’a pas de limite de distance.
   - **Vu en passant, hors A6 :** la carte de l’épingle, dans Pro, ne suit pas « Utiliser ma position » (lu dans le code, non vu sur un téléphone).
   - **Cinq questions pour le propriétaire** (décisions 272 à 276), chacune avec une recommandation, **répondues le 2026-11-27 d’un coup : « Approve as recommended »**, la part de Pro comprise (le bouton « Utiliser ma position » et la ligne « Position approximative »).
-  - **Reste :** la fusion de la spec, puis la construction d’A6 (une PR d’app), chacune sur le mot du propriétaire.
+  - **Fusionnée le 2026-11-27** (#890, `3a2cb1d7`, 09:19 UTC), sur le « Yes, merge #890 » du propriétaire : l’arbre fusionné est celui de la tête testée (`656bc607`), sans ligne d’attribution. Sur ce commit, la CI de `main` a d’abord eu la vérification des secrets en rouge, à cause des données de test d’une autre branche (#893), que l’outil lit sur toutes les branches ; relancée une fois cette branche corrigée, elle est verte.
+  - **Reste :** rien pour la spec. A6 a été construit et fusionné ensuite (#896).

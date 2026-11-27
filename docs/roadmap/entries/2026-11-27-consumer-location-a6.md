@@ -1,4 +1,4 @@
-- 🟡 **MyWeli (client) et MyWeli Pro, A6 : la localisation — approximative sur Android, demandée après une explication, et une sortie après un refus (app · 2026-11-27 — BACKLOG B0.10, décisions 272 à 276 ; écart 13 et première moitié du 22 de l’audit ; FR-DISC-005, FR-DISC-002).** Branche `feat/a6-location`, depuis `main` `3a2cb1d7`, PR #896. Spec : [consumer-location.md](../../design/consumer-location.md) §2 à §8 et §15.
+- 🟢 **MyWeli (client) et MyWeli Pro, A6 : la localisation — approximative sur Android, demandée après une explication, et une sortie après un refus (app · 2026-11-27 — BACKLOG B0.10, décisions 272 à 276 ; écart 13 et première moitié du 22 de l’audit ; FR-DISC-005, FR-DISC-002).** Branche `feat/a6-location`, depuis `main` `3a2cb1d7`, PR #896. Spec : [consumer-location.md](../../design/consumer-location.md) §2 à §8 et §15.
   - **Pourquoi :**
     - les deux apps partageaient un manifeste Android qui demande la position précise ; l’app client n’en a pas besoin, et Google exige à partir du 2027-01-27 une déclaration qui justifie pourquoi l’approximative ne suffit pas ;
     - la carte ouvrait la fenêtre de localisation du système dès son ouverture, sans un mot ;
@@ -34,7 +34,10 @@
     - le vérificateur de l’APK sur les lignes réelles des APK d’avant et d’après, et l’épingle des manifestes ;
     - les images de la carte faites par `goldens.yml` (dernier passage 45984126615), chaque image changée ouverte ; les 87 autres identiques à l’octet.
   - **Trouvé par la CI :** le miroir des couleurs du site refusait la nouvelle couleur, translucide, par son nom : il ne lisait que les couleurs opaques. Il lit maintenant `0xAARRGGBB` en `#RRGGBBAA`, le site porte la couleur (aucune classe ne s’en sert encore), et six mutations de cette correction passent chacune au rouge ; la suite du site : 3 441 réussis, 1 sauté.
+  - **Fusionné le 2026-11-27** (#896, `43be35ea`, 13:28 UTC), sur le « Yes, merge #896 » du propriétaire :
+    - `main` intégré deux fois de plus avant (#897, puis #895), le dépôt exigeant une branche à jour ; les 13 vérifications vertes sur la tête finale `1c7acd78` ;
+    - l’arbre fusionné est celui de cette tête, sans ligne d’attribution ; la CI de `main` verte sur ce commit ;
+    - `myweli.com` déployé en production (13:31 UTC) et relu : `/`, `/recherche` et `/connexion` répondent 200, une page inventée 404 ; la nouvelle couleur n’est pas dans la feuille de style servie, faute d’usage : aucun changement visible.
   - **Reste :**
-    - la fusion, sur le mot du propriétaire ; elle déploie aussi `myweli.com`, sans changement visible ;
     - les essais sur téléphone (§8.4), avec le premier build client et le prochain build Pro : non faits ;
     - le rayon réel d’une position approximative sur un téléphone, et le comportement sans les services Google : non vus.
