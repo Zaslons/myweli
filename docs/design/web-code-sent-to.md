@@ -103,16 +103,30 @@ aminata.kone                            ← textPrimary (ink), a line of its own
 - **`web/tests/format.test.ts`** — `emailSeams`: the seams, never the domain's
   dots, the last « @ », no piece empty, the pieces join back to the address.
 - **`type-overflow.spec.ts`, « the sign-ins' code step with a long address »**
-  — both sign-ins × `aminata.kone@exemple.ci`, `awa.kone.nouvelle@exemple.ci`
-  × normal text, Android-style 200 %, the 32 px root, at 320×568: the
+  — both sign-ins × `aminata.kone@exemple.ci`, `awa.kone.nouvelle@exemple.ci`,
+  `ouattaraaminatakone@exemple.ci` (a piece wider than a line: the fallback)
+  × normal text, Android-style 200 %, the 32 px root, at 320×568 (18 cases): the
   paragraph's accessibility snapshot is the sentence; the mode applied (the
   drawn size, read when measuring); the layout viewport keeps the screen's
   size; nothing spills; the sentence ends its own line; then the address, line
   by line — whole at 16 px, at its seams at 32 px — with no period. **Red
-  first** on main, all 12: the Android mode on the viewport (408×725,
-  483×858), the other two on the drawn period. Green on the branch, with
-  `type-overflow`, `axe`, `focus`, `tap-targets` and `favorite-after-sign-in`
-  (199 tests), and an axe scan of both code steps, clean.
+  first** on main, all 12 of the first two addresses: the Android mode on the
+  viewport (408×725, 483×858), the other two on the drawn period. The third
+  address came from the mutation pass below; on main it measured 526 px (§2's
+  probe), not run as a test there. Green on the branch, with `type-overflow`,
+  `axe`, `focus`, `tap-targets` and `favorite-after-sign-in` (199 tests), and
+  an axe scan of both code steps, clean.
+- **Mutations, on committed code** — 15 on the unit level (the hidden copy
+  gone, or its period; the drawing not hidden; the address inline, in
+  secondary, with a period, untrimmed, without `<wbr>` or `break-words`;
+  `emailSeams` cutting the domain, after the « @ », at the first « @ », not at
+  all, or leaving an empty piece): all red. One had first survived, the
+  missing `.trim()`: a `type="email"` field strips the spaces itself, so the
+  row typed with spaces never reached the component; a direct test now holds
+  it. 5 on the e2e block, each rebuilt (inline, no `<wbr>`, no `break-words`,
+  no hidden copy, a period drawn): all red. One had first survived, the
+  missing `break-words`: no address in the gate had a piece wider than a line,
+  so the third address was added; without the fallback it grows the page.
 
 ## 6. Not covered
 
