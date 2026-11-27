@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Module** | discovery (the salon page, `/provider/:id`), with `public-api` (`GET /providers/{id}/reviews`, A5-api) and `public-web` (`/{slug}`, A5w); the booking hub of both (a specialist chosen first, §2.4) |
-| **Status** | **Written 2026-11-27**, on the owner's « Yes, start A5 ». Read once by an independent reviewer told to refute it: no blocker, 18 findings, each re-read in the code, then taken in (§12). **Approved 2026-11-27:** the owner answered the seven questions of §11 at once, « Approve as recommended » (decisions 277–283 in BACKLOG). The spec merged as `5f4902aa` (#903). **A5-api built 2026-11-27** on the owner's « Yes, build A5-api » (§14); not merged. A5 and A5w next, each on the owner's word. |
+| **Status** | **Written 2026-11-27**, on the owner's « Yes, start A5 ». Read once by an independent reviewer told to refute it: no blocker, 18 findings, each re-read in the code, then taken in (§12). **Approved 2026-11-27:** the owner answered the seven questions of §11 at once, « Approve as recommended » (decisions 277–283 in BACKLOG). The spec merged as `5f4902aa` (#903). **A5-api built 2026-11-27** on the owner's « Yes, build A5-api » (#908, §14); not merged. A5 and A5w next, each on the owner's word. |
 | **Last updated** | 2026-11-27 |
 | **Audit** | [consumer-app-release-audit.md](consumer-app-release-audit.md) row **A5** (Track A, §7): gap **18** (« No staff section on the salon page; reviews capped at 5 », §2.2). Also §2.2's third « missing » line (a guest's « Signaler », §2.6 here) and §2.10's « the web has, the app lacks: the staff section » |
 | **BACKLOG** | B0.10 (the audit's Track A, decision 160) |
