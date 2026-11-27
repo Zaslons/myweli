@@ -281,3 +281,11 @@ On `fix/web-report-rows-doubled-text`, from `main` (`b097e330`).
   normal text and the 32 px root (`aa7190c5`). Without `min-w-0` every unit
   and e2e check stayed green, because the list shrinks without it (§3.3); the
   class is removed (`10eba97c`) and the unit test no longer asks for it.
+- **Kept green:** `type-overflow`, `salon-page`, `provider`, `account`,
+  `pro`, `axe`, `tap-targets` and `focus`, 309 cases, two of them on the real
+  config's ports, which they hardwire. That run also caught the switcher's
+  excuse (§7) matching the salon's name as first written: `pro.spec` renames
+  the stub's salon to « Beauté Divine Web » from another worker. The block
+  now reads the name the switcher shows (`9870cbed`), green with that rename
+  run first. Lint, typecheck and the unit suite (238 files, 3,594 tests)
+  green.
