@@ -12,9 +12,19 @@ name: Deploy admin console
 # bundle was public at the other two (docs/LAUNCH.md, the Access box).
 # Re-checked daily by production-checks.yml's `access` job (docs/design/infra-console-access-check.md).
 #
-# Required repo secrets:
+# Required secrets, held by the `admin-production` ENVIRONMENT, not the
+# repository (docs/design/infra-production-checks-on-time.md §4.4, B19.3):
 #   CLOUDFLARE_API_TOKEN  — a token with the "Cloudflare Pages: Edit" permission
 #   CLOUDFLARE_ACCOUNT_ID — your Cloudflare account ID
+#
+# **Why an environment.** A dispatch can name any branch, and it runs that
+# branch's copy of this file; a re-run uses the old commit for 30 days. So no
+# line in this file can stop an old copy from reading a repository-level secret.
+# GitHub's environment rules can, because they hold whatever copy runs:
+# `admin-production` requires the owner's approval and accepts `main` only.
+# Once its secrets are set, the repository-level pair is deleted, and every
+# older copy of this file, which declares no environment, finds no token
+# (B19.3b; read back by infra/ci/98-verify-deploy-fence.sh).
 #
 # **Manual trigger only, deliberately** — matching deploy-backend.yml, so that
 # "deploys to production" has one shape in this repo.
@@ -62,7 +72,24 @@ concurrency:
 jobs:
   deploy-admin:
     runs-on: ubuntu-latest
+    # The fence (header). It also puts an approval in front of every deploy of
+    # the console, once the owner sets the rule (B19.3b).
+    environment: admin-production
     steps:
+      # **Defence in depth, not the fence.** The workflow-dispatch API lets a
+      # GitHub App start this file (B19.3's trigger can start workflows); the
+      # environment rule above is what stops it, because an App cannot approve.
+      # This step makes a run started by anyone but the owner fail before it
+      # builds anything. `triggering_actor`, not `actor`: a re-run keeps the
+      # original `actor`, and the re-runner is the one who matters.
+      - name: Guard — only the owner starts a deploy
+        if: github.triggering_actor != 'Zaslons'
+        env:
+          STARTED_BY: ${{ github.triggering_actor }}
+        run: |
+          echo "::error::Only the owner starts a deploy; this run was started by '${STARTED_BY}'."
+          exit 1
+
       - name: Guard — the dispatch must be confirmed
         if: github.event.inputs.confirm != 'deploy'
         run: |

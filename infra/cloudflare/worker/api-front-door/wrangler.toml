@@ -1,9 +1,11 @@
 # The Cloudflare Worker fronting api.myweli.com
 # (docs/design/infra-cloudflare-front-door.md §5.3).
 #
-# Deployed by infra/cloudflare/96-api-front-door.sh, never by CI: CI has no
-# Cloudflare identity (infra/cloudflare/README.md), and the one token that can
-# deploy this lives in Secret Manager and is read on the owner's machine only.
+# Deployed by infra/cloudflare/96-api-front-door.sh, never by CI: the one token
+# that can deploy this lives in Secret Manager and is read on the owner's
+# machine only. CI's only Cloudflare token is deploy-admin.yml's, documented as
+# « Cloudflare Pages: Edit » (infra/cloudflare/README.md;
+# docs/design/infra-production-checks-on-time.md §2.7).
 #
 # NO SECRET IN THIS FILE. ORIGIN_AUTH_SECRET is a Worker secret, piped from
 # Secret Manager into `wrangler secret put` over stdin by the script. A

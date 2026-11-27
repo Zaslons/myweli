@@ -1,4 +1,4 @@
-- 🟡 **Spec : le contrôle quotidien de production à l’heure (B19) (CI · Cloudflare · documentation · 2026-11-26).** Branche `docs/production-checks-on-time`, créée depuis `main` (`455f24ea`). Spec : [infra-production-checks-on-time.md](../../design/infra-production-checks-on-time.md). Documentation seule : aucun code.
+- 🟢 **Spec : le contrôle quotidien de production à l’heure (B19) (CI · Cloudflare · documentation · 2026-11-26).** Branche `docs/production-checks-on-time`, créée depuis `main` (`455f24ea`). Spec : [infra-production-checks-on-time.md](../../design/infra-production-checks-on-time.md). Documentation seule : aucun code.
   - **Le défaut, mesuré :** `production-checks.yml` promet 06 h 00 UTC, « avant la journée de travail à Abidjan ». Sur ses 96 exécutions planifiées (du 2026-08-22 au 11-25), GitHub les a créées à l’heure jusqu’au 2026-08-26 (06 h 22 – 06 h 37), puis chaque jour de 3,7 à 11,9 heures en retard (médiane : 4,5 h en septembre, 7,9 h en novembre). Aucune n’a été perdue. Rien n’a changé dans le dépôt ce jour-là.
   - **Ailleurs :** d’autres signalent le même retard en 2026, sans réponse de GitHub. Un autre dépôt public, planifié toutes les 10 minutes, a démarré entre 06 h 13 et 06 h 19 les jours où le nôtre démarrait entre 13 h 47 et 16 h 52.
   - **La conception proposée, en deux étapes :**
@@ -15,3 +15,4 @@
   - **Six questions** (décisions 266–271).
   - **Approuvée le 2026-11-26 :** « Approve as recommended », décisions 266–271 dans le BACKLOG (lot 19).
   - **Reste :** la fusion, sur le mot du propriétaire ; puis B19.1, la sonde, construite dans sa propre PR empilée sur celle-ci, dont la fusion la démarre, sur son mot.
+  - **Fusionnée** le 2026-11-26 à 15 h 24 UTC sur le mot du propriétaire (#881, `d150ee2e`).
