@@ -400,7 +400,7 @@ Branch `feat/b16-3b-email-change-app` from `main` (`7f08c725`). The tests red fi
   - `errorFromResponse`: a 429 with no JSON — Cloudflare's own limit on `/auth/`, `/admin/auth/` and `/me/email/` (« error code: 1015 », §9.1) — reads as `rate_limited`.
 - **Where the build departs from §5.4, and why:**
   - **The title is « Adresse e-mail »**, not « Changer d’adresse e-mail »: `a15_titles_test` found it does not fit a pushed bar at 360 dp × 2× (SYSTEM.md §13.3). The row that opens it says the same words.
-  - **The row's label sits above, full width; « Modifier » goes under the address when the two cannot share a line.** Seen in the first Linux golden: beside « Modifier » the label broke inside « e-mail » and the address on three lines (§13.3: the control beside a value moves first). Gated by `expectNoMidWordBreak` with the real font. An address wider than the whole line at 200 % — « awa.kone@exemple.ci » measures 328 px of 312 — breaks at its punctuation: no layout has more to give.
+  - **The row's label sits above, full width; « Modifier » goes under the address when the two cannot share a line.** Seen in the first Linux golden: beside « Modifier » the label broke inside « e-mail » and the address on three lines (§13.3: the control beside a value moves first). Gated by `expectNoMidWordBreak` with the real font. An address wider than the whole line at 200 % — « awa.kone@exemple.ci » measures 328 px of 312 — breaks at its punctuation: no layout has more to give. *(Corrected 2026-11-27: it broke where the line ran out — « awa.kone@exemple. » / « ci » — and only looked like punctuation; since §12's fix it breaks before its « @ ».)*
   - **« Vous ne pourrez plus vous connecter par code avec votre ancienne adresse. » shows only when the current address is proven** (§5.4 said « always »): with no address, or an unproven one, no old address signs anyone in, and the line would be false.
   - **« Vérifier » sends the code at once** (« straight to its code »); a refusal leaves the address step with its fault. **Its success says « Adresse e-mail vérifiée. »**: the address did not change.
   - **Two code fields carry two names**, « Code de la nouvelle adresse » and « Code de l’adresse actuelle »; one field keeps the sign-in's « Code à 6 chiffres ». At 200 % the two names end in Flutter's declared ellipsis (a mobile opt-out, §13.3); the sentence above each field names it in full, and a screen reader hears the whole name.
@@ -430,7 +430,7 @@ Branch `feat/b16-3b-email-change-app` from `main` (`7f08c725`). The tests red fi
 - **Looked at the pictures** (`consumer_edit_profile_email_w360_x2`, `consumer_email_change_address_w360_x2`, `consumer_email_change_codes_w360_x2`, Linux, 360 dp × 2×): the first run showed the row's broken label (fixed) and caught the floating label mid-animation (the test now lets it finish). Only these three images moved; the other 89 are byte-identical.
 - **Not done here, for the record:**
   - **« Vérifier » sends a code each time the screen opens**, as the sign-in does: opened often within a code's five minutes, the address's resend budget answers « Trop de demandes de code » while a valid code sits in the inbox.
-  - **At 200 %, the code step's sentence breaks a long address inside a word** (« awa.kon / e.nouvelle@exemple. / ci »), as the sign-in's identical sentence does: the address follows « à » on a line already started. §12.
+  - **At 200 %, the code step's sentence breaks a long address inside a word** (« awa.kon / e.nouvelle@exemple. / ci »), as the sign-in's identical sentence does: the address follows « à » on a line already started. §12. *(Fixed since, 2026-11-27: §12.)*
   - The website's e-mail editing (C10) stays out of scope; when built, it uses §3's routes.
 - **Merged** 2026-11-27 10:24 UTC on the owner's « Yes, when green » (#892, squashed as `2a4a3982`; tree `bb835294` equal to the tested head `236b57df`, 13 checks of 13, no attribution). The Security check had failed on another branch's test fixtures (gitleaks reads every branch's history); that session renamed them, and a re-run found no leaks. `main` was merged in twice on the way (#890, #891), the conflicts each side's own row in the specs index.
 
@@ -537,13 +537,20 @@ Numbered from **260**, after batch 18's 255–259.
 - **A PATCH that fails after the avatar's promotion leaves the photo unreferenced** (§2.2). This build moves the e-mail refusal before the promotion; the route's one other late failure is `not_found`, an account deleted under the request. Not decided here.
 - **The phone's twin of the trap.** `verifyOtp` finds an account by `phone_number` whatever `phone_verified` says (`postgres_auth_repository.dart:392-405`, `auth_repository.dart:565-571`), and `PATCH /me` writes the phone unproven. Only `AUTH_METHODS` holds it shut (phone sign-in is dormant, T34). **A condition for ever turning phone sign-in back on:** the same rule as §5.1, for the phone.
 - **`PATCH /me` with a provider's token** answers `404 not_found` (pros are not in `users`). Harmless; the new routes answer `403`.
-- **At 200 %, « Entrez le code reçu par e-mail à {adresse}. » breaks a long address inside a word**, on the sign-in and on the change's code step alike (B16.3b's golden): the address starts on a line already begun. An address on a line of its own would keep the short ones whole. Both screens, one change; not decided here.
+- **At 200 %, « Entrez le code reçu par e-mail à {adresse}. » broke a long address inside a word** — ✅ **fixed 2026-11-27** on the owner's approval, the profile row included (branch `fix/code-sent-to-address-breaks`; SYSTEM.md §13.3, §21 row 99).
+  - **The mechanism, as measured** (real font, 360 dp × 2×, a 312 px line), not as this line first put it. A short address was never cut: the engine moves a word that fits a line to the next one whole (« awa@exemple.ci », 248 px). What broke was any address wider than a line, which at that size is about 18 characters and so most real addresses. It began on the line « à » had started and was cut where that line ran out (« par e-mail à aminata. » / « kone@exemple.ci. »). Alone on a line it was still cut mid-word (« aminata.kone@exem » / « ple.ci. »). So a line of its own was needed, but was not enough on its own.
+  - **Now:**
+    - `CodeSentTo` draws the sentence, then the address on a line of its own, in ink, with no period drawn. A screen reader hears one node, the sentence as it was.
+    - `Formatters.breakableEmail` lets the address break only before its « @ » or a « . » of its name part (« aminata.kone » / « @exemple.ci »).
+  - **Sites:** five. The sign-in; the Pro sign-in; the Android Pro sign-up (the same sentence, found while checking); the change's two sentences (the second loses its drawn comma and keeps it spoken); and « Modifier le profil »'s row.
+  - **Still open:** a name part or a domain longer than a line still breaks inside, and no layout has more to give. The website's two sign-ins say the same sentence (`LoginOptions.tsx`, `ProLoginOptions.tsx`).
 
 ---
 
 ## 13. Review log
 
 - 2026-11-26 — drafted: the code read, P1–P6 proven on both twins (§2.4), the probe and its database deleted.
+- 2026-11-27 — §12's address line fixed (branch `fix/code-sent-to-address-breaks`): its mechanism measured first, corrected in §12 and §8.5, then built on the owner's approval.
 - 2026-11-26 — **read once by an independent reviewer, told to refute it against the code.** 20 findings (2 blocking, 14 should-fix, 4 nits), each re-read in the code before being folded in:
   - **Blocking:**
     - « the Google 500 » cannot happen through a route: the Google token check refuses an unverified address (401), and Apple addresses are always verified. P6 is now repository-only, and Q1's third option is rejected for the right reason;
