@@ -174,7 +174,7 @@ Status colors come from here — never `Colors.green`/`Colors.red`.
 | `warningLight` | `#FFB800` | 1.62 | ❌ | ❌ | — |
 | `info` | `#1A1A2E` | 15.91 | ✅ | ✅ | ✅ |
 | `infoLight` | `#2D3561` | — | ✅ | ✅ | — |
-| `locationAccuracy` | `info` at 15 % (`0x261A1A2E`) | — | ❌ | fill only | — |
+| `locationAccuracy` | `info` at 15 % (`0x261A1A2E`; the web's mirror `#1A1A2E26`) | — | ❌ | fill only | — |
 
 ⚠️ **`warningLight` (`#FFB800`) is not a foreground color** at 1.62:1. It is a
 *background tint* for warning chips (with `textPrimary` on it — 10.04:1 ✅). Using

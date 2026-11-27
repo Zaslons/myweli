@@ -33,7 +33,8 @@
     - 39 mutations, chacune vue rouge sur le code commité ;
     - le vérificateur de l’APK sur les lignes réelles des APK d’avant et d’après, et l’épingle des manifestes ;
     - les images de la carte faites par `goldens.yml` (dernier passage 45984126615), chaque image changée ouverte ; les 87 autres identiques à l’octet.
+  - **Trouvé par la CI :** le miroir des couleurs du site refusait la nouvelle couleur, translucide, par son nom : il ne lisait que les couleurs opaques. Il lit maintenant `0xAARRGGBB` en `#RRGGBBAA`, le site porte la couleur (aucune classe ne s’en sert encore), et six mutations de cette correction passent chacune au rouge ; la suite du site : 3 441 réussis, 1 sauté.
   - **Reste :**
-    - la fusion, sur le mot du propriétaire ;
+    - la fusion, sur le mot du propriétaire ; elle déploie aussi `myweli.com`, sans changement visible ;
     - les essais sur téléphone (§8.4), avec le premier build client et le prochain build Pro : non faits ;
     - le rayon réel d’une position approximative sur un téléphone, et le comportement sans les services Google : non vus.

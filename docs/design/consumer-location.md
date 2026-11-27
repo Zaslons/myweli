@@ -598,7 +598,17 @@ Built on the owner's « Yes, build A6 », branch `feat/a6-location` from `main`
 - `InlineFeedback` gains `action`, and `AppColors.locationAccuracy` is new
   (SYSTEM §3.4, §11.1, §12);
 - `android/app/src/pro/AndroidManifest.xml` is new;
-- the CI step, `tool/verify_android_location.sh`.
+- the CI step, `tool/verify_android_location.sh`;
+- on the web, the token mirror: `web/scripts/dart-tokens.mjs` now reads a
+  translucent `Color(0xAARRGGBB)` as `#RRGGBBAA`, and `web/styles/tokens.ts`
+  carries `locationAccuracy` (no web class uses it yet).
+
+**Found by CI on the PR:** the web's token mirror gate refused the new token
+by name: its parser read only opaque colours, and every `AppColors` token must
+reach the web. Six mutations of the fix (the token removed, opaque or another
+alpha, the parser opaque-only or dropping the alpha, the Dart token opaque)
+each turned the gate or the contrast ledger red. **Merging this PR deploys
+`myweli.com`,** with no visible change.
 
 **Read on the built artifacts (2026-11-27, aapt2 2.20, arm64 release APKs
 built on this Mac):**
