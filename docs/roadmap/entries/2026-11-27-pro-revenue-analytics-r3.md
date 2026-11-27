@@ -1,0 +1,26 @@
+- 🟡 **MyWeli Pro : l'écran « Revenus » devient les analyses de revenus du salon — R3 (application · 2026-11-27 — BACKLOG B17.3, décisions 238, 240, 244).** PR #R3PR, branche `feat/pro-revenue-r3-app`. Spec : [pro-revenue-analytics.md](../../design/pro-revenue-analytics.md) §4, §12, §13.2 et, tel que construit, §21.
+  - **Pourquoi :** le propriétaire ne voyait qu'un chiffre par période. Il voit maintenant ce que rapporte chaque collaborateur, chaque prestation et chaque canal (application, site, ajouté par le salon), son panier moyen et son taux d'absence, comparés à la période d'avant ou à l'an dernier. Le serveur (R2, en production depuis le 26 novembre) calcule tout ; l'application ne fait qu'afficher.
+  - **Ce qui change dans l'application :**
+    - **Les périodes :** Jour, Semaine, Mois, Année ou deux dates au choix (366 jours au plus), avec ‹ › pour avancer ou reculer, et « Comparé à » (période précédente, l'an dernier, ou rien). Pendant une période en cours, la ligne dit « même avancement ».
+    - **Le bandeau « À clôturer »** quand des rendez-vous passés n'ont pas été marqués « Terminé », avec « Voir » vers leur liste ; au retour, les chiffres se rechargent.
+    - **Cinq chiffres :** Réalisé, Rendez-vous terminés, Panier moyen, Taux d'absence (avec le nombre et le montant des absences), Prévu. Chacun avec sa variation : une flèche et un signe, jamais la couleur seule.
+    - **« Évolution »**, un graphique sans bibliothèque (rien n'est ajouté au poids de l'application). On touche ou on glisse pour lire un jour ; un lecteur d'écran passe d'une barre à l'autre ; « Voir en liste » donne les mêmes chiffres en lignes.
+    - **« Répartition »** par collaborateur, prestation ou canal, triée par montant, nombre de rendez-vous ou nom. Chaque ligne ouvre son détail, sur la même période. Une prestation estimée le dit (« estimé »), avec sa note.
+    - **Les rendez-vous derrière les chiffres :** les cinq derniers terminés sous l'écran, puis la liste complète par filtre (Terminés, À venir, À clôturer, Absents, Annulés), par pages de 20 avec « Afficher plus ». Chaque ligne ouvre le rendez-vous.
+    - **L'Accueil :** les deux cartes « Revenus prévus » s'ouvrent désormais sur « Revenus », l'une sur Jour, l'autre sur Mois, pour le propriétaire seulement. Leur apparence ne change pas.
+    - **Supprimés :** l'ancien écran (et son total qui rétrécissait), son état, et la maquette « Analyses » cachée.
+  - **Ce qui est dit, et ce qui ne l'est jamais :** les montants sont groupés par devise, jamais additionnés entre devises. Aucun texte ne dit « encaissé », « paiements reçus » ni « chiffre d'affaires » ; le seul « encaiss » est la note « MyWeli n'encaisse rien ».
+  - **Qui le voit :** le propriétaire seul, comme avant. Un refus du serveur affiche « Réservé au propriétaire », sans bouton « Réessayer » qui ne pourrait pas réussir.
+  - **Quatorze précisions à la spec, aucune décision changée** (§21.1), dont quatre trouvées en vérifiant :
+    - le détail d'une ligne affiche « Collaborateur », « Prestation » ou « Canal » dans la barre du haut, et le nom de la ligne en titre dans la page : à 200 %, un nom long ne tenait pas dans la barre ;
+    - les puces de période et de filtre vont à la ligne au lieu de défiler : à taille normale sur un écran de 360 à 390, « Dates… » et « Annulés » sortaient du cadre ;
+    - un refus n'affiche plus la barre de période (rien n'y pouvait aboutir), et le premier chargement a son titre tout de suite : deux défauts vus sur les images de référence.
+  - **Vérifié :**
+    - **sur le vrai serveur :** l'application dans le simulateur iPhone, branchée sur le serveur de `main` lancé en local (base jetable, salon de démo avec ses trois collaborateurs et l'agenda de la vraie réinitialisation). La carte « Ce mois » ouvre « Revenus » ; chiffres, comparaison, bandeau, répartition et détail s'affichent ; « Voir » → le rendez-vous à clôturer → « Terminé » → au retour, le bandeau a disparu et « Réalisé » passe de 70 000 à 80 000 FCFA ; 80 000 + 20 000 de « Prévu » = les 100 000 de l'Accueil. Serveur arrêté et base supprimée après ;
+    - les réponses réelles de ce serveur sont gardées en test : les modèles de l'application les lisent sans erreur ;
+    - chaque état de l'écran, la période et ses flèches, « Comparé à », « Dates… », le détail, le registre, les cartes de l'Accueil, les phrases du lecteur d'écran, le graphique, les textes sans « encaissé » ;
+    - la mise en page à 360, 375 et 390 de large, en texte normal et à 200 %, avec des montants à 7 et 8 chiffres, cibles de 48 dp comprises ;
+    - sept images de référence faites sous Linux par GitHub, chacune regardée ; aucune autre image n'a bougé, donc l'Accueil est identique au pixel ;
+    - la suite mobile complète ;
+    - **24 mutations, chacune rouge sur le test attendu** (spec §21.4), dont la réponse en retard gardée, le refus lu comme une panne, deux devises additionnées, la grille non mesurée, « encaissé » dans la note, le registre sans l'instant des chiffres. Une modification témoin est restée verte. Une mutation est d'abord restée verte (le registre fictif qui daterait « À clôturer » par le début) : le test manquant a été écrit, puis elle a viré au rouge.
+  - **Arrive chez les salons** avec la prochaine version de MyWeli Pro dans les stores, sur le mot du propriétaire.
