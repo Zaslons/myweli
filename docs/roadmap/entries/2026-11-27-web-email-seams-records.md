@@ -1,4 +1,4 @@
-- 🟡 **Registres : les autres adresses e-mail du site fusionnées et en ligne (docs · 2026-11-27 — web, la règle de #898).** PR à venir. Spec : [web-email-seams.md](../../design/web-email-seams.md) §8.
+- 🟡 **Registres : les autres adresses e-mail du site fusionnées et en ligne (docs · 2026-11-27 — web, la règle de #898).** PR #913. Spec : [web-email-seams.md](../../design/web-email-seams.md) §8.
   - **Les autres adresses (#902) :** son entrée passe au vert, avec la fusion (`0bc14543`, sur le mot du propriétaire) : l’arbre de `main` est celui de la tête testée, la CI de `main` est verte, et Vercel l’a mise en ligne sur myweli.com à 21:10 UTC. Le statut de la spec et son index le disent aussi.
   - **Relue sur myweli.com** (spec §8) : un témoin pris avant le déploiement (les liens de support nommés par leur dessin, coupés après le « @ » sur `/pro/suppression-compte`), puis la même lecture après (chacun nommé par son `aria-label`, coupé seulement avant le « @ »). Pas lues : les pages connectées.
   - **Aussi :** l’entrée des registres de l’étape du code (#907) passe au vert.
