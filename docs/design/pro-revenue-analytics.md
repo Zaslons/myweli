@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Approved 2026-11-25** — the owner answered all thirteen questions of §17 at once, « Approve as recommended » (decisions 237–249). **R0w live 2026-11-25** (#866, `afd2de97`). **R1's production read done 2026-11-25** (§19). **R1 live 2026-11-26** (#872, migration **0052**, merged 2026-11-25 `3f3305a5`, deployed 2026-11-26 11:09 UTC, revision `myweli-api-00061-kwl`); the count after waits for real bookings, on the owner's word. **R2 live 2026-11-26** (#884, merged `306a5d50`, deployed 19:40 UTC, revision `myweli-api-00062-f5c`; as built: §20). **R3 merged 2026-11-27** (#893, `6b1ed6a9`; as built: §21); it reaches users with the next Pro store build. **R4 built 2026-11-27** (PR #TBD, branch `feat/web-revenue-r4`; as built: §22); the website gets it with its merge, on the owner's word. |
+| **Status** | **Approved 2026-11-25** — the owner answered all thirteen questions of §17 at once, « Approve as recommended » (decisions 237–249). **R0w live 2026-11-25** (#866, `afd2de97`). **R1's production read done 2026-11-25** (§19). **R1 live 2026-11-26** (#872, migration **0052**, merged 2026-11-25 `3f3305a5`, deployed 2026-11-26 11:09 UTC, revision `myweli-api-00061-kwl`); the count after waits for real bookings, on the owner's word. **R2 live 2026-11-26** (#884, merged `306a5d50`, deployed 19:40 UTC, revision `myweli-api-00062-f5c`; as built: §20). **R3 merged 2026-11-27** (#893, `6b1ed6a9`; as built: §21); it reaches users with the next Pro store build. **R4 built 2026-11-27** (PR #900, branch `feat/web-revenue-r4`; as built: §22); the website gets it with its merge, on the owner's word. |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-11-27 |
 | **PRD ref / phase** | FR-PRO-EARN-001 [V1] (« completed revenue by day/week/month ») + FR-PRO-DASH-001 [V1] (« no-show rate ») + the revenue half of **FR-PRO-OPS-004 [V3]** (« revenue, top services/staff, no-show analytics »), pulled forward on the owner's request of 2026-11-25 — Q1 |
@@ -1857,7 +1857,7 @@ clean. A no-op edit (the control) stayed green.
 ## 22. R4 as built (2026-11-27)
 
 On the owner's « Oui, démarrer R4 » and « Oui, construire R4 » (2026-11-27),
-to the plan approved with them. PR #TBD, branch `feat/web-revenue-r4`, one
+to the plan approved with them. PR #900, branch `feat/web-revenue-r4`, one
 PR (Q12). **Website only:** the two endpoints have been live since R2; no
 backend, contract or schema change. The website ships with its merge
 (Vercel).
