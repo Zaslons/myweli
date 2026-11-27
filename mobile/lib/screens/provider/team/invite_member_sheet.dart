@@ -18,6 +18,7 @@ import '../../../widgets/common/app_card.dart';
 import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/app_text_field.dart';
 import '../../../widgets/common/brand_loader.dart';
+import '../../../widgets/common/email_sentence.dart';
 import '../../../widgets/common/inline_feedback.dart';
 
 /// The 3-step invite sheet (module `access` §5.1): e-mail → rôle (3 cartes)
@@ -114,9 +115,11 @@ class _InviteMemberSheetState extends State<InviteMemberSheet> {
     if (!mounted) return;
     if (member != null) {
       Navigator.of(context).pop(member.email);
+      // The roster, reloaded under the sheet, names who
+      // (docs/design/app-team-email-seams.md §4 — the website's words).
       AppSnackBar.showOn(
         messenger,
-        'Invitation envoyée à ${member.email}',
+        'Invitation envoyée.',
         kind: SnackKind.success,
       );
     }
@@ -271,8 +274,13 @@ class _InviteMemberSheetState extends State<InviteMemberSheet> {
   ];
 
   List<Widget> _roleStep(ProTeamProvider team) => [
-    Text(
-      'Quel rôle pour $_email ?',
+    // The address on a line of its own, its « ? » heard and not drawn
+    // (SYSTEM.md §13.3): inline, at 200 % it broke mid-word — « Quel rôle
+    // pour adjoua.ko » / « uame@exemple.ci ? ».
+    EmailSentence.addressLast(
+      lead: 'Quel rôle pour',
+      address: _email,
+      spoken: 'Quel rôle pour $_email ?',
       style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textSecondary),
     ),
     const SizedBox(height: AppTheme.spacingM),

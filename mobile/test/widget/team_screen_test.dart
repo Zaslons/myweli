@@ -18,6 +18,7 @@ import 'package:myweli/services/mock/mock_subscription_service.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../support/drawn_email.dart';
 import '../support/pump_app.dart';
 
 /// The current mock session — owner by default, switchable to a bare
@@ -92,7 +93,7 @@ void main() {
     await tester.pumpWidget(app());
     await settle(tester);
 
-    expect(find.text('jean@salon-excellence.test'), findsOneWidget);
+    expect(drawnEmail('jean@salon-excellence.test'), findsOneWidget);
     expect(find.text('Propriétaire'), findsOneWidget);
     expect(find.text('Manager'), findsOneWidget);
     // R4b seeds: pending invitee (artist2) + ACTIVE sonia (artist1).
@@ -113,11 +114,11 @@ void main() {
     await tester.pumpWidget(app());
     await settle(tester);
 
-    await tester.tap(find.text('jean@salon-excellence.test'));
+    await tester.tap(drawnEmail('jean@salon-excellence.test'));
     await tester.pump();
     expect(find.text('Révoquer l’accès'), findsNothing);
 
-    await tester.tap(find.text('awa.manager@myweli.test'));
+    await tester.tap(drawnEmail('awa.manager@myweli.test'));
     await settle(tester);
     expect(find.text('Changer le rôle'), findsOneWidget);
     expect(find.text('Révoquer l’accès'), findsOneWidget);
@@ -135,11 +136,15 @@ void main() {
     await settle(tester);
     await settle(tester);
     expect(find.text('Accès révoqué'), findsOneWidget);
+    // The row names who; the snackbar says what happened (SYSTEM.md §13.3,
+    // docs/design/app-team-email-seams.md §4).
+    expect(find.text('Accès révoqué.'), findsOneWidget);
+    expect(find.textContaining('Accès de'), findsNothing);
 
     // B7.5 — a revoked row is inert, as on the web: no chevron, no sheet
     // (its only action, « Changer le rôle », the server refuses with 409).
     final revokedRow = find.ancestor(
-      of: find.text('awa.manager@myweli.test'),
+      of: drawnEmail('awa.manager@myweli.test'),
       matching: find.byType(ListTile),
     );
     expect(tester.widget<ListTile>(revokedRow).onTap, isNull);
@@ -150,7 +155,7 @@ void main() {
       ),
       findsNothing,
     );
-    await tester.tap(find.text('awa.manager@myweli.test'));
+    await tester.tap(drawnEmail('awa.manager@myweli.test'));
     await settle(tester);
     expect(find.text('Changer le rôle'), findsNothing);
   });
@@ -160,9 +165,42 @@ void main() {
     await tester.pumpWidget(app());
     await settle(tester);
 
-    await tester.tap(find.text('invitee@myweli.test'));
+    await tester.tap(drawnEmail('invitee@myweli.test'));
     await settle(tester);
     expect(find.text('Renvoyer l’invitation (3 restants)'), findsOneWidget);
+  });
+
+  // docs/design/app-team-email-seams.md §4: a snackbar says what happened
+  // without the address — at 200 % it was cut mid-word (« Invitation
+  // renvoyée à » / « awa.kone.nouvelle@ » / « exemple.ci. »), and the row it
+  // speaks of is on screen, updated, the moment the sheet closes.
+  testWidgets('« Renvoyer l’invitation » says « Invitation renvoyée. »', (
+    tester,
+  ) async {
+    await tester.pumpWidget(app());
+    await settle(tester);
+
+    await tester.tap(drawnEmail('invitee@myweli.test'));
+    await settle(tester);
+    await tester.tap(find.text('Renvoyer l’invitation (3 restants)'));
+    await settle(tester);
+    expect(find.text('Invitation renvoyée.'), findsOneWidget);
+    expect(find.textContaining('renvoyée à'), findsNothing);
+  });
+
+  testWidgets('« Changer le rôle » says « Rôle mis à jour. »', (tester) async {
+    await tester.pumpWidget(app());
+    await settle(tester);
+
+    await tester.tap(drawnEmail('awa.manager@myweli.test'));
+    await settle(tester);
+    await tester.tap(find.text('Changer le rôle'));
+    await settle(tester);
+    await tester.tap(find.text('Réception').last);
+    await settle(tester);
+    await settle(tester);
+    expect(find.text('Rôle mis à jour.'), findsOneWidget);
+    expect(find.textContaining('Rôle de'), findsNothing);
   });
 
   testWidgets('a bare member account gets the owner-only guard', (

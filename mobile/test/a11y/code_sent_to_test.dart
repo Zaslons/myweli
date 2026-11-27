@@ -198,5 +198,73 @@ void main() {
       await draw(tester, Formatters.breakableEmail(seam));
       expectEmailAddressOnItsOwnLine(tester, seam, 'instrument');
     });
+
+    // `within:` (docs/design/app-team-email-seams.md §6): a sheet or a dialog
+    // asked about on its own, while the row it was opened from is drawn
+    // behind it. The SAME drawing twice — cut in a narrow box behind, whole in
+    // the subtree — so both of the gate's lookups must be narrowed: its own,
+    // and the mid-word check it runs first, which finds a paragraph by text.
+    Future<void> twice(WidgetTester tester) => pumpAtWidth(
+      tester,
+      width: 360,
+      scale: 2,
+      home: Scaffold(
+        body: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              key: const ValueKey('behind'),
+              width: 60,
+              child: Text(
+                Formatters.breakableEmail(long),
+                style: AppTextStyles.bodyLarge,
+              ),
+            ),
+            Padding(
+              key: const ValueKey('subtree'),
+              padding: const EdgeInsets.all(24),
+              child: Text(
+                Formatters.breakableEmail(long),
+                style: AppTextStyles.bodyLarge,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    testWidgets('within: what is drawn behind the subtree is not asked about', (
+      tester,
+    ) async {
+      await twice(tester);
+      fails(tester, long, 'being broken mid-word');
+      expectEmailAddressOnItsOwnLine(
+        tester,
+        long,
+        'instrument',
+        within: find.byKey(const ValueKey('subtree')),
+      );
+    });
+
+    testWidgets('within: a wrong drawing inside the subtree still fails', (
+      tester,
+    ) async {
+      await twice(tester);
+      expect(
+        () => expectEmailAddressOnItsOwnLine(
+          tester,
+          long,
+          'instrument',
+          within: find.byKey(const ValueKey('behind')),
+        ),
+        throwsA(
+          isA<TestFailure>().having(
+            (e) => e.message,
+            'message',
+            contains('being broken mid-word'),
+          ),
+        ),
+      );
+    });
   });
 }
