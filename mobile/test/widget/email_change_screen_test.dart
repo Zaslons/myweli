@@ -440,7 +440,6 @@ void main() {
         find.text('Entrez le code reçu par e-mail à $typed.'),
         findsOneWidget,
       );
-      expect(find.text(oldLine), findsNothing);
       await tester.enterText(field(oneCode), code);
       await tester.pump();
       await tapText(tester, 'Confirmer');
@@ -461,6 +460,15 @@ void main() {
     await openProfile(tester, by: planted());
     expect(find.text('Aucune adresse'), findsOneWidget);
     await openChange(tester);
+    expect(find.text(oldLine), findsNothing);
+  });
+
+  testWidgets('an unproven address signs nobody in: no « ancienne adresse »', (
+    tester,
+  ) async {
+    await openProfile(tester, by: planted(email: address('typed')));
+    await openChange(tester);
+    expect(find.text('Recevoir un code'), findsOneWidget);
     expect(find.text(oldLine), findsNothing);
   });
 
