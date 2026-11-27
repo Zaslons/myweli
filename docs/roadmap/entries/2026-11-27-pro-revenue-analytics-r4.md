@@ -10,7 +10,7 @@
     - **Supprimés :** l'ancien total et « Tout ». L'export « Exporter mes données » ne change pas.
   - **Ce qui est dit, et ce qui ne l'est jamais :** les montants sont groupés par devise, jamais additionnés entre devises. Aucun texte ne dit « encaissé », « paiements reçus » ni « chiffre d'affaires » ; le seul « encaiss » est la note « MyWeli n'encaisse rien ».
   - **Qui le voit :** le propriétaire seul. Un autre rôle qui ouvre l'adresse lit « Réservé au propriétaire », sans barre de période ni « Réessayer ».
-  - **Quinze précisions à la spec, aucune décision changée** (§22.1), dont trois trouvées en vérifiant :
+  - **Vingt-deux précisions à la spec, aucune décision changée** (§22.1) — quinze d'abord, dont trois trouvées en vérifiant, puis sept venues de la relecture indépendante (ci-dessous) :
     - le scanner d'accessibilité (axe) a vu le titre de la page lu à voix haute à l'arrivée sur un détail : la page réécrivait l'adresse en y ajoutant le salon. Elle ne la réécrit plus quand ce n'est pas utile ;
     - sur le vrai serveur, la variation d'une ligne se faisait lire deux fois (« stable, stable par rapport à… ») : elle ne se lit plus qu'une fois ;
     - une ligne dont l'identifiant serait refusé par le serveur n'ouvre plus de détail (vu sur les données de test locales).
@@ -20,5 +20,6 @@
     - chaque état de la page, la période, le clavier, l'adresse, le graphique, les tableaux, le CSV, le détail, le registre, les cartes de l'Accueil, les textes sans « encaissé » ;
     - de bout en bout (Playwright) : le parcours propriétaire, le refus pour un Manager, l'accessibilité (axe) des trois pages, la taille des cibles, aucun débordement à 320 et 375 de large ;
     - la suite web complète, le typage et le lint ;
-    - **des mutations, chacune rouge sur le test attendu** (spec §22.4).
+    - **une relecture indépendante du code, chargée de le réfuter** : sept défauts trouvés, tous corrigés dans la même PR (§22.1, points 16 à 22). Entre autres : le graphique bloquait le défilement vertical au doigt ; ‹ › faisaient perdre le focus clavier ; le registre ouvert depuis un détail dans un détail revenait sur la page miroir ; un test du registre ne lisait que des squelettes de chargement ;
+    - **47 mutations, chacune rouge sur le test attendu** (spec §22.4), dont une par défaut de la relecture ; une modification témoin est restée verte.
   - **Reste :** votre relecture et la fusion, qui met la page en ligne sur le site.

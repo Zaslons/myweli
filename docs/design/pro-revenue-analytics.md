@@ -1904,7 +1904,9 @@ or checking.
    `vue` (collaborateurs · prestations · canaux), `tri` (montant ·
    rendez-vous · nom); in a detail or the ledger also `collaborateur`,
    `prestation`, `canal` (application · site · salon · en-ligne), `statut`
-   (termines · a-venir · a-cloturer · absents · annules), `instant`, `salon`.
+   (termines · a-venir · a-cloturer · absents · annules), `instant`, `depuis`
+   (collaborateur · prestation · canal: the detail a ledger was opened from),
+   `salon`.
    The defaults are never written, so a bare `/pro/revenus` stays « now ».
    A change of period, tab or sort **replaces** the address (Back leaves the
    page); a detail or the ledger is a link (Back returns as it was). « Sans
@@ -1967,6 +1969,31 @@ or checking.
     completed booking ever still sees the banner and « Prévu » above « Pas
     encore de revenus »; a ledger link's `instant` older than 23 hours is
     dropped; the latest five are a second, small request.
+
+**Found by an independent review of the diff, told to refute it** (seven, all
+fixed in the same PR, each pinned by a test watched red — §22.4 rows 40–47):
+
+16. **A vertical swipe on the chart scrolls the page** (`touch-pan-y`): with
+    `touch-none`, a 160 px full-width chart took the phone's scrolling. Only a
+    sideways drag chooses a bar, the app's own split.
+17. **‹ › are `aria-disabled` while they wait, never `disabled`**: a focused
+    button that turns `disabled` drops keyboard focus to the page, so a
+    keyboard user lost their place after every step.
+18. **The ledger returns to the detail it was opened from**: its address
+    carries `depuis`. Inside a detail, the first filter is the parent — Awa →
+    Tresses → « Voir tout » → « ← » opened Awa's page filtered by Tresses, the
+    mirror of the one left.
+19. **The first tab is never written in the address**, clicked or not (the
+    defaults' rule of item 1).
+20. **The address on arrival is read in the router's own encoding**: an
+    address written another way (`%20` for `+`) read as a new one and asked
+    the figures twice.
+21. **A detail inside a detail names both rows in its CSV's file**
+    (« revenus-awa-kone-tresses-canaux-… »): « Tresses » alone is another
+    table.
+22. **The ledger's wording test reads each filter's own content**: it had
+    read only skeletons (the chips render before the answer). And the
+    23-hour line is pinned on both sides (22 h 30 kept, 23 h 30 dropped).
 
 ### 22.2 Tests (§13.3)
 
@@ -2075,5 +2102,13 @@ clean. A no-op edit (the control) stayed green.
 | 37 | the ledger rewrites a bare arrival | « arriving on a bare address does not rewrite it » (ledger) |
 | 38 | the Accueil's day card not a link | « owner: each money card opens « Revenus » on its period » |
 | 39 | the footnote says « encaissé » | the footnote's unit test, the wording tests (overview, detail) |
+| 40 | the chart takes vertical swipes (`touch-none`) | « « Évolution » is one slider … » |
+| 41 | ‹ `disabled` while it waits | « ‹ › wait for the answer without being disabled » |
+| 42 | the default tab written | « « Répartition »: three tabs … the tab lives in the address » |
+| 43 | the arrival address read raw | « an address in another encoding is asked once » |
+| 44 | a sub-detail's CSV named after one row | « inside a detail: … » (the file's name) |
+| 45 | the ledger ignores `depuis` | « opened from a detail inside a detail, « ← » returns to that detail » |
+| 46 | the instant kept for 24 hours | « the 23-hour line … » |
+| 47 | a ledger sentence says « encaissement » | « the ledger, on each filter — its rows, then each empty sentence » |
 
 The harness asserted that each edit applied exactly once (a mutation that does not apply is no result), and that every file read back clean after.
