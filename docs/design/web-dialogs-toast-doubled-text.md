@@ -10,7 +10,7 @@
 | **Rule** | [WEB-SYSTEM.md](WEB-SYSTEM.md) §9 « Text scale & reflow » (rule 1, a row that cannot fit must wrap; the doubled-text modes) · §8 Dialogs · the app's rule, [SYSTEM.md](SYSTEM.md) §13.3 |
 | **Governs** | `web/components/Modal.tsx` · `web/components/Toast.tsx` · `web/components/pro/ChangeRoleDialog.tsx` · `web/components/pro/InviteMemberDialog.tsx` · the « Révoquer l’accès » dialog in `web/components/pro/EquipeClient.tsx` · the « Confidentialité » section of `web/components/account/AccountClient.tsx` · `web/tailwind.config.ts` (`max-w-gutterBound`) |
 | **Skills checked** | `myweli-web-guardrails`, `myweli-dev-guardrails` |
-| **Builds on** | [web-email-seams.md](web-email-seams.md) (#902, not merged; this branch is stacked on it) §7, its first three follow-ups |
+| **Builds on** | [web-email-seams.md](web-email-seams.md) (#902, merged 2026-11-27, `0bc14543`; built stacked on it, rebased onto `main` after) §7, its first three follow-ups |
 | **Not changed by this** | the toast's half-screen width (decisions 91 and 100; decision 3 here) |
 
 ---

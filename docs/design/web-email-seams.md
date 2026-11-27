@@ -209,7 +209,7 @@ exception and « a toast does not carry an address »; §15 row 39 closes.
   pushes it off both edges.
 
   **These three: built in [web-dialogs-toast-doubled-text.md](web-dialogs-toast-doubled-text.md)**
-  (2026-11-27, stacked on this branch). Measuring them found more behind
+  (2026-11-27, PR #906, built stacked on this one). Measuring them found more behind
   them: the shared `Modal` could not scroll a panel taller than the screen,
   the dialogs' field and button rows did not wrap (at normal text too), and
   `/mon-compte`'s « Confidentialité » heading was one word wider than its
