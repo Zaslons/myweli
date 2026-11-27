@@ -9,6 +9,7 @@ import '../../models/journal_day.dart';
 import '../../models/payment.dart';
 import '../../models/pro_membership.dart';
 import '../../models/provider.dart';
+import '../../models/revenue_analytics.dart';
 import '../../models/review_summary.dart';
 import '../../models/salon_membership_info.dart';
 import '../../models/salon_validation.dart';
@@ -366,6 +367,25 @@ abstract class ProServiceInterface {
     SalonId providerId, {
     DateTime? startDate,
     DateTime? endDate,
+  });
+
+  // Revenue analytics (docs/design/pro-revenue-analytics.md §7.1, §7.2) —
+  // owner-only (`finances.view`, checked by the server); a refusal is
+  // `forbidden`. The server owns every figure; these only fetch.
+  Future<ApiResponse<RevenueAnalytics>> getRevenueAnalytics(
+    SalonId providerId,
+    RevenueQuery query,
+  );
+
+  /// One page of the bookings behind a figure. Pass the figures' own
+  /// [asOf], so « À clôturer » lists exactly the bookings the banner counted.
+  Future<ApiResponse<RevenueLedgerPage>> getRevenueLedger(
+    SalonId providerId,
+    RevenueQuery query, {
+    RevenueLedgerStatus status = RevenueLedgerStatus.completed,
+    int page = 1,
+    int pageSize = 20,
+    DateTime? asOf,
   });
 
   // Deposit policy
