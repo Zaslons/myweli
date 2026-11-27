@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| **Status** | **Approved by the owner on 2026-11-26** (« Approve as recommended »: the six recommendations of §11, BACKLOG decisions 266–271). Written on the owner's « Spec the on-time trigger », then read by two independent reviewers, each told to refute it (§12): three blocking findings changed the design. Next: B19.1, the probe (§3.2), its merge on the owner's word. |
+| **Status** | **Approved by the owner on 2026-11-26** (« Approve as recommended »: the six recommendations of §11, BACKLOG decisions 266–271), then read by two independent reviewers told to refute it (§12). **Step 1 missed** (§13.1): the probe got one run in fifteen hours and none between 06:00 and 07:00 UTC on 2026-11-27, so B19.2 is not built. **Step 2:** B19.3a, the build, on `feat/b19-3a-outside-trigger` (§13.2), on the owner's « Yes, start step 2 ». Next, each on the owner's word: its merge, then B19.3b–e. |
 | **Owner** | the project owner: the answers, each step's go; in step 2, the GitHub App, its key and the environment settings |
-| **Last updated** | 2026-11-26 |
+| **Last updated** | 2026-11-27 |
 | **PRD ref / phase** | none: operations. The monitor of everything this repo cannot check at merge time (`.github/workflows/production-checks.yml`) · V1 |
 | **ROADMAP entry** | [2026-11-26-production-checks-on-time-spec.md](../roadmap/entries/2026-11-26-production-checks-on-time-spec.md) |
 | **Skills checked** | myweli-verification-guardrails (§16, a monitor nobody reads; §9, a deadline in a document; §12, what a list cannot see; §13, the fix is where the next defect lives) · myweli-backend-guardrails (read only: nothing in `backend/` changes) |
@@ -509,6 +509,87 @@ Each step on the owner's word.
 - the runs cancelled while pending.
 
 **Then removed:** in B19.2's PR, or alone if the ticks are late.
+
+**What it measured (merged 2026-11-26 at 15:43 UTC as `8ac2c73a`, read from the API):**
+- the workflow was `active` from 15:43:45 UTC;
+- by 2026-11-27 07:07 UTC GitHub had created **one** run, at 00:37:21 UTC (the 00:17 tick, 20 minutes late), `success`, `total_count` 1. The other fourteen hourly ticks never came;
+- **no run between 06:00 and 07:00 UTC on 2026-11-27**, and `production-checks.yml`'s 06:00 run had not been created by 07:07 either.
+
+**Read after one morning, not three:** the owner's answer on 2026-11-26, « Yes, decide tomorrow ». §3.2's rule needs every day's first tick by 07:00, so one missed morning settles it. It amends decision 271's three days.
+
+**The verdict:** step 1 misses, and an hourly schedule is no better here than a daily one. B19.2 is not built. Step 2, on the owner's « Yes, start step 2 » (2026-11-27).
+
+### 13.2 B19.3a, step 2's build PR: the plan (2026-11-27, `feat/b19-3a-outside-trigger`)
+
+**What step 2 inherits from step 1, now that there is no gate.**
+- **The backup is today's daily schedule,** `cron: '0 6 * * *'`, unchanged. No hourly tick means no stop runs, so §3.3's gate, §3.6's read-back script and the `needs: morning` lines are not built. `gh run list --workflow=production-checks.yml --limit 3` stays a true read-back: each of its runs ran its checks.
+- **§3.4's `ontime` and its issue are built here,** in their step 2 form (§4.1). It runs in every run and never fails it. Its question depends on whether the trigger exists yet:
+  - **no App yet:** a scheduled run created after 07:00 UTC opens « The morning check starts late » (§3.4). Every scheduled run since 2026-08-27 would. So the issue opens on the first scheduled run after the merge and stays open until the trigger works. That is true, and today nothing says it;
+  - **with the App:**
+    - the App's own run created by 06:30 UTC closes the issue; created later, it opens it;
+    - the backup opens it when its UTC day has no App run on `main` created between 06:00 and 06:30;
+  - **a manual run, or one not on `main`:** it passes with a line, and touches nothing.
+- **§3.5 is built here:** the dead-man check counts scheduled runs that **checked**. §4.7 relies on it: a leaked key could cancel the backup every day.
+- **`clear`:** `success() && github.ref == 'refs/heads/main' && github.event_name == 'schedule' && github.run_attempt == 1`. The App's clause (§4.5) joins it in the IDs PR, once the bot login is known.
+- **`privacy` and `legal`:** job-level `permissions: contents: read` (§2.6, §4.7).
+
+**Where the App's bot login lives until the IDs PR:** one exported constant, `TRIGGER_BOT = ''` in `infra/ci/production-checks-ontime.mjs`. The IDs PR sets it together with the client ID and the installation ID in the Worker's `wrangler.toml` and `clear`'s literal, and one wiring test holds all three equal.
+
+**What waits for the IDs PR, because it needs the bot login or the App:**
+- `clear`'s App clause;
+- §4.7's detection (the App started another workflow; a workflow not `active`);
+- a daily read of the environment rules (B19.3b's read-back, repeated). A rule unticked later would otherwise reopen the hole silently (verification guardrails §9).
+
+**This PR, in the order of §9 step 4.1:**
+1. **The fence, the part a file can hold (§4.4):**
+   - `deploy-admin.yml` declares `environment: admin-production`. Until the owner creates it, GitHub creates it on first use with no rule, and the repository-level secrets still answer, so nothing breaks before B19.3b;
+   - each deploy job's first step refuses a run whose `github.triggering_actor` is not `Zaslons`. All 60 recent `deploy-backend.yml` runs and all 91 `deploy-admin.yml` runs, push and dispatch, were started by `Zaslons` (read 2026-11-27);
+   - `infra/ci/98-verify-deploy-fence.sh`, read-only, run by the owner's `gh` after B19.3b: both production environments require `Zaslons` and allow `main` only, staging allows `main` only, `admin-production` holds the two Cloudflare secrets, and the repository holds neither.
+2. **The Worker** `infra/cloudflare/worker/production-checks-trigger/`: §4.3 exactly. The IDs are empty and the Worker refuses to start without them. Its deploy script is `infra/cloudflare/97-production-checks-trigger.sh`, the front door's gesture: the scoped token from Secret Manager, the key over stdin, a refusal on empty IDs or a PKCS#1 key, and the cron and the absent `workers.dev` address read back. It is not run until B19.3e.
+3. **`production-checks.yml`:** the comment (§3.7), `privacy` and `legal`, `ontime`, `report` (its status line and a paragraph on `ontime`), `clear`.
+4. **The dead-man check** (§3.5).
+5. **`schedule-probe.yml` removed.**
+6. **Stale comments:** « CI has no Cloudflare identity » in the front door's `wrangler.toml`, `96-api-front-door.sh` and `infra/cloudflare/README.md` (§2.7).
+
+**Tests:** §4.9 and §3.10's `ontime` and dead-man cases, in `web/tests/` (vitest, the `web` CI job), because a file under `backend/` starts `deploy-backend.yml` on merge. The one exception is `production_alarm_test.dart`, which holds `clear`'s condition as exact text.
+
+**After this PR, each on the owner's word:** B19.3b, the environment rules and secrets, then read back; B19.3c, the App and its key; B19.3d, the IDs PR; B19.3e, the Worker deploy and the read after (§4.9).
+
+**Built (2026-11-27), as planned above.** What was checked before the PR:
+- **New tests,** `web/tests/production-checks-trigger.test.ts`, 63:
+  - the Worker against a stand-in GitHub: the JWT's header and claims, its signature verified with a key pair the test generates, PKCS#1 refused with the conversion command, the narrowed token body, 201 only, the dispatch body exactly `{"ref":"main"}`, 200 or 204, retries on a 5xx and a network error and none on a 4xx, an empty ID refused before anything is sent, and no log line or error holding the key, the JWT or the token, on four paths;
+  - `ontime`'s rules on both sides of each line, and its issue handling against a stand-in GitHub;
+  - the fence read-back against a stand-in `gh`: green when every rule holds, red and named for each of eleven missing or unreadable rules;
+  - the wiring: every dispatchable workflow deploys nothing or declares a fenced environment in every job; each deploy job opens with the owner check; the Worker's toml; the bot login, the IDs and `clear`'s App clause all set or all empty; the deploy script reads the fence before it deploys and never echoes a credential; one scheduled workflow left.
+- **The dead-man check:** six new cases in `registration-claim.test.ts`, and `MONITOR_JOBS_JSON` joins the banned knobs. Run read-only against the real repository: green, on the 2026-11-26 scheduled run whose Core Web Vitals job succeeded.
+- **The fence read-back, against today's real settings:** red, and it names every rule that is missing: no reviewer and any branch on `backend-production`, `admin-production` absent, any branch on `backend-staging`, both Cloudflare secrets still repository-level.
+- **Existing tests:** `production_alarm_test.dart` holds `clear`'s new condition; with it, the nine backend infra tests that read the workflows pass (164). `production-alarm-status`, `basemap` and `registration-claim` pass (89). Web typecheck and lint clean.
+- **Mutations, each watched red, then restored:** 57, each applied to the committed tree, run against its test, then restored; a pass that did not change the file would have counted as no result:
+  - **the Worker (11):** inputs in the dispatch; a token not narrowed to the repository, or asking for `contents`; a retried 4xx; the token or the JWT logged; a JWT valid 11 minutes; PKCS#1 not refused by name; 200 accepted for the token; no retry delay; an empty client ID accepted;
+  - **its toml (3):** `workers_dev = true`; a route; an hourly cron;
+  - **`ontime` (15):** 08:00 instead of 07:00; 06:45 instead of 06:30; the clock instead of `created_at`; the backup ignoring the branch, the actor or the day; a manual run judged; a run off `main` judged; a comment on an open issue every day; the run failed on lateness; a title that merely contains the issue's; an API failure read as a pass; no retry on a 5xx; a retried 4xx; the bot login set without the IDs;
+  - **the dead-man check (5):** created runs counted again; a run with no jobs counted; a guess when the Core Web Vitals job is missing; the window ignored; `cancelled` counted as checked;
+  - **`production-checks.yml` (8):** `clear` without `run_attempt`, or without `main`; `ontime` off `clear.needs`, off `report.needs`, or off the status line; an `if` on `ontime`; `pull-requests: write` on it; `privacy` back on the workflow's rights;
+  - **the deploy files (5):** `deploy-admin.yml` without its environment, or with another; the owner check second; the check reading `actor`; the check that never exits;
+  - **the fence read-back (7):** any reviewer accepted; « Prevent self-review » not read; `main` plus another branch accepted; the repository's secrets not read; an unreadable branch rule, environment or secret list passing;
+  - **the deploy script (3):** the Worker deployed before the fence is read; the key on argv; the token echoed.
+
+  **The first pass left eight green, and each was looked at:** three were the harness reading the wrong two lines of Dart's output, one ran the wrong test file, one was a mutation that changed nothing (`return 0 || fail()`), and three were real gaps: no test made `ontime` retry, and none read a failed branch-rule or secret-list read in the fence script. Tests added for those; the eight, and three more, re-run on exit codes: 11 red of 11.
+
+**Found by CI, not by the tests:** gitleaks' `private-key` rule, which scans every commit of every branch, read the literal PEM armour lines in the Worker, the deploy script and the test (two armour lines within one match) as a key, on PR #891's first run. No key was ever committed: the test generates its pair at run time. The armour is now built from its label in all three, a scan of every tracked file with the same rule finds nothing (and finds the three old lines in the old commit, the control), and the branch was folded into one commit so that no commit still holds them.
+
+**Not checkable before the merge:**
+- `ontime`'s first real run, which should open « The morning check starts late » on the first scheduled run after the merge (every one since 2026-08-27 was created after 07:00);
+- the owner check on a real deploy: it passes for `Zaslons` in every run so far, and the next deploy reads it;
+- the Worker, until B19.3c–e.
+
+**B19.3b, the owner's settings (GitHub → Settings → Environments), then `bash infra/ci/98-verify-deploy-fence.sh` green:**
+1. `backend-production`: Required reviewers → `Zaslons`; « Prevent self-review » off; Deployment branches and tags → Selected → the branch `main`.
+2. `admin-production` (created by the merge's first `deploy-admin.yml` run, or by hand): the same two rules; environment secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`. GitHub never shows a secret's value, so the token is a new one, minted in Cloudflare with « Cloudflare Pages: Edit » (then the old one is revoked), and the account ID is the value Secret Manager holds as `R2_ACCOUNT_ID`.
+3. `backend-staging`: Deployment branches and tags → Selected → `main`.
+4. Only then, the repository-level `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` deleted.
+5. The stale branches (§4.4 item 4): read on 2026-11-27, every remote branch has an open PR (six Dependabot, #890), so none is stale. `feat/web-salon-page-live-fallback` was deleted on 2026-11-26. With `main` only on each environment, a branch's copy of a deploy file can no longer deploy anyway.
+6. From then on, every production deploy waits for the owner's approval: DEPLOYMENT.md gains the step in B19.3b's records.
 
 ---
 

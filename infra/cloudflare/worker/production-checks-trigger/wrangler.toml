@@ -1,0 +1,46 @@
+# The Cloudflare Worker that starts the daily production check at 06:00 UTC
+# (docs/design/infra-production-checks-on-time.md §4, B19.3).
+#
+# GitHub creates production-checks.yml's own 06:00 schedule 4 to 12 hours late
+# (§2.1). This Worker has no address and one cron. Each morning it signs in as a
+# GitHub App and dispatches the workflow on `main`; the schedule stays as the
+# backup.
+#
+# Deployed by infra/cloudflare/97-production-checks-trigger.sh from the owner's
+# machine, with the front door's scoped token from Secret Manager, never by CI.
+#
+# NO SECRET IN THIS FILE. GITHUB_APP_KEY, the App's private key (PKCS#8), is a
+# Worker secret piped from Secret Manager into `wrangler secret put` over stdin
+# by that script (§4.6). The IDs below are not secrets: they name the App, and
+# without its key they let nobody act as it.
+
+name = "myweli-production-checks-trigger"
+
+# Plain JavaScript, no build step: wrangler ships this file as-is.
+main = "src/index.js"
+
+# Freezes the runtime's behaviour at the day this was written; bump
+# deliberately, with a redeploy and the read after (§4.9).
+compatibility_date = "2026-11-27"
+
+# No <name>.workers.dev address and no route: nothing on the internet can call
+# this Worker. Its only entry point is the cron below.
+workers_dev = false
+
+[triggers]
+# 06:00 UTC daily: before the Abidjan working day (UTC+0, so local too). The
+# Free plan allows 5 cron triggers per account; this is one.
+crons = ["0 6 * * *"]
+
+[vars]
+# Empty until the App exists. The IDs PR (B19.3d) sets both, and the bot login
+# in infra/ci/production-checks-ontime.mjs and in `clear`'s condition, in one
+# change; a wiring test holds them together. With either empty the Worker
+# refuses to run, and the deploy script refuses to deploy.
+GITHUB_APP_CLIENT_ID = ""
+GITHUB_APP_INSTALLATION_ID = ""
+# What it starts, and nothing else. The token it mints is narrowed to this
+# repository and to Actions: write (§4.3).
+GITHUB_REPOSITORY = "Zaslons/myweli"
+GITHUB_WORKFLOW = "production-checks.yml"
+GITHUB_REF = "main"

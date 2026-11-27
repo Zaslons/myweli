@@ -33,3 +33,12 @@ const kNoProAccountMessage =
 const kAppleAccountCheckMessage =
     'Connexion Apple impossible sur cet appareil. Vérifiez dans Réglages '
     'qu’un compte Apple est connecté, puis réessayez.';
+
+/// An address change whose new address another account has PROVEN
+/// (`email_taken`, B16.3 — docs/design/account-email-change.md §5.4). Said
+/// only after the right code (decision 262), so only the inbox's owner hears
+/// it, and that code still signs them in: the second sentence says how. The
+/// API mapping and the mock say the same words.
+const kEmailTakenMessage =
+    'Cette adresse est déjà celle d’un autre compte MyWeli. Pour l’utiliser, '
+    'connectez-vous avec elle.';

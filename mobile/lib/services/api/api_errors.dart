@@ -49,7 +49,8 @@ ApiResponse<T> readOrUnreadable<T>(
 /// A body that is not JSON is a page — a proxy's 500, a gateway's 502 — and
 /// says the generic sentence: something answered, so it is not « Pas de
 /// connexion » (the owner's words, §8; the web keeps that one for status 0
-/// too). A 401 without a code asks to sign in again.
+/// too). A 401 without a code asks to sign in again; a 429 without one is
+/// the edge's rate limit, read as `rate_limited`.
 ApiResponse<T> errorFromResponse<T>(
   http.Response res, {
   String? Function(String? code)? messageFor,
@@ -67,6 +68,12 @@ ApiResponse<T> errorFromResponse<T>(
       code: 'unauthorized',
     );
   }
+  // Cloudflare's own rate limit answers before the app does, with no JSON
+  // (« error code: 1015 »; infra/cloudflare/96-api-front-door.sh, on `/auth/`,
+  // `/admin/auth/` and `/me/email/`). It is the same limit the app's own
+  // `429 rate_limited` reports, so it gets the same code and words — not «
+  // Une erreur est survenue » (B16.3b's review).
+  code ??= res.statusCode == 429 ? 'rate_limited' : null;
   return ApiResponse.error(
     messageFor?.call(code) ?? kGenericErrorMessage,
     code: code,

@@ -182,7 +182,6 @@ void main() {
         when(
           () => auth.updateUser(
             name: any(named: 'name'),
-            email: any(named: 'email'),
             avatarUrl: any(named: 'avatarUrl'),
             phone: any(named: 'phone'),
           ),
@@ -320,7 +319,6 @@ void main() {
           verifyNever(
             () => auth.updateUser(
               name: any(named: 'name'),
-              email: any(named: 'email'),
               avatarUrl: any(named: 'avatarUrl'),
               phone: any(named: 'phone'),
             ),
@@ -336,7 +334,6 @@ void main() {
           when(
             () => auth.updateUser(
               name: any(named: 'name'),
-              email: any(named: 'email'),
               avatarUrl: any(named: 'avatarUrl'),
               phone: any(named: 'phone'),
             ),

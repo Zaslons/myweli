@@ -340,7 +340,7 @@ Dev / Staging / Prod. Feature flags for phased rollout and commune-by-commune la
 - **FR-AUTH-002 [V1]** OTP verification via SMS; auto-read OTP on Android where possible; resend with cooldown; max attempts + lockout. *(✅ built — real-OTP UX + backend OTP (hashed, rate-limit/lockout); SMS delivery via Twilio. ROADMAP §1.8.)*
   - **AC:** Given a valid CI number, when the user requests OTP, then an SMS is delivered within 30s (p95) and a 6-digit code is accepted; after 5 failed attempts the number is rate-limited for 15 min.
 - **FR-AUTH-003 [V1]** Session persistence via secure storage; silent re-auth on launch; explicit logout. *(exists: `flutter_secure_storage`)*
-- **FR-AUTH-004 [V1]** Profile: name, optional email, optional photo. Edit profile. *(exists: `edit_profile_screen.dart`)*
+- **FR-AUTH-004 [V1]** Profile: name, optional email, optional photo. Edit profile. *(exists: `edit_profile_screen.dart`; since B16.3 the e-mail, which signs the account in, changes only by a code, on its own screen — [account-email-change.md](design/account-email-change.md) §5.4)*
 - **FR-AUTH-005 [V1]** Account deletion & data export request (store-policy + data-law compliance, §18).
 - **FR-AUTH-006 [V2]** Optional social/Google sign-in (secondary; phone remains primary).
 

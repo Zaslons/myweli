@@ -60,15 +60,24 @@ void main() {
       });
     }
 
-    test('only a fully green scheduled run can close it', () {
-      // A manual run takes a custom `target`, and a green run against another
-      // site must not close the production alarm. Exact text because nothing
-      // here can evaluate it: changing it should be a deliberate edit.
-      expect(
-        jobs['clear']['if'],
-        "github.event_name == 'schedule' && success()",
-      );
-    });
+    test(
+      'only a fully green scheduled run on main, first attempt, can close it',
+      () {
+        // A manual run takes a custom `target`, and a green run against another
+        // site must not close the production alarm. Exact text because nothing
+        // here can evaluate it: changing it should be a deliberate edit.
+        //
+        // `main` and `run_attempt == 1` since B19.3 (decision 269,
+        // docs/design/infra-production-checks-on-time.md §4.5): a GitHub App
+        // can now start and re-run workflows, and re-running `clear` alone on
+        // an old green run would otherwise close a live alarm with no check.
+        expect(
+          jobs['clear']['if'],
+          "success() && github.ref == 'refs/heads/main' && "
+          "github.event_name == 'schedule' && github.run_attempt == 1",
+        );
+      },
+    );
 
     test('any failure reaches the report job', () {
       expect(jobs['report']['if'], 'failure()');

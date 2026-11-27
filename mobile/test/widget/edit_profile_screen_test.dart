@@ -172,7 +172,6 @@ class _SpyAuthService extends MockAuthService {
   @override
   Future<ApiResponse<User>> updateUser({
     String? name,
-    String? email,
     String? avatarUrl,
     String? phone,
   }) async {
@@ -183,11 +182,6 @@ class _SpyAuthService extends MockAuthService {
         code: rejectPhoneWith,
       );
     }
-    return super.updateUser(
-      name: name,
-      email: email,
-      avatarUrl: avatarUrl,
-      phone: phone,
-    );
+    return super.updateUser(name: name, avatarUrl: avatarUrl, phone: phone);
   }
 }

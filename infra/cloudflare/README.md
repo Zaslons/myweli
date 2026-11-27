@@ -139,8 +139,11 @@ create, no delete, no `cors set`, no `lifecycle add`. That is enforced, not
 promised: `backend/test/infra/r2_manifest_test.dart` fails if a mutating
 wrangler subcommand appears in it, comments included.
 
-Needs `wrangler login`. It is not a CI job on purpose — CI has no Cloudflare
-identity, and giving it one would mean a token that can reconfigure buckets.
+Needs `wrangler login`. It is not a CI job on purpose — no CI job holds a
+Cloudflare token that can read R2, and giving one such a token would mean a
+token that can reconfigure buckets. CI's only Cloudflare token is
+`deploy-admin.yml`'s, documented as « Cloudflare Pages: Edit » (B19.3b moves it
+into the `admin-production` environment).
 The half that CAN run in CI is that same test, which pins the manifest against
 the backend's own constants.
 
@@ -175,6 +178,27 @@ Routes → the route), recorded in DEPLOYMENT.md, and re-read at launch
 minted in the dashboard (a token cannot create a token), scoped to zone
 `myweli.com` only with no R2 and no Pages (spec §6.3) — exports it for
 `wrangler` and `curl`, and never prints it. `production-checks.yml` already
-asserts CI cannot read any secret value, so the stance above (« CI has no
-Cloudflare identity ») stays true: the Worker is an owner-run deploy, like
-the buckets.
+asserts CI cannot read any secret value: the Worker is an owner-run deploy,
+like the buckets.
+
+## The 06:00 trigger of the daily production check
+
+GitHub creates `production-checks.yml`'s own 06:00 UTC run 4 to 12 hours late
+(since 2026-08-27; an hourly schedule did no better). **The Worker**
+`myweli-production-checks-trigger` in `worker/production-checks-trigger/` has
+no address (`workers_dev = false`, no route) and one cron, `0 6 * * *`. Each
+morning it signs a JWT with a GitHub App's key, gets a one-hour token narrowed
+to `myweli` and Actions: write, and dispatches the workflow on `main`; the
+schedule stays as the backup. Design:
+[design/infra-production-checks-on-time.md](../../docs/design/infra-production-checks-on-time.md) §4.
+
+**That token can start any workflow, the deploys included,** so the Worker is
+deployed only once GitHub's environment rules hold the deploys:
+`bash infra/ci/98-verify-deploy-fence.sh` must be green (the owner as required
+reviewer and `main` only on `backend-production` and `admin-production`, the
+Cloudflare Pages secrets in the latter, none at repository level).
+`97-production-checks-trigger.sh` runs that read first and stops on red; then
+it deploys with the front door's token, pipes the App's key
+(`GITHUB_APP_PRODUCTION_CHECKS_KEY`, PKCS#8, Secret Manager) into
+`wrangler secret put` over stdin, and reads back the secret's name, the cron
+and the absent `workers.dev` address. Owner-run, like the front door.

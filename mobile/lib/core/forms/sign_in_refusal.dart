@@ -30,3 +30,19 @@ String? codeFieldFault(String? code) => switch (code) {
 /// the same thing.
 String? emailFieldFault(String? code) =>
     code == 'invalid_email' ? 'Saisissez une adresse e-mail valide.' : null;
+
+/// « Changer d’adresse e-mail », step 2 (B16.3 — account-email-change.md
+/// §5.4): the CURRENT address's code fault — the server's `current_` codes,
+/// in the sign-in's words — or null. The new address's code keeps
+/// [codeFieldFault]; each code's refusal goes under its own field.
+String? currentCodeFieldFault(String? code) =>
+    code != null && code.startsWith('current_')
+    ? codeFieldFault(code.substring('current_'.length))
+    : null;
+
+/// « Changer d’adresse e-mail », step 1: the new address's fault, or null —
+/// [emailFieldFault], and `email_unchanged` (already the account's proven
+/// address), which is about what was typed too.
+String? changeEmailFieldFault(String? code) => code == 'email_unchanged'
+    ? 'C’est déjà votre adresse.'
+    : emailFieldFault(code);

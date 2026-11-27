@@ -20,7 +20,17 @@ name: Production checks
 
 on:
   schedule:
-    # 06:00 UTC daily — before the Abidjan working day (UTC+0, so local too).
+    # **The backup, not the morning run.** Asked for at 06:00 UTC, before the
+    # Abidjan working day (UTC+0, so local too). GitHub created it on time
+    # until 2026-08-26, then 3.7 to 11.9 hours late every day, and an hourly
+    # schedule fared no better: a three-day probe got one tick in fifteen hours
+    # (docs/design/infra-production-checks-on-time.md §2.1, §13.1).
+    #
+    # The morning run is a `workflow_dispatch` started at 06:00 UTC by the
+    # Cloudflare Worker « myweli-production-checks-trigger », acting as a
+    # GitHub App (B19.3, spec §4). This schedule stays so that a day the
+    # Worker does not fire still gets its checks, hours late. `ontime` below
+    # says when either happens, in its own issue.
     - cron: '0 6 * * *'
   workflow_dispatch:
     inputs:
@@ -64,6 +74,11 @@ jobs:
   privacy:
     name: Real domain — the privacy promises
     runs-on: ubuntu-latest
+    # Job-level, so it does not inherit the workflow's `issues: write` and
+    # `id-token: write`: it reads a public site, and anyone who can start
+    # this workflow chooses its `target` (spec §2.6, §4.7).
+    permissions:
+      contents: read
     defaults:
       run:
         working-directory: web
@@ -88,6 +103,11 @@ jobs:
   legal:
     name: Real domain — the registration claim the site publishes
     runs-on: ubuntu-latest
+    # Job-level, so it does not inherit the workflow's `issues: write` and
+    # `id-token: write`: it reads a public site, and anyone who can start
+    # this workflow chooses its `target` (spec §2.6, §4.7).
+    permissions:
+      contents: read
     defaults:
       run:
         working-directory: web
@@ -536,9 +556,44 @@ jobs:
   # comment now mentions them: a mention is what notifies someone who is not
   # watching the repo. On every failing day, not only the first.
   # docs/design/production-alarm-close.md
+  # **When did the morning run start?** (spec §3.4, §4.1, decision 269). A late
+  # start is not production being wrong, so this never raises the production
+  # alarm and never fails on lateness: it keeps its own issue, « The morning
+  # check starts late », and opens or closes it. It fails only when it cannot
+  # read GitHub, which `report` then names as « the start time could not be
+  # read », not as production.
+  #
+  # Every run, on purpose: it sits in `clear.needs`, and a skipped need would
+  # skip `clear` (spec §12.1). A manual run, or one not on `main`, passes with a
+  # line and touches no issue. The rules are in the script, tested in
+  # web/tests/production-checks-trigger.test.ts.
+  ontime:
+    name: Did the morning run start on time?
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: The morning run's start, against 07:00 UTC (06:30 once the trigger runs)
+        run: node infra/ci/production-checks-ontime.mjs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          EVENT: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+          STARTED_BY: ${{ github.triggering_actor }}
+
   report:
     name: Say so, if any check failed
-    needs: [cwv, privacy, legal, cardphoto, retention, attestation, secretpins, iam, salonpages, basemap, access, appchain]
+    needs: [cwv, privacy, legal, cardphoto, retention, attestation, secretpins, iam, salonpages, basemap, access, appchain, ontime]
     if: failure()
     runs-on: ubuntu-latest
     steps:
@@ -563,6 +618,7 @@ jobs:
           BASEMAP: ${{ needs.basemap.result }}
           ACCESS: ${{ needs.access.result }}
           APPCHAIN: ${{ needs.appchain.result }}
+          ONTIME: ${{ needs.ontime.result }}
         run: |
           set -euo pipefail
           TITLE='Production checks are failing'
@@ -579,7 +635,7 @@ jobs:
           BODY=$(printf '%s\n' \
             '@Zaslons The scheduled real-domain checks failed.' \
             '' \
-            "CWV: ${CWV} · privacy: ${PRIVACY} · legal: ${LEGAL} · card photo: ${CARDPHOTO} · retention: ${RETENTION} · attestation: ${ATTESTATION} · secret pins: ${SECRETPINS} · IAM: ${IAM} · salon pages: ${SALONPAGES} · basemap: ${BASEMAP} · console access: ${ACCESS} · Android trust list: ${APPCHAIN}" \
+            "CWV: ${CWV} · privacy: ${PRIVACY} · legal: ${LEGAL} · card photo: ${CARDPHOTO} · retention: ${RETENTION} · attestation: ${ATTESTATION} · secret pins: ${SECRETPINS} · IAM: ${IAM} · salon pages: ${SALONPAGES} · basemap: ${BASEMAP} · console access: ${ACCESS} · Android trust list: ${APPCHAIN} · start time: ${ONTIME}" \
             '' \
             "${RUN}" \
             '' \
@@ -662,7 +718,13 @@ jobs:
             'mobile/android/app/src/main/res/raw/ and network_security_config.xml,' \
             'which android_http_transport_guard_test.dart holds. No chain read at' \
             'all is red too, because nothing was measured: re-run the job' \
-            '(docs/design/android-http3-transport.md §5.2).')
+            '(docs/design/android-http3-transport.md §5.2).' \
+            '' \
+            '**The start time job does not say production is wrong.** It reads' \
+            'when this run was created, and keeps its own issue, « The morning' \
+            'check starts late », for that. It is red here only when it could not' \
+            'read GitHub, so nothing was learned about the start: re-run the job' \
+            '(docs/design/infra-production-checks-on-time.md §13.2).')
 
           if [ -n "$NUM" ]; then
             STATE=$(gh issue view "$NUM" --json state --jq .state)
@@ -683,6 +745,14 @@ jobs:
   # green run against another site says nothing about production. `success()`
   # needs every job listed below to have passed, and no check has its own `if` or
   # `continue-on-error` to skip or excuse one.
+  #
+  # `main` only and first attempt only (spec §3.4, §4.5, decision 269): a
+  # scheduled run is always on `main` today, and the line keeps it so if the
+  # trigger's App, which can start workflows, ever reaches this job. Re-running
+  # `clear` alone on an old green run would otherwise close a live alarm
+  # without a single check; a re-run of a whole failed run no longer closes it
+  # either, the next morning does. The App's own morning run joins this
+  # condition in the IDs PR (B19.3d), once its bot login is known.
   # backend/test/infra/production_alarm_test.dart runs this script and holds all
   # of that.
   #
@@ -691,8 +761,8 @@ jobs:
   # delivery without a real failure. docs/design/production-alarm-close.md
   clear:
     name: Close the alarm, if every check passed
-    needs: [cwv, privacy, legal, cardphoto, retention, attestation, secretpins, iam, salonpages, basemap, access, appchain]
-    if: github.event_name == 'schedule' && success()
+    needs: [cwv, privacy, legal, cardphoto, retention, attestation, secretpins, iam, salonpages, basemap, access, appchain, ontime]
+    if: success() && github.ref == 'refs/heads/main' && github.event_name == 'schedule' && github.run_attempt == 1
     runs-on: ubuntu-latest
     steps:
       - name: Close the tracking issue

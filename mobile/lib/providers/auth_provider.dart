@@ -6,6 +6,7 @@ import '../core/access/account_scope.dart';
 import '../core/constants/failure_messages.dart';
 import '../core/di/dependency_injection.dart';
 import '../models/api_response.dart';
+import '../models/email_change_request.dart';
 import '../models/user.dart';
 import '../services/interfaces/auth_service_interface.dart';
 import '../services/interfaces/image_upload_service_interface.dart';
@@ -73,6 +74,8 @@ class AuthProvider extends ChangeNotifier {
     if (!changed) return;
     _updateErrorCode = null;
     _emailDevCode = null;
+    _emailChange = null;
+    _emailChangeErrorCode = null;
     _sessionEndedNotice = false;
     AccountScope.resetAll();
   }
@@ -360,7 +363,6 @@ class AuthProvider extends ChangeNotifier {
 
   Future<bool> updateUser({
     String? name,
-    String? email,
     String? avatarUrl,
     String? phone,
   }) async {
@@ -373,7 +375,6 @@ class AuthProvider extends ChangeNotifier {
     try {
       final response = await _authService.updateUser(
         name: name,
-        email: email,
         avatarUrl: avatarUrl,
         phone: phone,
       );
@@ -390,6 +391,79 @@ class AuthProvider extends ChangeNotifier {
         return false;
       }
     } catch (e) {
+      _error = kGenericErrorMessage;
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  // ---- The address change (B16.3 — docs/design/account-email-change.md) ----
+
+  EmailChangeRequest? _emailChange;
+  String? _emailChangeErrorCode;
+
+  /// The last [requestEmailChange] the server accepted: whether the current
+  /// address got a code too (decision 265), and the dev codes. Gone with the
+  /// account (`_setUser`).
+  EmailChangeRequest? get emailChange => _emailChange;
+
+  /// The machine code of the last refused [requestEmailChange] or
+  /// [confirmEmailChange], so « Changer d’adresse e-mail » puts each refusal
+  /// under its field (SYSTEM.md §14) — `null` after a success.
+  String? get emailChangeErrorCode => _emailChangeErrorCode;
+
+  /// Step 1: a code to [email] (and to the current address, decision 265).
+  /// True when sent. An answer that arrives once another account is signed
+  /// in — or none — is the previous account's: it is dropped, and false.
+  Future<bool> requestEmailChange(String email) => _emailChangeStep(
+    () => _authService.requestEmailChange(email),
+    (data) => _emailChange = data,
+  );
+
+  /// Step 2: proves the codes and makes [email] the account's address. True
+  /// when done; the account is then the server's answer.
+  Future<bool> confirmEmailChange(
+    String email,
+    String code, {
+    String? currentCode,
+  }) => _emailChangeStep(
+    () =>
+        _authService.confirmEmailChange(email, code, currentCode: currentCode),
+    (user) {
+      _setUser(user);
+      _emailChange = null;
+    },
+  );
+
+  Future<bool> _emailChangeStep<T>(
+    Future<ApiResponse<T>> Function() run,
+    void Function(T data) adopt,
+  ) async {
+    final account = _user?.id;
+    if (account == null) return false;
+    _isLoading = true;
+    _error = null;
+    _emailChangeErrorCode = null;
+    notifyListeners();
+    try {
+      final response = await run();
+      // The account changed while the request was out: its answer is the
+      // previous account's — taking it would put A's address on B, or sign A
+      // back in under B (the guard of [updateUser]).
+      if (_user?.id != account) return false;
+      final data = response.data;
+      if (response.success && data != null) {
+        adopt(data);
+        _error = null;
+        return true;
+      }
+      _error = response.error ?? kGenericErrorMessage;
+      _emailChangeErrorCode = response.code;
+      return false;
+    } catch (e) {
+      if (_user?.id != account) return false;
       _error = kGenericErrorMessage;
       return false;
     } finally {

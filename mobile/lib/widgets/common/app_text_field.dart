@@ -53,6 +53,11 @@ class AppTextField extends StatelessWidget {
   /// [maxLength] still caps the text, but no « 12/100 » is drawn under it.
   final bool showCounter;
 
+  /// What the platform may fill in (`AutofillHints.email`…): the keyboard's
+  /// suggestion of the person's own address, on the address change
+  /// (account-email-change.md §5.4).
+  final Iterable<String>? autofillHints;
+
   const AppTextField({
     super.key,
     this.label,
@@ -75,6 +80,7 @@ class AppTextField extends StatelessWidget {
     this.helperText,
     this.semanticsLabel,
     this.showCounter = true,
+    this.autofillHints,
   });
 
   @override
@@ -88,6 +94,7 @@ class AppTextField extends StatelessWidget {
       autofocus: autofocus,
       buildCounter: showCounter ? null : _noCounter,
       keyboardType: keyboardType,
+      autofillHints: autofillHints,
       obscureText: obscureText,
       maxLines: maxLines,
       maxLength: maxLength,

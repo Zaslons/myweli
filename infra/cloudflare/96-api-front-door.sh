@@ -31,8 +31,9 @@
 # This script reads that token from Secret Manager into CLOUDFLARE_API_TOKEN
 # (what `wrangler` and `curl` consume), NEVER prints it, and never puts it in a
 # URL. CI never reads it: production-checks.yml asserts CI cannot read any
-# secret value, and the Worker is not a CI deploy — the R2 stance (« CI has no
-# Cloudflare identity ») stays true (spec §6.2).
+# secret value, and the Worker is not a CI deploy (spec §6.2). CI's only
+# Cloudflare token is deploy-admin.yml's, documented as « Cloudflare Pages:
+# Edit » (infra-production-checks-on-time.md §2.7).
 #
 # EVERY STEP READS ITS WORK BACK. The R2 script's first run aborted « loudly,
 # to a terminal nobody was reading » and left the buckets half-configured; a
