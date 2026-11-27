@@ -16,5 +16,5 @@
     - le drapeau « expliqué » ne pouvait pas être construit tel qu’écrit : il enregistre maintenant le toucher de la personne ;
     - une phrase était fausse (« Aucune commune trouvée près de vous ») : la commune la plus proche n’a pas de limite de distance.
   - **Vu en passant, hors A6 :** la carte de l’épingle, dans Pro, ne suit pas « Utiliser ma position » (lu dans le code, non vu sur un téléphone).
-  - **Cinq questions pour le propriétaire** (décisions 272 à 276), chacune avec une recommandation.
-  - **Reste :** les réponses, puis la fusion de la spec, puis la construction, chacune sur le mot du propriétaire.
+  - **Cinq questions pour le propriétaire** (décisions 272 à 276), chacune avec une recommandation, **répondues le 2026-11-27 d’un coup : « Approve as recommended »**, la part de Pro comprise (le bouton « Utiliser ma position » et la ligne « Position approximative »).
+  - **Reste :** la fusion de la spec, puis la construction d’A6 (une PR d’app), chacune sur le mot du propriétaire.

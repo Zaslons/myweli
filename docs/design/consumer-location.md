@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Module** | discovery (mobile, both flavours: the client map, the shared commune picker, MyWeli Pro's « Utiliser ma position »; the Android manifests) |
-| **Status** | **Draft, 2026-11-27.** Written for the owner's approval; nothing built. Five questions (§11, decisions 272–276), each with a recommendation. Read once by an independent reviewer told to refute it: 12 findings, checked, then taken in (§14). |
+| **Status** | **Approved 2026-11-27.** Written on the owner's « Yes, start A6 »; the owner answered the five questions of §11 at once, « Approve as recommended »: decisions 272–276 in BACKLOG, Pro's half included (#890). Read once by an independent reviewer told to refute it: 12 findings, checked, then taken in (§14). Nothing built. Next, each on the owner's word: the merge of this spec, then the one app PR (§9). |
 | **Last updated** | 2026-11-27 |
 | **Audit** | [consumer-app-release-audit.md](consumer-app-release-audit.md) row **A6** (Track A, §7): gap **13** (`ACCESS_FINE_LOCATION` in the client manifest) and the first half of gap **22** (the map asks with no explanation; « Activer » is dead after a refusal). Gap 22's other half, the commune, was A4's ([consumer-search.md](consumer-search.md) §2.8). Not to be confused with the earlier « A6 » of [mobile-a6-feedback.md](mobile-a6-feedback.md), whose comments in `commune_picker_sheet.dart` say « A6 ». |
 | **BACKLOG** | B0.10 (the audit's Track A). Track C, the consumer builds, waits for A1, A2, A3 and this. |
@@ -502,7 +502,7 @@ result.
   (the location banners beside `PushBlockedBanner` as permission-denied states).
 - The roadmap entry, BACKLOG B0.10's journal.
 
-## 11. Questions for the owner (decisions 272–276)
+## 11. Questions for the owner (decisions 272–276) — answered 2026-11-27, all five as recommended
 
 1. **(272) Precise location for MyWeli Pro only; the client app asks for
    approximate location on Android?** *Recommended: yes.* The client uses its
@@ -511,11 +511,13 @@ result.
    approximate not enough? ». The price: « Près de moi » may pick a neighbouring
    commune (§2.2), which the person sees and can change. *Alternative:* keep
    precise for both and declare for the client too.
+   → ✅ **Decision 272, as recommended** (2026-11-27).
 2. **(273) The map explains once, in its banner, and never opens the dialog by
    itself?** *Recommended: yes*, with « Plus tard » and « Activer », and nothing
    on later openings once the person has tapped either, or asked anywhere else
    (§2.1, §4). *Alternative:* the banner on every opening until the person allows
    or refuses for good (more reminders, more noise over the map).
+   → ✅ **Decision 273, as recommended** (2026-11-27).
 3. **(274) « Ouvrir les réglages » after a refusal in all three places, MyWeli
    Pro's « Utiliser ma position » included?** *Recommended: yes.* One shared flow
    (§5): the picker is shared, so Pro gets it there anyway, and leaving Pro's
@@ -523,14 +525,17 @@ result.
    build, and adds row 6 to that build's device pass. *Alternative:* the client's
    two places now, Pro's button in a Pro follow-up (the review's suggestion,
    §14).
+   → ✅ **Decision 274, as recommended** (2026-11-27): Pro's button is in A6.
 4. **(275) The client reads its position at « medium », bounded to 30 s, and the
    map draws the accuracy circle, the camera fitted to it?** *Recommended: yes.*
    Faster, never an endless loader, and an approximate position shown as one.
    *Alternative:* « best » with the bound only, no circle.
+   → ✅ **Decision 275, as recommended** (2026-11-27).
 5. **(276) MyWeli Pro says when the phone gave an approximate position for the
    pin?** *Recommended: yes*, the line under the map (§2.3); it is also what makes
    Pro's declaration honest: precise is asked because the pin needs it.
    *Alternative:* nothing, as today, or in the Pro follow-up of 274's alternative.
+   → ✅ **Decision 276, as recommended** (2026-11-27).
 
 ## 12. Definition of done
 
@@ -573,7 +578,7 @@ sources: 12 findings. Each was checked here in the source before it was taken.
 | 8 | Google's own « turn on location » dialog can open inside the read, under the bound | yes: the bound raised to 30 s, the case written (§2.4) |
 | 9 | « Aucune commune trouvée près de vous » was false: `nearestArea` has no distance limit | yes: « Liste des communes indisponible. Réessayez. »; the line is `:106` |
 | 10 | « Focus stays where it was » was impossible: the focused button disappears | yes: where focus goes is named (§2.5) |
-| 11 | Pro's half is not required by gaps 13 and 22; the ask banner's « not a live region » reason was wrong; a failed silent read at opening was unspecified | the live region and the failed read: yes. Pro's half: left to the owner, with the follow-up as 274's and 276's alternative |
+| 11 | Pro's half is not required by gaps 13 and 22; the ask banner's « not a live region » reason was wrong; a failed silent read at opening was unspecified | the live region and the failed read: yes. Pro's half: left to the owner (kept: decisions 274 and 276, 2026-11-27), with the follow-up as 274's and 276's alternative |
 | 12 | « Position introuvable. Réessayez. » offered no alternative; the picker's « off » sentence said nothing to do | yes (§2.1–§2.3) |
 
 What it tried to refute and could not: which page each Settings opener opens;
