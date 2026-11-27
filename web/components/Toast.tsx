@@ -111,6 +111,18 @@ function bestMove(home: Box, cs: Box[], width: number, height: number, slide: bo
 /// error = `bg-error` (#8B0000 — ~10.6:1 under `secondary` white text).
 /// Position: fixed bottom-center on `z-toast` — feedback is always on top (§9);
 /// the pre-B5 EquipeClient toast had no z token and painted on DOM-order luck.
+///
+/// Width: placed by `left-1/2`, the region is as wide as its words up to the
+/// half of the screen right of its left edge, so a pill is at most half the
+/// screen — decisions 91 and 100 were accepted on that width, and the moves
+/// beside « Carte » are pinned on it (site-look.spec.ts). A word wider than
+/// that sets the width, and nothing capped it: a one-word salon name ran the
+/// pill from x −40 to 360 on a 320 phone at Android's 200 %. So the region is
+/// capped at the screen less its two `m` gutters (`max-w-gutterBound`, the
+/// `EDGE` below), and the words sit in an item that may narrow (`min-w-0`), so
+/// such a word breaks inside the pill (`break-words`); a bare text item of a
+/// flex row cannot shrink below its longest word. Every other message keeps
+/// its box to the pixel (docs/design/web-dialogs-toast-doubled-text.md §3).
 export function Toast({
   toast,
   aboveFloatingControl = false,
@@ -224,7 +236,7 @@ export function Toast({
       ref={region}
       role="status"
       aria-live="polite"
-      className={`pointer-events-none fixed left-1/2 z-toast -translate-x-1/2 ${
+      className={`pointer-events-none fixed left-1/2 z-toast max-w-gutterBound -translate-x-1/2 ${
         aboveBookingBar
           ? 'bottom-20 lg:bottom-l'
           : aboveFloatingControl
@@ -238,7 +250,7 @@ export function Toast({
             toast.kind === 'error' ? 'bg-error' : 'bg-primary'
           }`}
         >
-          {toast.message}
+          <span className="min-w-0 break-words">{toast.message}</span>
           {toast.action ? (
             // The container lets clicks through; its one control takes them.
             <button

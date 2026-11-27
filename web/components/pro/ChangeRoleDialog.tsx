@@ -137,14 +137,23 @@ export function ChangeRoleDialog({
             >
               Fiche employé
             </label>
+            {/* Each row — the field and its button — wraps when the two
+                cannot share a line (WEB-SYSTEM §9 rule 1). A form control's
+                automatic minimum width is its intrinsic one (the select's
+                longest option, the input's 20 characters), so the field
+                needs `min-w-0`; `flex-auto` keeps its natural width where
+                there is room, where `flex-1`'s zero basis would squeeze it
+                beside the button instead of wrapping. Before: « Créer une
+                fiche » ran to x 330 and « Créer » to 343 on a 320 phone at
+                normal text (web-dialogs-toast-doubled-text.md §2.2). */}
             {creatingFiche ? (
-              <div className="mt-xs flex gap-s">
+              <div className="mt-xs flex flex-wrap gap-s">
                 <input
                   id="changerole-fiche"
                   value={newFicheName}
                   onChange={(e) => setNewFicheName(e.target.value)}
                   placeholder="Nom de l’employé"
-                  className="min-h-12 flex-1 rounded-control border border-primary bg-surface p-m text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
+                  className="min-h-12 min-w-0 flex-auto rounded-control border border-primary bg-surface p-m text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
                 />
                 <Button
                   onClick={createFiche}
@@ -154,12 +163,12 @@ export function ChangeRoleDialog({
                 </Button>
               </div>
             ) : (
-              <div className="mt-xs flex gap-s">
+              <div className="mt-xs flex flex-wrap gap-s">
                 <select
                   id="changerole-fiche"
                   value={artistId}
                   onChange={(e) => setArtistId(e.target.value)}
-                  className="min-h-12 flex-1 rounded-control border border-primary bg-surface p-m text-bodyLarge text-textPrimary"
+                  className="min-h-12 min-w-0 flex-auto rounded-control border border-primary bg-surface p-m text-bodyLarge text-textPrimary"
                 >
                   <option value="">Choisir une fiche…</option>
                   {artists.map((a) => (
@@ -181,7 +190,9 @@ export function ChangeRoleDialog({
 
         {error ? <p role="alert" className="mt-s text-bodyMedium text-error">{error}</p> : null}
 
-        <div className="mt-l flex justify-end gap-s">
+        {/* Wraps: two buttons wider than the panel ran « Annuler » off the
+            left at Android's 200 % (WEB-SYSTEM §9 rule 1). */}
+        <div className="mt-l flex flex-wrap justify-end gap-s">
           <Button variant="secondary" onClick={onClose} disabled={busy}>
             Annuler
           </Button>

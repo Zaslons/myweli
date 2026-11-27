@@ -718,7 +718,9 @@ function EditPhoneModal({
           Ouvrir la fiche
         </Link>
       ) : null}
-      <div className="mt-l flex justify-end gap-s">
+      {/* Wraps: « Annuler » and « Enregistrer » are wider than the panel at
+          Android's 200 % (web-dialogs-toast-doubled-text.md §2.2). */}
+      <div className="mt-l flex flex-wrap justify-end gap-s">
         <Button variant="secondary" onClick={onClose} disabled={busy}>
           Annuler
         </Button>

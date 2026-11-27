@@ -419,7 +419,10 @@ export function EquipeClient() {
               n’est pas supprimé.
             </span>
           </p>
-          <div className="mt-l flex justify-end gap-s">
+          {/* Wraps: at Android's 200 % the two buttons are wider than the
+              panel, and a `justify-end` row that cannot wrap runs off the
+              left — « Annuler » to x −47 (web-dialogs-toast-doubled-text.md). */}
+          <div className="mt-l flex flex-wrap justify-end gap-s">
             <Button
               ref={revokeCancelRef}
               variant="secondary"
