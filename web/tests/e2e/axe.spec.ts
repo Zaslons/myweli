@@ -286,6 +286,11 @@ test('pro routes are axe-clean', async ({ page }) => {
     ['/pro/notifications', 'Notifications'],
     ['/pro/equipe', 'Équipe'],
     ['/pro/clients', 'Clients'],
+    // « Revenus » (docs/design/pro-revenue-analytics.md §12.3, R4): the
+    // figures, the chart's one slider, the tables; a detail; the ledger.
+    ['/pro/revenus', 'Revenus'],
+    ['/pro/revenus/collaborateurs/a1', 'Awa'],
+    ['/pro/revenus/rendez-vous', 'Rendez-vous'],
     // The client CARD (docs/design/amounts-that-fit.md §8.5) — the page behind
     // every row of the list above, never scanned until now. Its `<h1>` is the
     // client's NAME, which only the loaded card renders: the error state

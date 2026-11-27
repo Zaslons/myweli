@@ -355,19 +355,24 @@ export function AujourdhuiClient({ salon }: { salon?: string } = {}) {
               fields for other roles, so rendering it would show a lying 0 F.
               « prévus »: these count confirmed + completed bookings, while
               « Revenus » (/pro/revenus) counts completed only — the app's
-              words (provider-dashboard-stats.md §12). */}
+              words (provider-dashboard-stats.md §12). Each opens « Revenus »
+              on its period, where Réalisé + Prévu + À clôturer add up to it
+              (pro-revenue-analytics.md §3.2, §4.1). */}
           {hasCap(m, 'finances.view') ? (
             <div className="mt-m grid grid-cols-1 gap-m sm:grid-cols-3 xl:grid-cols-1">
               <Stat
                 label="Revenus prévus aujourd’hui"
+                href="/pro/revenus?periode=jour"
                 value={stats ? formatFcfa(stats.todayRevenue ?? 0, currency) : '—'}
               />
               <Stat
                 label="Revenus prévus cette semaine"
+                href="/pro/revenus?periode=semaine"
                 value={stats ? formatFcfa(stats.weekRevenue ?? 0, currency) : '—'}
               />
               <Stat
                 label="Revenus prévus ce mois"
+                href="/pro/revenus"
                 value={stats ? formatFcfa(stats.monthRevenue ?? 0, currency) : '—'}
               />
             </div>
@@ -446,10 +451,26 @@ function validSalonParam(salon: string | undefined): string | null {
 function Stat({
   label,
   value,
+  href,
 }: {
   label: string;
   value: number | string;
+  /// The money cards open « Revenus » on their period
+  /// (docs/design/pro-revenue-analytics.md §4.1, R4) — the whole card is the
+  /// link, as the app's tappable card.
+  href?: string;
 }) {
+  if (href) {
+    return (
+      <Link
+        href={href}
+        className="block rounded-xl border border-border bg-secondary p-m text-center hover:bg-surfaceVariant"
+      >
+        <span className="block text-titleLarge font-semibold text-textPrimary">{value}</span>
+        <span className="block text-bodySmall text-textTertiary">{label}</span>
+      </Link>
+    );
+  }
   return (
     <Card className="text-center">
       <p className="text-titleLarge font-semibold text-textPrimary">{value}</p>

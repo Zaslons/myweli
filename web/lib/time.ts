@@ -137,6 +137,43 @@ export function salonWallClockToUtc(
   return new Date(instant);
 }
 
+// ─── Calendar dates (a day, not an instant) ─────────────────────────────────
+// A salon DATE ('YYYY-MM-DD') the server already resolved — a revenue
+// period's `from`/`to`, a chart bucket (docs/design/pro-revenue-analytics.md
+// §3.5). Moving or naming one is calendar arithmetic: no instant, so no zone.
+// It is built and read in UTC on purpose — the one place the date's midnight
+// is that date — and it lives here so the pins above still hold everywhere
+// else.
+
+/// The day key `n` days after `dayKey` (before, for a negative `n`). Month
+/// and year roll over as the calendar does.
+export function shiftDayKey(dayKey: string, n: number): string {
+  const [y, m, d] = dayKey.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10);
+}
+
+/// The day key of a year, month (1–12) and day — overflowing parts roll over
+/// (month 0 is December of the year before).
+export function dayKeyOf(year: number, month: number, day: number): string {
+  return new Date(Date.UTC(year, month - 1, day)).toISOString().slice(0, 10);
+}
+
+const dayKeyFormatters = new Map<string, Intl.DateTimeFormat>();
+
+/// Words for a calendar date (« nov. », « mardi »), in French.
+export function formatDayKey(
+  dayKey: string,
+  options: Intl.DateTimeFormatOptions,
+): string {
+  const key = JSON.stringify(options);
+  let f = dayKeyFormatters.get(key);
+  if (!f) {
+    f = new Intl.DateTimeFormat('fr-FR', { ...options, timeZone: 'UTC' });
+    dayKeyFormatters.set(key, f);
+  }
+  return f.format(new Date(Date.parse(`${dayKey}T00:00:00.000Z`)));
+}
+
 export type SalonPeriod = 'today' | 'week' | 'month' | 'all';
 
 /// Inclusive-start/exclusive-end ISO range for a period, computed on SALON

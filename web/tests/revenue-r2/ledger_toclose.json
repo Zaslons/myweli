@@ -1,0 +1,23 @@
+{
+  "items": [
+    {
+      "appointmentId": "manual_demo_1",
+      "appointmentDate": "2026-11-26T15:00:00.000Z",
+      "status": "confirmed",
+      "amount": 10000.0,
+      "totalPrice": 10000.0,
+      "currency": "XOF",
+      "serviceNames": [
+        "Tresses"
+      ],
+      "artistLabel": "Salimata O.",
+      "artistState": "active",
+      "channel": "salon",
+      "estimated": false
+    }
+  ],
+  "page": 1,
+  "pageSize": 20,
+  "total": 1,
+  "asOf": "2026-11-27T09:05:54.103439Z"
+}
