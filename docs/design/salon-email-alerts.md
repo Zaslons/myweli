@@ -79,9 +79,14 @@ Sous la liste (comme « Préférences » du web client), une section :
 
 - titre de section « Préférences » ;
 - ligne « **Alertes par e-mail** », sous-titre : « Si une notification de
-  l’app MyWeli Pro ne peut pas vous parvenir, nous vous écrivons à
-  {adresse} : nouvelle demande, report, annulation, justificatif
-  d’acompte. » ;
+  l’app MyWeli Pro ne peut pas vous parvenir (nouvelle demande, report,
+  annulation, justificatif d’acompte), nous vous écrivons à {adresse}. »
+  — l'adresse sur sa propre ligne, sans point dessiné. **Modifié le
+  2026-11-27** (accord du propriétaire, [web-email-seams.md](web-email-seams.md)
+  §4) : l'ancienne phrase (« … nous vous écrivons à {adresse} : nouvelle
+  demande, … ») plaçait l'adresse au milieu, et à 200 % elle élargissait la
+  page à 450 px ; réordonnée pour que l'adresse la termine. Sans adresse
+  connue : « … nous vous écrivons à votre adresse e-mail. » ;
 - l'interrupteur (`role="switch"`, nommé par le titre, cible 48 px) — **le
   même** que le web client, sorti dans un composant partagé (déplacé, pas
   copié) ;

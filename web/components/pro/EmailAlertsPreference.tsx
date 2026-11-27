@@ -11,8 +11,11 @@ import { loadFailure, loadFailureMessage, type LoadFailure } from '../../lib/api
 import { ErrorState } from '../ErrorState';
 import { PrefSwitch } from '../PrefSwitch';
 import { SkeletonRows } from '../Skeleton';
+import { EmailSeams } from '../BreakableEmail';
 
 const TITLE_ID = 'pref-email-alerts-title';
+const ALERTS_LEAD =
+  'Si une notification de l’app MyWeli Pro ne peut pas vous parvenir (nouvelle demande, report, annulation, justificatif d’acompte), nous vous écrivons à';
 
 /// « Alertes par e-mail » — under the salon's notifications
 /// (docs/design/salon-email-alerts.md §4, the owner's words). When no
@@ -94,14 +97,30 @@ export function EmailAlertsPreference({
       ) : (
         <>
           <div className="mt-m flex items-center justify-between gap-m rounded-xl border border-border bg-secondary p-m">
-            <div>
+            {/* `min-w-0`: beside the switch this column is a flex item, and
+                only with it can a long address narrow it (web-email-seams.md). */}
+            <div className="min-w-0">
               <p id={TITLE_ID} className="text-bodyLarge text-textPrimary">
                 Alertes par e-mail
               </p>
-              <p className="mt-xs break-words text-bodySmall text-textTertiary">
-                {`Si une notification de l’app MyWeli Pro ne peut pas vous parvenir, nous vous écrivons à ${
-                  email ?? 'votre adresse e-mail'
-                } : nouvelle demande, report, annulation, justificatif d’acompte.`}
+              {/* The address ends the sentence, on a line of its own, in ink,
+                  with no period drawn; a screen reader hears the sentence whole,
+                  period included (§9, web-email-seams.md §4, which reorders
+                  salon-email-alerts.md §4's words to let it end it). */}
+              <p className="mt-xs text-bodySmall text-textTertiary">
+                {email ? (
+                  <>
+                    <span className="sr-only">{`${ALERTS_LEAD} ${email}.`}</span>
+                    <span aria-hidden="true">
+                      {ALERTS_LEAD}
+                      <span className="block break-words text-textPrimary">
+                        <EmailSeams address={email} />
+                      </span>
+                    </span>
+                  </>
+                ) : (
+                  `${ALERTS_LEAD} votre adresse e-mail.`
+                )}
               </p>
             </div>
             <PrefSwitch

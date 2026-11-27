@@ -111,7 +111,7 @@ describe('ProfilClient — slim member view', () => {
     mockFetch();
     render(<ProfilClient />);
 
-    expect(await screen.findByText('sonia.staff@equipe.test')).toBeTruthy();
+    expect(await screen.findByText('sonia.staff@equipe.test', { ignore: '[aria-hidden="true"]' })).toBeTruthy();
     expect(screen.getByText('Collaborateur')).toBeTruthy();
     expect(screen.getByText('Salon : Beauté Divine')).toBeTruthy();
     // No salon editor…

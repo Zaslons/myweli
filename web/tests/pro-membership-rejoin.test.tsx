@@ -554,7 +554,7 @@ describe('ProMembershipProvider — the rejoin gate, review fixes', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Rejoindre' }));
 
     // The member's identity block: the profile committed.
-    expect(await screen.findByText('ancien@equipe.test')).toBeTruthy();
+    expect(await screen.findByText('ancien@equipe.test', { ignore: '[aria-hidden="true"]' })).toBeTruthy();
     expect(screen.queryByRole('link', { name: 'Équipe' })).toBeNull();
     expect(screen.queryByRole('link', { name: 'Revenus' })).toBeNull();
     expect(screen.getByRole('link', { name: 'Rendez-vous' })).toBeTruthy();
@@ -615,7 +615,7 @@ describe('ProMembershipProvider — the rejoin gate, review fixes', () => {
       await vi.advanceTimersByTimeAsync(5000);
 
       // The member's own nav, once a later /me answered — not the owner's.
-      expect(await screen.findByText('ancien@equipe.test')).toBeTruthy();
+      expect(await screen.findByText('ancien@equipe.test', { ignore: '[aria-hidden="true"]' })).toBeTruthy();
       expect(screen.getByRole('link', { name: 'Rendez-vous' })).toBeTruthy();
       expect(screen.queryByRole('link', { name: 'Équipe' })).toBeNull();
     } finally {
@@ -657,7 +657,7 @@ describe('ProMembershipProvider — the rejoin gate, review fixes', () => {
     meDown = false;
     fireEvent.click(retry);
 
-    expect(await screen.findByText('ancien@equipe.test')).toBeTruthy();
+    expect(await screen.findByText('ancien@equipe.test', { ignore: '[aria-hidden="true"]' })).toBeTruthy();
     expect(screen.queryByRole('link', { name: 'Équipe' })).toBeNull();
   });
 
@@ -922,7 +922,7 @@ describe('B4.4 — the rejoin gate, closed', () => {
 
         // Nobody has to reload: the provider keeps asking.
         await vi.advanceTimersByTimeAsync(5000);
-        expect(await screen.findByText('ancien@equipe.test')).toBeTruthy();
+        expect(await screen.findByText('ancien@equipe.test', { ignore: '[aria-hidden="true"]' })).toBeTruthy();
         expect(screen.getByRole('link', { name: 'Rendez-vous' })).toBeTruthy();
         expect(screen.queryByRole('link', { name: 'Équipe' })).toBeNull();
         expect(count('GET /api/pro/me')).toBe(3);

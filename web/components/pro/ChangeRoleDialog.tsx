@@ -12,6 +12,7 @@ import {
 } from '../../lib/pro/team';
 import { Button } from '../Button';
 import { Modal } from '../Modal';
+import { BreakableEmail } from '../BreakableEmail';
 
 const ROLE_ORDER: TeamRoleInput[] = ['manager', 'reception', 'staff'];
 const ROLE_LABELS: Record<TeamRoleInput, string> = {
@@ -93,7 +94,9 @@ export function ChangeRoleDialog({
 
   return (
     <Modal title="Changer le rôle" onClose={onClose} returnFocusRef={returnFocusRef}>
-        <p className="mt-xs text-bodyMedium text-textTertiary">{member.email}</p>
+        <p className="mt-xs text-bodyMedium text-textTertiary">
+          <BreakableEmail address={member.email} />
+        </p>
 
         <div className="mt-m flex flex-col gap-s">
           {ROLE_ORDER.map((r) => (

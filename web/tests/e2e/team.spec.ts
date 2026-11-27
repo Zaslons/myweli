@@ -1,6 +1,7 @@
 import { type Page, expect, test } from '@playwright/test';
 
 import { signInPro } from './_auth';
+import { drawnEmail } from './_email';
 
 /// Team access R5a — the owner surfaces on the web (docs/design/
 /// web-team-access-r5.md). Hermetic against the stub's team layer: since B10
@@ -28,12 +29,10 @@ test('Équipe: roster, invite, gates, resend & revoke (full arc)', async ({
     .fill('awa.manager@equipe.test');
   await page.getByRole('button', { name: /^Manager/ }).click();
   await page.getByRole('button', { name: 'Envoyer l’invitation' }).click();
-  await expect(
-    page.getByText('Invitation envoyée à awa.manager@equipe.test.'),
-  ).toBeVisible();
-  await expect(
-    page.getByText('awa.manager@equipe.test', { exact: true }),
-  ).toBeVisible();
+  // The toast says what happened; the row below names who
+  // (docs/design/web-email-seams.md §5, decision 2).
+  await expect(page.getByText('Invitation envoyée.', { exact: true })).toBeVisible();
+  await expect(drawnEmail(page, 'awa.manager@equipe.test')).toBeVisible();
   await expect(page.getByText(/Invitation envoyée · expire le/)).toBeVisible();
 
   // Re-inviting the same email → member_exists.
@@ -55,20 +54,22 @@ test('Équipe: roster, invite, gates, resend & revoke (full arc)', async ({
   await page
     .getByRole('button', { name: /Renvoyer l’invitation \(3 restants\)/ })
     .click();
-  await expect(
-    page.getByText('Invitation renvoyée à awa.manager@equipe.test.'),
-  ).toBeVisible();
+  await expect(page.getByText('Invitation renvoyée.', { exact: true })).toBeVisible();
 
   // Revoke, with the account-safe confirmation copy.
   await page
     .getByRole('button', { name: 'Actions pour awa.manager@equipe.test' })
     .click();
   await page.getByRole('button', { name: 'Révoquer l’accès' }).click();
-  await expect(
-    page.getByText(/perdra immédiatement l’accès à Beauté Divine/),
-  ).toBeVisible();
+  // Heard from a hidden copy, drawn with the address on its own line
+  // (web-email-seams.md): the dialog holds the words either way.
+  await expect(page.getByRole('dialog')).toContainText(
+    'perdra immédiatement l’accès à Beauté Divine',
+  );
   await page.getByRole('button', { name: 'Révoquer', exact: true }).click();
-  await expect(page.getByText('Accès révoqué')).toBeVisible();
+  // The toast (« Accès révoqué. ») and the row's status (« Accès révoqué »).
+  await expect(page.getByText('Accès révoqué.', { exact: true })).toBeVisible();
+  await expect(page.getByText('Accès révoqué', { exact: true })).toBeVisible();
 
   // Re-invite the revoked address: the server answers with the SAME row
   // (one row per salon and address — docs/design/backend-team-reinvite.md),
@@ -79,13 +80,11 @@ test('Équipe: roster, invite, gates, resend & revoke (full arc)', async ({
     .fill('awa.manager@equipe.test');
   await page.getByRole('button', { name: /^Réception/ }).click();
   await page.getByRole('button', { name: 'Envoyer l’invitation' }).click();
-  await expect(
-    page.getByText('Invitation envoyée à awa.manager@equipe.test.'),
-  ).toBeVisible();
-  await expect(page.getByText('Accès révoqué')).toHaveCount(0);
-  await expect(
-    page.getByText('awa.manager@equipe.test', { exact: true }),
-  ).toHaveCount(1);
+  // The toast says what happened; the row below names who
+  // (docs/design/web-email-seams.md §5, decision 2).
+  await expect(page.getByText('Invitation envoyée.', { exact: true })).toBeVisible();
+  await expect(page.getByText('Accès révoqué', { exact: true })).toHaveCount(0);
+  await expect(drawnEmail(page, 'awa.manager@equipe.test')).toHaveCount(1);
   await expect(page.getByText(/Invitation envoyée · expire le/)).toBeVisible();
 });
 
