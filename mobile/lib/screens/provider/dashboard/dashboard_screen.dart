@@ -12,8 +12,8 @@ import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/utils/salon_go_live.dart';
 import '../../../core/utils/salon_id.dart';
-import '../../../core/utils/text_fit.dart';
 import '../../../models/pro_membership.dart';
+import '../../../models/revenue_analytics.dart';
 import '../../../providers/notifications_provider.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_dashboard_provider.dart';
@@ -25,6 +25,7 @@ import '../../../widgets/common/app_skeleton.dart';
 import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/screen_title.dart';
 import '../../../widgets/common/update_nudge_slot.dart';
+import '../../../widgets/pro/revenue/kpi_grid.dart';
 import '../../../widgets/provider/salon_picker_sheet.dart';
 import '../../../widgets/push/push_permission_sheet.dart';
 import '../../../widgets/team/pro_invitations_card.dart';
@@ -314,42 +315,52 @@ class _DashboardScreenState extends State<DashboardScreen> {
             // screen (« Analyses ») counts completed only — one word
             // over two numbers for the same day
             // (provider-dashboard-stats.md §12).
-            _StatBlock(
-              cards: [
-                _StatCard(
+            //
+            // The two money cards open « Revenus » on their own period
+            // (pro-revenue-analytics.md §4.1, Q2) — for `finances.view`
+            // only; the server answers 403 to anyone else regardless.
+            KpiGrid(
+              tiles: [
+                KpiTile(
                   title: 'Aujourd’hui',
                   value: stats.todayAppointments.toString(),
-                  subtitle: 'Rendez-vous',
+                  caption: 'Rendez-vous',
                   icon: Icons.calendar_today,
-                  color: AppColors.primary,
+                  iconColor: AppColors.primary,
                 ),
-                _StatCard(
+                KpiTile(
                   title: 'En attente',
                   value: stats.pendingRequests.toString(),
-                  subtitle: 'Demandes',
+                  caption: 'Demandes',
                   icon: Icons.pending,
-                  color: AppColors.warning,
+                  iconColor: AppColors.warning,
                 ),
                 if (stats.hasRevenue) ...[
-                  _StatCard(
+                  KpiTile(
                     title: 'Aujourd’hui',
                     value: Formatters.formatCurrency(
                       stats.todayRevenue!,
                       currency: context.read<ProAuthProvider>().salonCurrency,
                     ),
-                    subtitle: 'Revenus prévus',
+                    caption: 'Revenus prévus',
                     icon: Icons.attach_money,
-                    color: AppColors.success,
+                    iconColor: AppColors.success,
+                    onTap: authProvider.can(ProCap.financesView)
+                        ? () => _openRevenue(context, RevenuePeriod.day)
+                        : null,
                   ),
-                  _StatCard(
+                  KpiTile(
                     title: 'Ce mois',
                     value: Formatters.formatCurrency(
                       stats.monthRevenue!,
                       currency: context.read<ProAuthProvider>().salonCurrency,
                     ),
-                    subtitle: 'Revenus prévus',
+                    caption: 'Revenus prévus',
                     icon: Icons.trending_up,
-                    color: AppColors.info,
+                    iconColor: AppColors.info,
+                    onTap: authProvider.can(ProCap.financesView)
+                        ? () => _openRevenue(context, RevenuePeriod.month)
+                        : null,
                   ),
                 ],
               ],
@@ -410,6 +421,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
     );
   }
+}
+
+/// « Revenus » on [period], today (no date: the server's today, §3.5).
+void _openRevenue(BuildContext context, RevenuePeriod period) {
+  context.push(
+    Uri(
+      path: '/pro/earnings',
+      queryParameters: {'period': period.name},
+    ).toString(),
+  );
 }
 
 /// A titled action grid, omitted entirely when the role leaves it empty.
@@ -502,141 +523,6 @@ List<Widget> _actionRows(BuildContext context, List<Widget> cards) {
     );
   }
   return rows;
-}
-
-/// The stat cards, two across — or one per row, ALL of them, when a value
-/// would not fit a half-width card (docs/design/amounts-that-fit.md §2).
-///
-/// **Measured, not a text-size constant.** At 360dp a half card has 126dp:
-/// « 114 000 » at 2× needs 171 and was broken inside the number, while the
-/// same amount at 430dp, or a smaller one at 360dp, fits. The shape depends on
-/// the width, the text size AND the amount, so all three are asked. One
-/// decision for every card: a two-across row above a stacked one would read as
-/// two different screens.
-///
-/// A row's cards are as tall as its tallest (« 114 000 FCFA » wraps its unit
-/// in one card and not its neighbour — pro-screenshot-shoot-fixes.md §2.4).
-class _StatBlock extends StatelessWidget {
-  const _StatBlock({required this.cards});
-
-  final List<_StatCard> cards;
-
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, box) {
-        final columns = TextFit.of(context).columns(
-          candidates: const [2, 1],
-          cellWidth: (n) =>
-              (box.maxWidth - (n - 1) * AppTheme.spacingSM) / n -
-              2 * _StatCard.padding,
-          texts: [for (final card in cards) ...card.texts],
-        );
-        return Column(
-          children: [
-            for (var i = 0; i < cards.length; i += columns) ...[
-              if (i > 0) const SizedBox(height: AppTheme.spacingSM),
-              IntrinsicHeight(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    for (final (k, card)
-                        in cards.skip(i).take(columns).indexed) ...[
-                      if (k > 0) const SizedBox(width: AppTheme.spacingSM),
-                      Expanded(child: card),
-                    ],
-                  ],
-                ),
-              ),
-            ],
-          ],
-        );
-      },
-    );
-  }
-}
-
-class _StatCard extends StatelessWidget {
-  final String title;
-  final String value;
-  final String subtitle;
-  final IconData icon;
-  final Color color;
-
-  const _StatCard({
-    required this.title,
-    required this.value,
-    required this.subtitle,
-    required this.icon,
-    required this.color,
-  });
-
-  static const double padding = AppTheme.spacingM;
-  static const TextStyle _labelStyle = AppTextStyles.bodySmall;
-  static const TextStyle _valueStyle = AppTextStyles.headlineSmall;
-
-  /// What this card draws, with the styles it draws them in — for
-  /// [_StatBlock]'s measure. Colour does not change a width.
-  List<FitText> get texts => [
-    (text: title, style: _labelStyle),
-    (text: value, style: _valueStyle),
-    (text: subtitle, style: _labelStyle),
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    return AppCard(
-      // The same constant [_StatBlock]'s measure reads.
-      padding: const EdgeInsets.all(padding),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // A12 — §21 row 68's finding #3, and the mechanism is worth naming:
-          // **an icon does not text-scale.** The theme sets no
-          // `applyTextScaling`, so this glyph is 20dp at every scale while
-          // « Aujourd'hui » doubles from 60 to 121 — in a tile whose inner
-          // width is 126. Measured at 360×2×: **19px over**, and 6.1px for
-          // « En attente ». Device-confirmed first, at 16px / 2.6px on a
-          // 360×780pt iPhone at ≈1.95×.
-          //
-          // A `Wrap`, for the third time in this codebase
-          // (`section_heading.dart`, `review_tile.dart`): the icon drops to its
-          // own line rather than squeezing a title that cannot help it.
-          // « Aujourd'hui » is ONE WORD — it cannot wrap its way out, so
-          // `Flexible` here would only trade an overflow for a crush, and the
-          // legibility gate would take the second one.
-          //
-          // `double.infinity` is load-bearing, as it is at both precedents: a
-          // Wrap shrink-wraps, so `spaceBetween` inside one has nothing to
-          // distribute and the icon would sit against the title.
-          SizedBox(
-            width: double.infinity,
-            child: Wrap(
-              alignment: WrapAlignment.spaceBetween,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              runSpacing: AppTheme.spacingXS,
-              children: [
-                Text(
-                  title,
-                  style: _labelStyle.copyWith(color: AppColors.textSecondary),
-                ),
-                Icon(icon, color: color, size: AppTheme.iconS),
-              ],
-            ),
-          ),
-          const SizedBox(height: AppTheme.spacingS),
-          Text(
-            value,
-            style: _valueStyle.copyWith(color: AppColors.textPrimary),
-          ),
-          Text(
-            subtitle,
-            style: _labelStyle.copyWith(color: AppColors.textTertiary),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 class _ActionCard extends StatelessWidget {

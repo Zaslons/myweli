@@ -7,6 +7,7 @@ import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/theme/app_theme.dart';
 import 'package:myweli/core/utils/app_clock.dart';
 import 'package:myweli/core/utils/salon_id.dart';
+import 'package:myweli/models/revenue_analytics.dart';
 import 'package:myweli/models/team_invitation.dart';
 import 'package:myweli/models/team_member.dart';
 import 'package:myweli/providers/appointment_provider.dart';
@@ -17,7 +18,7 @@ import 'package:myweli/providers/pro_appointment_provider.dart';
 import 'package:myweli/providers/pro_auth_provider.dart';
 import 'package:myweli/providers/pro_availability_provider.dart';
 import 'package:myweli/providers/pro_dashboard_provider.dart';
-import 'package:myweli/providers/pro_earnings_provider.dart';
+import 'package:myweli/providers/pro_revenue_provider.dart';
 import 'package:myweli/providers/pro_reviews_provider.dart';
 import 'package:myweli/providers/pro_service_provider.dart';
 import 'package:myweli/providers/pro_team_provider.dart';
@@ -33,7 +34,9 @@ import 'package:myweli/screens/provider/appointments/appointment_list_screen.dar
 import 'package:myweli/screens/provider/appointments/pro_manual_booking_screen.dart';
 import 'package:myweli/screens/provider/availability/availability_screen.dart';
 import 'package:myweli/screens/provider/dashboard/dashboard_screen.dart';
-import 'package:myweli/screens/provider/earnings/earnings_screen.dart';
+import 'package:myweli/screens/provider/earnings/revenue_detail_screen.dart';
+import 'package:myweli/screens/provider/earnings/revenue_ledger_screen.dart';
+import 'package:myweli/screens/provider/earnings/revenue_screen.dart';
 import 'package:myweli/screens/provider/reviews/reviews_screen.dart';
 import 'package:myweli/screens/providers/provider_detail_screen.dart';
 import 'package:myweli/screens/providers/provider_list_screen.dart';
@@ -49,6 +52,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../support/fonts.dart';
 import '../support/frozen_clock.dart';
+import '../support/revenue_fixtures.dart';
+import '../support/revenue_service.dart';
 import '../support/secure_storage.dart';
 import '../support/settle.dart';
 import '../support/sign_in.dart';
@@ -199,41 +204,85 @@ void main() {
         await _disposeTimers(tester);
       });
 
-      // ---- the pro earnings bar -----------------------------------------
-      // (the OTP box's §13.3 growth assertion is outside these loops — see the
-      // bottom of the file, and the note there about why looping is legal in
-      // that one test and nowhere else.)
+      // ---- « Revenus », its detail, its ledger (pro-revenue-analytics §4.12)
       //
-      // Four tabs — « Aujourd'hui » « Semaine » « Mois » « Tout ». Until C4 this
-      // was a non-scrollable TabBar, so each tab got width / 4 and the long
-      // label was faded away inside its share: A10 PHOTOGRAPHED it clipped at
-      // 390 (`pro_earnings.png`, §21 row 40). A `Tab` is `softWrap: false` with
-      // `overflow: fade` (`tabs.dart:183`), which is why assertion A was silent
-      // about it and B was not. C4 made the bar scrollable; these tests are what
-      // keep it that way.
+      // The figures that can break — seven and eight digits, the longest
+      // labels §3.3 prints — at every width and both scales: the grid goes
+      // one per row when a tile's texts would not fit (measured, §4.5), the
+      // chips wrap, an amount never breaks inside its number, every target
+      // is 48dp, the chart included (one node).
+      FakeRevenueService large() =>
+          FakeRevenueService()..analytics = (_) => revenueLargeJson();
 
-      testWidgets('the pro earnings tabs fit $at', (tester) async {
+      Future<void> pumpRevenueAt(WidgetTester tester, Widget subject) async {
         final auth = await signInPro(tester);
         await pumpPushedAtWidth(
           tester,
           width: width,
           scale: scale,
+          height: 2400,
           providers: [
             ChangeNotifierProvider<ProAuthProvider>.value(value: auth),
-            ChangeNotifierProvider(create: (_) => ProEarningsProvider()),
+            ChangeNotifierProvider(
+              create: (_) => ProRevenueProvider(service: large()),
+            ),
           ],
-          // pushed the way the product enters it — dashboard_screen.dart:346.
-          subject: const EarningsScreen(),
+          subject: subject,
         );
+      }
 
-        await openEarningsAll(tester);
-        expect(find.text('Total réalisé'), findsOneWidget, reason: 'C');
-        expectNoUndeclaredTruncation(tester, context: 'pro earnings at $at');
-        expectNoLegibilityCrush(tester, context: 'pro earnings at $at');
-        expectNoVerticalClip(tester, context: 'pro earnings at $at');
-        expectNoGluedTokenBreaks(tester, context: 'pro earnings at $at');
-        expectAppBarTitleWhole(tester, at: 'pro earnings at $at');
-        expect(tester.takeException(), isNull, reason: 'A: $at');
+      void expectRevenueWhole(WidgetTester tester, String where) {
+        expectNoUndeclaredTruncation(tester, context: '$where at $at');
+        expectNoLegibilityCrush(tester, context: '$where at $at');
+        expectNoVerticalClip(tester, context: '$where at $at');
+        expectNoGluedTokenBreaks(tester, context: '$where at $at');
+        expectAppBarTitleWhole(tester, at: '$where at $at');
+        expect(tester.takeException(), isNull, reason: 'A: $where at $at');
+      }
+
+      testWidgets('« Revenus » fits $at', (tester) async {
+        await pumpRevenueAt(tester, const RevenueScreen());
+        expect(find.text('Réalisé'), findsOneWidget, reason: 'C');
+        expectNoMidWordBreak(tester, '12\u202F345\u202F678 FCFA', at);
+        expectRevenueWhole(tester, 'Revenus');
+        await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
+
+        // Further down: the chart, « Répartition », the ledger preview.
+        await tester.scrollUntilVisible(
+          find.text('Marie-Laure Kouassi-Ouattara'),
+          300,
+          scrollable: find.byType(Scrollable).first,
+        );
+        await tester.pumpAndSettle();
+        expectRevenueWhole(tester, 'Revenus, its rows');
+        await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
+      });
+
+      testWidgets('a detail of « Revenus » fits $at', (tester) async {
+        await pumpRevenueAt(
+          tester,
+          const RevenueDetailScreen(
+            axis: RevenueAxis.service,
+            rowKey: 'svc_tresses',
+          ),
+        );
+        expect(find.text('Réalisé'), findsOneWidget, reason: 'C');
+        expectRevenueWhole(tester, 'a revenue detail');
+        await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
+      });
+
+      testWidgets('the revenue ledger fits $at', (tester) async {
+        await pumpRevenueAt(
+          tester,
+          const RevenueLedgerScreen(routeQuery: {'period': 'month'}),
+        );
+        expect(
+          find.text('Fatou B. · Tresses · Awa Koné'),
+          findsOneWidget,
+          reason: 'C',
+        );
+        expectRevenueWhole(tester, 'the revenue ledger');
+        await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
       });
 
       // ---- the pro appointment list -------------------------------------

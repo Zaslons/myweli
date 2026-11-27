@@ -18,6 +18,7 @@ import 'package:myweli/models/payment.dart';
 import 'package:myweli/models/pro_membership.dart';
 import 'package:myweli/models/provider.dart';
 import 'package:myweli/models/provider_user.dart';
+import 'package:myweli/models/revenue_analytics.dart';
 import 'package:myweli/models/review_summary.dart';
 import 'package:myweli/models/salon_client.dart';
 import 'package:myweli/models/salon_subscription.dart';
@@ -31,11 +32,11 @@ import 'package:myweli/providers/pro_availability_provider.dart';
 import 'package:myweli/providers/pro_before_after_provider.dart';
 import 'package:myweli/providers/pro_clients_provider.dart';
 import 'package:myweli/providers/pro_deposit_settings_provider.dart';
-import 'package:myweli/providers/pro_earnings_provider.dart';
 import 'package:myweli/providers/pro_gallery_provider.dart';
 import 'package:myweli/providers/pro_journal_provider.dart';
 import 'package:myweli/providers/pro_kyc_provider.dart';
 import 'package:myweli/providers/pro_onboarding_provider.dart';
+import 'package:myweli/providers/pro_revenue_provider.dart';
 import 'package:myweli/providers/pro_reviews_provider.dart';
 import 'package:myweli/providers/pro_salon_profile_provider.dart';
 import 'package:myweli/providers/pro_service_provider.dart';
@@ -142,7 +143,18 @@ List<Object?> fingerprint(Object s) => switch (s) {
     s.mobileMoneyOperator,
     s.mobileMoneyNumber,
   ],
-  ProEarningsProvider s => [s.earnings, s.isLoading, s.error, s.loadError],
+  ProRevenueProvider s => [
+    s.view('k')?.analytics,
+    s.view('k')?.isLoading,
+    s.view('k')?.loadError,
+    s.view('k')?.refused,
+    s.ledger('k')?.items.length,
+    s.ledger('k')?.total,
+    s.ledger('k')?.isLoading,
+    s.ledger('k')?.isLoadingMore,
+    s.ledger('k')?.loadError,
+    s.ledger('k')?.moreError,
+  ],
   ProGalleryProvider s => [
     s.photos.length,
     s.isLoading,
@@ -277,6 +289,8 @@ void main() {
     registerFallbackValue(<BeforeAfterPair>[]);
     registerFallbackValue(<KycDocument>[]);
     registerFallbackValue(TeamRole.staff);
+    registerFallbackValue(const RevenueQuery());
+    registerFallbackValue(RevenueLedgerStatus.completed);
     registerFallbackValue(
       const Availability(
         providerId: SalonId('p'),
@@ -805,21 +819,43 @@ void main() {
         });
       });
 
-      group('ProEarningsProvider', () {
-        test('loadEarnings', () async {
-          final held = Completer<ApiResponse<EarningsData>>();
+      group('ProRevenueProvider', () {
+        test('load', () async {
+          final held = Completer<ApiResponse<RevenueAnalytics>>();
           when(
-            () => pro.getEarnings(
+            () => pro.getRevenueAnalytics(any(), any()),
+          ).thenAnswer((_) => held.future);
+          await expectIgnored(
+            'load',
+            ProRevenueProvider(),
+            salonReset,
+            (s) => s.load(const SalonId('p1'), 'k', const RevenueQuery()),
+            () => held.land(refused()),
+          );
+        });
+
+        test('loadLedger', () async {
+          final held = Completer<ApiResponse<RevenueLedgerPage>>();
+          when(
+            () => pro.getRevenueLedger(
               any(),
-              startDate: any(named: 'startDate'),
-              endDate: any(named: 'endDate'),
+              any(),
+              status: any(named: 'status'),
+              page: any(named: 'page'),
+              pageSize: any(named: 'pageSize'),
+              asOf: any(named: 'asOf'),
             ),
           ).thenAnswer((_) => held.future);
           await expectIgnored(
-            'loadEarnings',
-            ProEarningsProvider(),
+            'loadLedger',
+            ProRevenueProvider(),
             salonReset,
-            (s) => s.loadEarnings(const SalonId('p1')),
+            (s) => s.loadLedger(
+              const SalonId('p1'),
+              'k',
+              const RevenueQuery(),
+              RevenueLedgerStatus.completed,
+            ),
             () => held.land(refused()),
           );
         });

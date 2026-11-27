@@ -1,0 +1,83 @@
+{
+  "items": [
+    {
+      "appointmentId": "manual_demo_5",
+      "appointmentDate": "2026-11-24T10:00:00.000Z",
+      "status": "completed",
+      "amount": 10000.0,
+      "totalPrice": 10000.0,
+      "currency": "XOF",
+      "serviceNames": [
+        "Coupe"
+      ],
+      "artistLabel": "Adjoua K.",
+      "artistState": "active",
+      "channel": "salon",
+      "estimated": false
+    },
+    {
+      "appointmentId": "manual_demo_4",
+      "appointmentDate": "2026-11-22T10:00:00.000Z",
+      "status": "completed",
+      "amount": 10000.0,
+      "totalPrice": 10000.0,
+      "currency": "XOF",
+      "serviceNames": [
+        "Tresses"
+      ],
+      "artistLabel": null,
+      "artistState": "unassigned",
+      "channel": "salon",
+      "estimated": false
+    },
+    {
+      "appointmentId": "manual_demo_3",
+      "appointmentDate": "2026-11-19T15:00:00.000Z",
+      "status": "completed",
+      "amount": 10000.0,
+      "totalPrice": 10000.0,
+      "currency": "XOF",
+      "serviceNames": [
+        "Soin visage"
+      ],
+      "artistLabel": "Salimata O.",
+      "artistState": "active",
+      "channel": "salon",
+      "estimated": false
+    },
+    {
+      "appointmentId": "manual_demo_2",
+      "appointmentDate": "2026-11-15T11:00:00.000Z",
+      "status": "completed",
+      "amount": 10000.0,
+      "totalPrice": 10000.0,
+      "currency": "XOF",
+      "serviceNames": [
+        "Manucure"
+      ],
+      "artistLabel": "Koffi A.",
+      "artistState": "active",
+      "channel": "salon",
+      "estimated": false
+    },
+    {
+      "appointmentId": "manual_demo_1",
+      "appointmentDate": "2026-11-10T17:00:00.000Z",
+      "status": "completed",
+      "amount": 10000.0,
+      "totalPrice": 10000.0,
+      "currency": "XOF",
+      "serviceNames": [
+        "Brushing"
+      ],
+      "artistLabel": null,
+      "artistState": "unassigned",
+      "channel": "salon",
+      "estimated": false
+    }
+  ],
+  "page": 1,
+  "pageSize": 5,
+  "total": 7,
+  "asOf": "2026-11-27T09:05:54.071467Z"
+}
