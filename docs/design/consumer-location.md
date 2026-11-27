@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Module** | discovery (mobile, both flavours: the client map, the shared commune picker, MyWeli Pro's « Utiliser ma position »; the Android manifests) |
-| **Status** | **Approved 2026-11-27.** Written on the owner's « Yes, start A6 »; the owner answered the five questions of §11 at once, « Approve as recommended »: decisions 272–276 in BACKLOG, Pro's half included (#890). Read once by an independent reviewer told to refute it: 12 findings, checked, then taken in (§14). The spec merged as `3a2cb1d7` (#890). **Built 2026-11-27** on the owner's « Yes, build A6 », branch `feat/a6-location`, one app PR (#896, §15): not merged. It reaches people with the next client build and MyWeli Pro's next build; the device rows of §8.4 wait for them. |
+| **Status** | **Approved 2026-11-27.** Written on the owner's « Yes, start A6 »; the owner answered the five questions of §11 at once, « Approve as recommended »: decisions 272–276 in BACKLOG, Pro's half included (#890). Read once by an independent reviewer told to refute it: 12 findings, checked, then taken in (§14). The spec merged as `3a2cb1d7` (#890). **Built 2026-11-27** on the owner's « Yes, build A6 », branch `feat/a6-location`, one app PR, **merged** as `43be35ea` (#896) on the owner's « Yes, merge #896 », its tree the tested head's; `myweli.com` deployed with it (the web's token mirror only, no visible change) and read back. It reaches people with the next client build and MyWeli Pro's next build; the device rows of §8.4 wait for them. |
 | **Last updated** | 2026-11-27 |
 | **Audit** | [consumer-app-release-audit.md](consumer-app-release-audit.md) row **A6** (Track A, §7): gap **13** (`ACCESS_FINE_LOCATION` in the client manifest) and the first half of gap **22** (the map asks with no explanation; « Activer » is dead after a refusal). Gap 22's other half, the commune, was A4's ([consumer-search.md](consumer-search.md) §2.8). Not to be confused with the earlier « A6 » of [mobile-a6-feedback.md](mobile-a6-feedback.md), whose comments in `commune_picker_sheet.dart` say « A6 ». |
 | **BACKLOG** | B0.10 (the audit's Track A). Track C, the consumer builds, waits for A1, A2, A3 and this. |
@@ -548,7 +548,7 @@ result.
       listed in the commit message (§15).
 - [x] Goldens authored on Linux, every changed PNG opened.
 - [x] §10's docs updated in the same PR; this spec's status line.
-- [ ] Feature branch, PR, CI green; merged on the owner's word.
+- [x] Feature branch, PR, CI green; merged on the owner's word (#896, `43be35ea`).
 
 ## 13. Seen in passing (not A6)
 

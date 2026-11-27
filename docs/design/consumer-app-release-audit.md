@@ -512,6 +512,8 @@ L = a week or more. **Risk** is to the submission or to a user's trust.
 
 **2026-11-27 — A6 built** (#896, [consumer-location.md](consumer-location.md) §15): gap 13 and the location half of 22 in the code. Read on APKs built that day: the client APK from `main` declared `ACCESS_FINE_LOCATION`; with A6 it declares `ACCESS_COARSE_LOCATION` alone, and MyWeli Pro's declares both. The map asks before any dialog, once, and every refusal has its way out, as « Près de moi » and Pro's « Utiliser ma position » do. They reach people with the next client build and Pro's next; the device rows (§8.4) wait for them.
 
+**2026-11-27 — A6 merged** (#896, `43be35ea`): gap 13 and the location half of 22 are closed on `main`. They reach people with the next client build and MyWeli Pro's next; the device rows ([consumer-location.md](consumer-location.md) §8.4) wait for them. `myweli.com` deployed with it (the web's token mirror; no visible change) and was read back. **Track C's condition is met:** A1, A2, A3 and A6 are merged. Each of its steps waits for the owner's « yes ».
+
 ---
 
 ## 7. Proposed order of work
@@ -531,7 +533,7 @@ state and the French copy, and the owner approves it.
 | A3 | **Sign-in you can leave, and push you can turn on later:** sign-in pushed rather than replaced, with a close button; `returnTo` kept; a way to ask for push again from Préférences (17) | S | [consumer-signin-push.md](consumer-signin-push.md) (approved 2026-11-24, decisions 204–213; A3 #854 and A3w #856, merged 2026-11-24) |
 | A4 | **Search that searches, and the Ivorian categories:** a search field on `GET /providers?q=`, debounced, with every state; the PRD Appendix A chips; « Charger plus »; the map says its commune (11, 20, 22) | M | yes (UX), parity with web `/recherche`: [consumer-search.md](consumer-search.md) (written 2026-11-24; decisions 228–236 answered 2026-11-25, as recommended: the five shared categories, not Appendix A's, decision 229; A4-api #864 merged and deployed 2026-11-25, A4 #878 merged 2026-11-26, A4w #883 merged and deployed 2026-11-26) |
 | A5 | **The salon page's team and every review:** staff section, « Voir tous les avis » (18) | S-M | yes (UX) |
-| A6 | **Android: precise location for Pro only** (13); the map asks after an explanation, and « Activer » opens the Settings after a refusal (22) | S | [consumer-location.md](consumer-location.md) (written 2026-11-27, a file rather than a section of android-play-release §7.1, since most of it is the map's UX); approved 2026-11-27, decisions 272–276 as recommended, Pro's half included; merged as `3a2cb1d7` (#890); **built 2026-11-27**, not merged |
+| A6 | **Android: precise location for Pro only** (13); the map asks after an explanation, and « Activer » opens the Settings after a refusal (22) | S | [consumer-location.md](consumer-location.md) (written 2026-11-27, a file rather than a section of android-play-release §7.1, since most of it is the map's UX); approved 2026-11-27, decisions 272–276 as recommended, Pro's half included; merged as `3a2cb1d7` (#890); built and **merged 2026-11-27** (#896, `43be35ea`) |
 | A7 | **Tests the release leans on:** goldens and widget tests of §2.9 for the screens A1–A5 change, and a test that pins the cancel sentence | M | none (part of each PR's Definition of Done) |
 
 **Track B — documents and the web. It also runs now.**
