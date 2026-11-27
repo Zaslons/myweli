@@ -80,31 +80,11 @@ class _ProProfileScreenState extends State<ProProfileScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                (provider.name?.isNotEmpty ?? false)
-                                    ? provider.name!
-                                    : (provider.email ?? ''),
-                                style: AppTextStyles.titleMedium.copyWith(
-                                  color: AppColors.textPrimary,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            TeamRoleChip(role: authProvider.role),
-                          ],
+                        _MemberIdentity(
+                          name: provider.name,
+                          email: provider.email,
+                          role: authProvider.role,
                         ),
-                        if (provider.email != null) ...[
-                          const SizedBox(height: AppTheme.spacingS),
-                          Text(
-                            provider.email!,
-                            style: AppTextStyles.bodyLarge.copyWith(
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                        ],
                         const SizedBox(height: AppTheme.spacingM),
                         Text(
                           'Salon',
@@ -567,5 +547,66 @@ class _SalonCardState extends State<_SalonCard> {
         onPressed: _retry,
       ),
     ],
+  );
+}
+
+/// The member header's person (docs/design/app-pro-profile-email-seams.md
+/// §4.1): the account's name if it has one, then its address, each on a
+/// line of its own, then the role chip under them — the website's member
+/// Profil, and « Équipe »'s sheet heading.
+///
+/// **Why the chip is not beside the title.** At 200 % on 360 dp it left the
+/// title 173 dp, and no domain fits there (`@gmail.com` needs 182 in
+/// `titleMedium`, `@hotmail.com` 210): every address was cut, « awa@exe… ».
+///
+/// **Why the address is drawn once.** A member invited by e-mail has no
+/// name — the server's `createMemberAccount` stores none — so the title IS
+/// the address. It used to be drawn, and heard, a second time under itself.
+///
+/// The address breaks only at its seams ([Formatters.breakableEmail]) and is
+/// heard without its marks (SYSTEM.md §13.3). A name wraps between its words,
+/// as a heading may.
+class _MemberIdentity extends StatelessWidget {
+  const _MemberIdentity({
+    required this.name,
+    required this.email,
+    required this.role,
+  });
+
+  final String? name;
+  final String? email;
+  final TeamRole role;
+
+  @override
+  Widget build(BuildContext context) {
+    final named = name?.isNotEmpty ?? false;
+    final address = (email?.isNotEmpty ?? false) ? email : null;
+    final title = AppTextStyles.titleMedium.copyWith(
+      color: AppColors.textPrimary,
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (named)
+          Text(name!, style: title)
+        else if (address != null)
+          _address(address, title),
+        if (named && address != null) ...[
+          const SizedBox(height: AppTheme.spacingS),
+          _address(
+            address,
+            AppTextStyles.bodyLarge.copyWith(color: AppColors.textSecondary),
+          ),
+        ],
+        if (named || address != null) const SizedBox(height: AppTheme.spacingS),
+        TeamRoleChip(role: role),
+      ],
+    );
+  }
+
+  static Widget _address(String address, TextStyle style) => Text(
+    Formatters.breakableEmail(address),
+    semanticsLabel: address,
+    style: style,
   );
 }
