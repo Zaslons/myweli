@@ -1,7 +1,9 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
@@ -22,6 +24,7 @@ import 'package:myweli/widgets/common/phone_number_field.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../support/fake_location.dart';
 import '../support/pump_app.dart';
 
 class _MockProService extends Mock implements ProServiceInterface {}
@@ -496,4 +499,135 @@ void main() {
       },
     );
   }
+
+  group('« Utiliser ma position » (consumer-location.md §2.3)', () {
+    late FakePhoneLocation phone;
+
+    setUp(() => phone = FakePhoneLocation());
+
+    const adjust = 'Touchez la carte pour ajuster.';
+    const approximateLine =
+        'Position approximative : touchez la carte pour placer votre salon '
+        'exactement.';
+
+    Future<void> useMyPosition(WidgetTester tester) async {
+      phone.install(tester);
+      await openForm(tester);
+      await tester.tap(find.text('Utiliser ma position'));
+      for (var i = 0; i < 10; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+    }
+
+    testWidgets('precise: the pin moves, read at « best »; no line about it', (
+      tester,
+    ) async {
+      phone.check = FakePhoneLocation.whileInUse;
+      await useMyPosition(tester);
+      expect(phone.positionSettings?['accuracy'], LocationAccuracy.best.index);
+      expect(find.text(adjust), findsOneWidget);
+      expect(find.text(approximateLine), findsNothing);
+      expect(find.byType(SnackBar), findsNothing);
+    });
+
+    testWidgets('approximate (decision 276): the line says so, until a touch '
+        'on the map places the pin', (tester) async {
+      phone
+        ..check = FakePhoneLocation.whileInUse
+        ..accuracyStatus = 0;
+      await useMyPosition(tester);
+      expect(find.text(approximateLine), findsOneWidget);
+      expect(find.text(adjust), findsNothing);
+
+      await tester.tapAt(tester.getCenter(find.byType(FlutterMap)));
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(find.text(approximateLine), findsNothing);
+      expect(find.text(adjust), findsOneWidget);
+    });
+
+    for (final (name, setup, sentence) in [
+      (
+        'refused (Android)',
+        (FakePhoneLocation p) => p.requests = [FakePhoneLocation.denied],
+        'Localisation refusée. Touchez la carte pour placer votre salon.',
+      ),
+      (
+        'no position',
+        (FakePhoneLocation p) => p
+          ..check = FakePhoneLocation.whileInUse
+          ..positionError = 'LOCATION_UPDATE_FAILURE',
+        'Position introuvable. Réessayez, ou touchez la carte pour placer '
+            'votre salon.',
+      ),
+    ]) {
+      testWidgets('$name: its sentence, no settings', (tester) async {
+        setup(phone);
+        await useMyPosition(tester);
+        expect(find.text(sentence), findsOneWidget);
+        expect(find.text('Ouvrir les réglages'), findsNothing);
+      });
+    }
+
+    testWidgets('refused for good: « Ouvrir les réglages » opens the APP '
+        'page', (tester) async {
+      phone.requests = [FakePhoneLocation.deniedForever];
+      await useMyPosition(tester);
+      expect(
+        find.text(
+          'Localisation bloquée. Autorisez-la dans les réglages du téléphone.',
+        ),
+        findsOneWidget,
+      );
+      await tester.tap(find.text('Ouvrir les réglages'));
+      await tester.pump();
+      expect(phone.count('openAppSettings'), 1);
+      expect(phone.count('openLocationSettings'), 0);
+    });
+
+    testWidgets('location off (Android): « Ouvrir les réglages » opens the '
+        'LOCATION page', (tester) async {
+      phone.service = false;
+      await useMyPosition(tester);
+      expect(
+        find.text('La localisation du téléphone est désactivée.'),
+        findsOneWidget,
+      );
+      await tester.tap(find.text('Ouvrir les réglages'));
+      await tester.pump();
+      expect(phone.count('openLocationSettings'), 1);
+      expect(phone.count('openAppSettings'), 0);
+    });
+
+    testWidgets('iOS: restricted, and location off, say so with no button '
+        'that cannot work', (tester) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+      try {
+        phone.requests = [FakePhoneLocation.denied];
+        await useMyPosition(tester);
+        expect(
+          find.text(
+            'La localisation est limitée sur ce téléphone. Touchez la carte '
+            'pour placer votre salon.',
+          ),
+          findsOneWidget,
+        );
+        phone.service = false;
+        await tester.tap(find.text('Utiliser ma position'));
+        for (var i = 0; i < 10; i++) {
+          await tester.pump(const Duration(milliseconds: 50));
+        }
+        expect(
+          find.text(
+            'Le service de localisation est désactivé (Réglages › '
+            'Confidentialité et sécurité). Touchez la carte pour placer votre '
+            'salon.',
+          ),
+          findsOneWidget,
+        );
+        expect(find.text('Ouvrir les réglages'), findsNothing);
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
+    });
+  });
 }

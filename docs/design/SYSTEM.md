@@ -174,10 +174,17 @@ Status colors come from here — never `Colors.green`/`Colors.red`.
 | `warningLight` | `#FFB800` | 1.62 | ❌ | ❌ | — |
 | `info` | `#1A1A2E` | 15.91 | ✅ | ✅ | ✅ |
 | `infoLight` | `#2D3561` | — | ✅ | ✅ | — |
+| `locationAccuracy` | `info` at 15 % (`0x261A1A2E`) | — | ❌ | fill only | — |
 
 ⚠️ **`warningLight` (`#FFB800`) is not a foreground color** at 1.62:1. It is a
 *background tint* for warning chips (with `textPrimary` on it — 10.04:1 ✅). Using
 it as a text or icon color is a contrast failure; use `warning` (`#6B5B00`).
+
+**`locationAccuracy` is not a foreground either.** It is the fill of the map's
+accuracy circle under « Votre position »: how approximate the phone's position
+is ([consumer-location.md](consumer-location.md) §2.1, A6). The dot carries the
+meaning and its screen-reader label; the circle is decoration, outside the
+semantics tree.
 
 ### 3.5 Accents
 
@@ -538,7 +545,7 @@ widget; a third inline copy is a review failure.
 |---|---|---|
 | `AppButton` | `text, onPressed, type: {primary,secondary,text}, isLoading, isFullWidth, icon, leading` | `onPressed: null` = disabled. `isLoading` swaps the label for a `BrandLoader` **without changing the button's size** (no layout jump). |
 | `AppTextField` | `label, hint, errorText, controller, focusNode, onChanged, keyboardType, obscureText, maxLines, maxLength, inputFormatters, enabled, prefixIcon, suffixIcon, textInputAction, onSubmitted, autofocus, helperText, semanticsLabel, showCounter` | **`errorText` is the contract for validation** — see §14. A7 **removed `validator`**: it cannot express rule 2, and its result silently overwrites `errorText`. **A4 (consumer-search.md §2.2):** `semanticsLabel` names a field that has no visible `label` — merged into the text field's own node, named first and the hint after, the name kept once text is typed (§13.4: a hint is an example, not a name); `helperText` guides without blaming (not red, wraps up to 3 lines); `showCounter: false` keeps `maxLength`'s cap without drawing « 12/100 ». The other callers keep their defaults. |
-| `InlineFeedback` | `message, kind` | The form / in-modal outcome slot (§14, §15). `null` renders nothing. |
+| `InlineFeedback` | `message, kind, action` | The form / in-modal outcome slot (§14, §15). `null` renders nothing. **`action`** (a `SnackAction`, optional; A6): the way out, a `TextButton` under the sentence at the end — « Ouvrir les réglages » inside the commune picker after a location refusal ([consumer-location.md](consumer-location.md) §2.2). A modal cannot raise a snackbar, so its way out lives here. |
 | `PhoneNumberField` | `onChanged, label, initialValue, initialCountryCode, errorText, enabled, focusNode` | Country picker (default CI, any country) + national digits. **The only way to take a phone number** — true on every screen since phone-national-length.md converted the last three free-text ones (Acompte, Profil du salon ×2, Ajouter un salon). Emits the **normalized** value: `''` while no national digit is typed, else `+<indicatif><chiffres>` without a separator, and re-emits on a country switch — what a screen checks is what it sends. A prefilled `+…` shows under **its** country (longest calling code). `autovalidateMode` stays `disabled`: the rule is `Validators.phoneNumber` / `optionalPhoneNumber` through `FieldErrors` (§14 rule 2). |
 | `LoadingIndicator` | `size, color` | The brand loader. The **only** spinner. |
 | `EmptyState` | `icon, title, description, actionText, onAction` | Icon at `iconXL`. Bounded height: it scrolls; unbounded (inside a list or a box sliver): it centres. **Not in a `SliverFillRemaining(hasScrollBody: false)`** — that sliver asks its child for an intrinsic height, which the `LayoutBuilder` cannot give; use a `SliverToBoxAdapter` (B7.4). |
@@ -594,7 +601,11 @@ the most commonly half-kept.
 | **Success** | The content. |
 
 Plus the states that aren't about data: **offline**, **permission-denied**
-(e.g. `PushBlockedBanner`; never asked yet: `PushOffCard`), and
+(e.g. `PushBlockedBanner`; never asked yet: `PushOffCard`; location, A6: the
+map's location line — asked first, once, and after a refusal the way that
+works, « Autoriser », « Ouvrir les réglages » or the phone's location page —
+and the same outcomes inside the commune picker and on « Profil du salon »,
+[consumer-location.md](consumer-location.md) §2), and
 **auth-gated**: a screen that only makes sense signed in draws its own
 signed-out page (`EmptyState`, why, and « Se connecter ») instead of sending
 the person away, and every way into the sign-in goes through `openSignIn`,

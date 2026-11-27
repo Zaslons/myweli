@@ -20,13 +20,24 @@ import 'app_snack_bar.dart';
 /// same colour, the same glyph, the same meaning — whether it lands in a bar
 /// or inside the modal that raised it.
 class InlineFeedback extends StatelessWidget {
-  const InlineFeedback(this.message, {super.key, this.kind = SnackKind.error});
+  const InlineFeedback(
+    this.message, {
+    super.key,
+    this.kind = SnackKind.error,
+    this.action,
+  });
 
   /// `null` renders nothing — so a caller can hold one nullable field and put
   /// this in its tree unconditionally.
   final String? message;
 
   final SnackKind kind;
+
+  /// The way out, when the modal can offer one: under the sentence, at the
+  /// end — « Ouvrir les réglages » after a location refusal in the commune
+  /// picker (consumer-location.md §2.2). The same [SnackAction] a bar takes;
+  /// its `isOnlyRouteBack` means nothing here (nothing times out).
+  final SnackAction? action;
 
   @override
   Widget build(BuildContext context) {
@@ -43,9 +54,22 @@ class InlineFeedback extends StatelessWidget {
             Icon(kind.icon, size: AppTheme.iconS, color: kind.color),
             const SizedBox(width: AppTheme.spacingS),
             Expanded(
-              child: Text(
-                text,
-                style: AppTextStyles.bodyMedium.copyWith(color: kind.color),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    text,
+                    style: AppTextStyles.bodyMedium.copyWith(color: kind.color),
+                  ),
+                  if (action case final a?)
+                    Align(
+                      alignment: AlignmentDirectional.centerEnd,
+                      child: TextButton(
+                        onPressed: a.onPressed,
+                        child: Text(a.label),
+                      ),
+                    ),
+                ],
               ),
             ),
           ],

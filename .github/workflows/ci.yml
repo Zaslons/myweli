@@ -903,6 +903,16 @@ jobs:
       - name: Play device filter — portrait is optional in the APK
         run: bash ../tool/verify_android_portrait_optional.sh build/app/outputs/flutter-apk/app-consumer-release.apk
 
+      # The client asks for approximate location only (A6, decision 272): no
+      # ACCESS_FINE_LOCATION in the MERGED manifest, so the client app needs
+      # no precise-location declaration on Play. Precise location is MyWeli
+      # Pro's own manifest's. A plugin's manifest could bring it back, which
+      # the source pin (mobile/test/infra/android_location_permission_test.dart)
+      # cannot see. docs/design/consumer-location.md §8.3.
+      # Guarded: backend/test/infra/android_location_test.dart.
+      - name: Play — the client APK asks for approximate location only
+        run: bash ../tool/verify_android_location.sh build/app/outputs/flutter-apk/app-consumer-release.apk
+
       - name: Enforce the <30 MB budget (NFR-PERF-002)
         run: |
           APK=build/app/outputs/flutter-apk/app-consumer-release.apk

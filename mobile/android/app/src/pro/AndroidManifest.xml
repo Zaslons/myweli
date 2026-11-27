@@ -1,0 +1,11 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- MyWeli Pro only: PRECISE location, for « Utiliser ma position » in
+         « Profil du salon ». The pin is the salon's published address, so a
+         position a kilometre off is a wrong one (A6, decision 272,
+         docs/design/consumer-location.md §1, §2.3). Gradle merges this into
+         the pro flavour alone; src/main/ keeps approximate for both apps.
+         Play's precise-location declaration for MyWeli Pro:
+         docs/design/android-play-release.md §7.1.
+         Pinned in source by test/infra/android_location_permission_test.dart. -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+</manifest>

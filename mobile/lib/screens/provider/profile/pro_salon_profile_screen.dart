@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
@@ -9,6 +10,7 @@ import 'package:provider/provider.dart';
 import '../../../core/config/app_config.dart';
 import '../../../core/constants/salon_categories.dart';
 import '../../../core/forms/field_errors.dart';
+import '../../../core/location/location_access.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
@@ -93,6 +95,11 @@ class _ProSalonProfileScreenState extends State<ProSalonProfileScreen> {
   String _communeName = '';
   String _category = 'salon';
   LatLng? _pin;
+
+  /// The pin came from an approximate position (decision 276): the line
+  /// under the map asks for a touch to place it exactly. A touch on the map
+  /// places it, and clears this.
+  bool _pinApproximate = false;
   bool _filled = false;
   bool _locating = false;
 
@@ -140,44 +147,68 @@ class _ProSalonProfileScreenState extends State<ProSalonProfileScreen> {
     }
   }
 
+  /// « Utiliser ma position »: the shared flow (consumer-location.md §2.3).
+  /// MyWeli Pro keeps precise location — the pin is the salon's published
+  /// address — so it reads at « best », bounded like every read. The screen
+  /// is not a modal: its outcomes are snackbars.
   Future<void> _useMyPosition() async {
-    // Captured BEFORE the geolocator awaits — the correct idiom, and the one
-    // the deleted `_toast` wrapper was hiding behind a `mounted` guard.
+    // Captured BEFORE the awaits — a `BuildContext` does not survive them.
     final messenger = ScaffoldMessenger.of(context);
     setState(() => _locating = true);
-    try {
-      if (!await Geolocator.isLocationServiceEnabled()) {
-        AppSnackBar.showOn(
-          messenger,
-          'Localisation désactivée',
-          kind: SnackKind.error,
+    final outcome = await LocationAccess.instance.locate(
+      accuracy: LocationAccuracy.best,
+    );
+    if (!mounted) return;
+    setState(() => _locating = false);
+    void say(String message, {SnackAction? action}) => AppSnackBar.showOn(
+      messenger,
+      message,
+      kind: SnackKind.error,
+      action: action,
+    );
+    final ios = defaultTargetPlatform == TargetPlatform.iOS;
+    switch (outcome) {
+      case Located(:final position, :final approximate):
+        setState(() {
+          _pin = LatLng(position.latitude, position.longitude);
+          _pinApproximate = approximate;
+        });
+      case LocationRefused():
+        say('Localisation refusée. Touchez la carte pour placer votre salon.');
+      case LocationBlocked():
+        say(
+          'Localisation bloquée. Autorisez-la dans les réglages du téléphone.',
+          action: SnackAction(
+            label: 'Ouvrir les réglages',
+            onPressed: () =>
+                unawaited(LocationAccess.instance.openAppSettings()),
+          ),
         );
-        return;
-      }
-      var permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-      }
-      if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever) {
-        AppSnackBar.showOn(
-          messenger,
-          'Autorisez la localisation pour vous placer',
-          kind: SnackKind.error,
+      case LocationRestricted():
+        say(
+          'La localisation est limitée sur ce téléphone. Touchez la carte '
+          'pour placer votre salon.',
         );
-        return;
-      }
-      final pos = await Geolocator.getCurrentPosition();
-      if (!mounted) return;
-      setState(() => _pin = LatLng(pos.latitude, pos.longitude));
-    } catch (_) {
-      AppSnackBar.showOn(
-        messenger,
-        'Position indisponible',
-        kind: SnackKind.error,
-      );
-    } finally {
-      if (mounted) setState(() => _locating = false);
+      case LocationOff() when ios:
+        say(
+          'Le service de localisation est désactivé (Réglages › '
+          'Confidentialité et sécurité). Touchez la carte pour placer votre '
+          'salon.',
+        );
+      case LocationOff():
+        say(
+          'La localisation du téléphone est désactivée.',
+          action: SnackAction(
+            label: 'Ouvrir les réglages',
+            onPressed: () =>
+                unawaited(LocationAccess.instance.openLocationSettings()),
+          ),
+        );
+      case LocationFailed():
+        say(
+          'Position introuvable. Réessayez, ou touchez la carte pour placer '
+          'votre salon.',
+        );
     }
   }
 
@@ -443,7 +474,10 @@ class _ProSalonProfileScreenState extends State<ProSalonProfileScreen> {
         _LocationField(
           pin: _pin,
           defaultCenter: _defaultCenter,
-          onPick: (latLng) => setState(() => _pin = latLng),
+          onPick: (latLng) => setState(() {
+            _pin = latLng;
+            _pinApproximate = false;
+          }),
         ),
         const SizedBox(height: AppTheme.spacingS),
         // A Wrap, not a Row: from 1.5× text the button and its hint do
@@ -466,6 +500,9 @@ class _ProSalonProfileScreenState extends State<ProSalonProfileScreen> {
             Text(
               _pin == null
                   ? 'Touchez la carte pour placer votre salon.'
+                  : _pinApproximate
+                  ? 'Position approximative : touchez la carte pour placer '
+                        'votre salon exactement.'
                   : 'Touchez la carte pour ajuster.',
               style: AppTextStyles.bodySmall.copyWith(
                 color: AppColors.textTertiary,
