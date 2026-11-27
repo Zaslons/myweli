@@ -12,8 +12,6 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../support/golden.dart';
-import '../support/secure_storage.dart';
-import '../support/settle.dart';
 
 /// « Modifier le profil »'s address row and « Changer d’adresse e-mail »
 /// (B16.3b — docs/design/account-email-change.md §5.4, §8.2: « a golden of
