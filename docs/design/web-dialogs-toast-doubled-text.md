@@ -95,6 +95,12 @@ rendez-vous » (`ManualBookingDialog`) at x 0, outside its panel (content edge
 recipe needs a guest client). Every other dialog footer already wraps
 (`BlockedDatesDialog`, `DisponibilitesClient`, `MediasClient`).
 
+**Found by the gate, after the sign-off** (§6): « Nouveau rendez-vous »'s date
+and time, two `flex-1` fields in a row that does not wrap, ran « Heure du
+rendez-vous » to **x 340 at normal text** on a 320 phone (a date or time
+field's automatic minimum width is its own drawing). The same rule as the
+fiche row (§9 rule 1), fixed the same way, a unit check watched red first.
+
 ### 2.3 `Toast`
 
 The live region is `fixed left-1/2 -translate-x-1/2` with no width. A box
@@ -155,8 +161,8 @@ a screen reader has it as the dialog's name).
   `ManualBookingDialog` drops its own `max-h-[90vh] overflow-y-auto` and its
   `ds-ignore`: the rule it worked around is now the Modal's.
 - **A row in a dialog that cannot fit wraps** (§9 rule 1): the fiche row and
-  the name row in « Changer le rôle » and « Inviter un membre », and every
-  dialog footer — those two, « Révoquer l’accès », and (decision 2) « Ajouter
+  the name row in « Changer le rôle » and « Inviter un membre », the date and
+  time of « Nouveau rendez-vous » (found by the gate), and every dialog footer — those two, « Révoquer l’accès », and (decision 2) « Ajouter
   un client », « Nouveau rendez-vous », « Modifier le numéro ». A field in a
   wrapping row is `min-w-0 flex-auto`.
 - **`/mon-compte`:** the « Confidentialité » row wraps and its link is no
