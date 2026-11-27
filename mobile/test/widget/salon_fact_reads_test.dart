@@ -37,6 +37,7 @@ import 'package:myweli/services/mock/mock_subscription_service.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../support/drawn_email.dart';
 import '../support/pump_app.dart';
 import '../support/settle.dart';
 import '../support/sign_in.dart';
@@ -441,7 +442,7 @@ void main() {
     await settleMocks(tester, rounds: 2);
 
     // provider2's roster: Jean (owner) + a re-invited réception.
-    await tester.tap(find.text('ancien.membre@myweli.test'));
+    await tester.tap(drawnEmail('ancien.membre@myweli.test'));
     await settleMocks(tester);
     await tester.tap(find.text('Révoquer l’accès'));
     await settleMocks(tester);
