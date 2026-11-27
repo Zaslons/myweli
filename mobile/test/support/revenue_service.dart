@@ -65,6 +65,9 @@ class FakeRevenueService extends MockProService {
   final List<({RevenueQuery query, RevenueLedgerStatus status, int page})>
   ledgerAsked = [];
 
+  /// The `asOf` each ledger page was asked with.
+  final List<DateTime?> ledgerAsOf = [];
+
   @override
   Future<ApiResponse<RevenueAnalytics>> getRevenueAnalytics(
     SalonId providerId,
@@ -87,6 +90,7 @@ class FakeRevenueService extends MockProService {
     DateTime? asOf,
   }) async {
     ledgerAsked.add((query: query, status: status, page: page));
+    ledgerAsOf.add(asOf);
     return ApiResponse.success(
       RevenueLedgerPage.fromJson(ledger(status, page)),
     );

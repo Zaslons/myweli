@@ -174,8 +174,18 @@ void main() {
       findsNothing,
       reason: 'no row of « Collaborateurs » rests on an estimate',
     );
+    await scrollTo(tester, find.textContaining('Montants calculés'));
+    expect(
+      find.textContaining('Estimé : réservation faite'),
+      findsNothing,
+      reason: '« estimé » is explained only where it is printed',
+    );
 
-    await tester.ensureVisible(find.text('Prestations'));
+    await tester.scrollUntilVisible(
+      find.text('Prestations'),
+      -200,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.pumpAndSettle();
     await tester.tap(find.text('Prestations'));
     await tester.pump();
@@ -648,6 +658,27 @@ void main() {
     expect(uri.path, '/pro/appointment/p1_0');
     expect(uri.queryParameters['salon'], 'provider1');
   });
+
+  for (final (asOf, kept) in [
+    ('2026-11-25T14:00:00.000Z', true),
+    ('2026-11-24T10:00:00.000Z', false), // 28 hours old
+  ]) {
+    testWidgets('a ledger link’s asOf $asOf: ${kept ? 'kept' : 'dropped'} '
+        '(the server refuses one past 24 hours)', (tester) async {
+      final auth = await signInPro(tester);
+      final service = FakeRevenueService();
+      await pumpRevenue(
+        tester,
+        auth: auth,
+        service: service,
+        location:
+            '/pro/earnings/rendez-vous?period=month&statut=toClose'
+            '&asOf=$asOf',
+      );
+      expect(service.ledgerAsOf, hasLength(1));
+      expect(service.ledgerAsOf.single, kept ? DateTime.parse(asOf) : isNull);
+    });
+  }
 
   testWidgets('an empty ledger says which filter is empty', (tester) async {
     final auth = await signInPro(tester);
