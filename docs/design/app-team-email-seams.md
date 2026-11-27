@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Approved (2026-11-27); built; one question re-opened by the first picture and answered the same day (§3, §5.3) |
+| **Status** | Built (2026-11-27, §8), not merged |
 | **Approved** | by the owner, 2026-11-27, on §5: « Approve as recommended » (the shape in §4 as a whole; the snackbars drop the address); then §5.3, re-opened by the first picture: « Drop it everywhere » (the roster's initial avatar) |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-11-27 |
@@ -10,7 +10,7 @@
 | **Register row** | [SYSTEM.md](SYSTEM.md) §21 row 99 (extended) |
 | **Rule** | [SYSTEM.md](SYSTEM.md) §13.3 « An e-mail address breaks only at its seams » and « A sentence that names an address gives it a line of its own » (#895) |
 | **Parity** | the website's « Équipe » ([web-email-seams.md](web-email-seams.md), PR #902, not merged) |
-| **Governs** | `mobile/lib/screens/provider/team/team_screen.dart` · `mobile/lib/screens/provider/team/invite_member_sheet.dart` · [team-access-r3-app.md](team-access-r3-app.md) §2.1 (its copy) |
+| **Governs** | `mobile/lib/screens/provider/team/team_screen.dart` · `mobile/lib/screens/provider/team/invite_member_sheet.dart` · `mobile/lib/widgets/common/email_sentence.dart` (new; `CodeSentTo` draws through it) · `mobile/test/a11y/team_email_test.dart` · `expectEmailAddressOnItsOwnLine`'s `within:` · [team-access-r3-app.md](team-access-r3-app.md) §2.1 (its copy) |
 | **Skills checked** | `myweli-dev-guardrails` |
 
 ---
@@ -210,3 +210,66 @@ places follow rules it already states. §21 row 99 gains these seven places.
 - **The invite field** (« E-mail du membre ») is an input. It scrolls on one
   line, and the rule is about drawn text.
 - A single piece wider than a line still breaks inside (§3).
+- **`expectNoMidWordBreak` cannot measure a hyphenated piece.** It counts
+  « @salon-excellence.test » as one piece, but the engine may break it at
+  its hyphen. So the gate's tests use addresses without one. The owner's seed
+  address shows the hyphen break in `pro_team_w360_x2` (« jean@salon- » /
+  « excellence.test »).
+
+## 8. As built (2026-11-27)
+
+Branch `fix/app-team-email-seams` from `main` (`cee647eb`). The spec
+approved (`e3d896ec`), the tests red first (`099db48f`), the build
+(`7c637715`), the 200 % golden (`b810debe`), the guards (`34007c4a`), the
+avatar's red test (`54336e5f`) and its removal (`fcd42529`), the goldens
+(`3bebc7e7`).
+
+- **Red first, on the code before the change:** 14 tests, each for its own
+  reason.
+  - The roster cut every address at 1× and 2× (86 dp for
+    « mariam.toure@exemple.ci », which needs 385).
+  - The sheet's heading cut it (221 dp at 2×; at 1×,
+    « adjoua.kouame.konan@exemple.ci » in 239 dp).
+  - « Révoquer l’accès ? » broke it mid-word at 2×, and drew the sentence
+    after it at 1×.
+  - The role step broke it mid-word at 2×, and started it on the line
+    « Quel rôle pour » began at 1×.
+  - The four snackbars still named it.
+
+  The check of what a screen reader hears was green, as it must be.
+  Then 2 more for §5.3: 192 dp for « @outlook.com », and the avatar's
+  initial heard before the address.
+- **The gate:** `expectEmailAddressOnItsOwnLine` and `expectNoMidWordBreak`
+  take `within:`. Without it, a sheet or dialog test failed on the row drawn
+  behind it, not on its own reason (seen in the first red run).
+  `drawnEmail` finds an address drawn with or without its marks, so a test
+  can tap a row the same way before and after.
+- **Found by looking at the first Linux picture:** the domain (§3's
+  correction). The tests' addresses all fit; the seeds' `@myweli.test` did
+  not. Taken back to the owner, answered « Drop it everywhere ».
+- **Green:**
+  - targeted: the team, invite and salon-reads tests, `CodeSentTo`'s and the
+    address change's;
+  - the full app suite on `3bebc7e7`: 4,626 passed, 105 skipped (the goldens, off Linux); analyze 0; format clean;
+  - two Linux goldens, looked at: `pro_team` (390 × 1×: every address
+    whole, the chip under it) and the new `pro_team_w360_x2` (every address
+    broken only before its « @ »; the owner's at its hyphen). The other
+    images, the code steps' included, are byte-identical.
+- **Mutations, on committed code** (each applied exactly once, the tree
+  clean before and after): **27, all red.** Two needed re-aiming before they
+  gave a result. « Rôle mis à jour » did not apply, because the formatter had
+  wrapped its line. « The sheet's chip beside the address » first threw a
+  layout overflow instead of failing the gate; re-aimed to the old
+  `Expanded` shape, it fails the gate.
+
+| Mutation | Red |
+|---|---|
+| roster: the chip beside the address · the avatar back · the ellipsis back · the address without its marks | the roster's gate (150, 192, cut, 288 dp) |
+| roster: the marks heard · the chip line gone | what a screen reader hears |
+| sheet: the address without its marks · the chip beside it | the sheet's gate |
+| sheet: the marks heard | the sheet's « heard » check |
+| revoke: inline again · the address last | the dialog's gate · its one node |
+| role step: inline again · its « ? » not heard | the role step's gate · its one node |
+| each of the four snackbars with its address | its words (`team_screen_test`, `invite_member_sheet_test`) |
+| `EmailSentence`: the address without marks · not in ink · its parts heard · only the address heard · the rest before the address · the caller's style ignored · the ambient style ignored · the default sentence drops the rest | `email_sentence_test`, `code_sent_to_widget_test`, the team gates |
+| gate: `within:` ignored · not passed on to the mid-word check | the two `within:` falsifiers |
