@@ -1632,10 +1632,15 @@ async function stepNumbersPastTheColumn(page: Page) {
 const CODE_STEP_TEXT = [{ name: 'normal text', use: {}, css: null }, ...DOUBLED_TEXT];
 const CODE_STEP_LEAD = 'Entrez le code reçu par e-mail à';
 
-/// [address, its lines at 32px in a 288px column]. At 16px both fit one line.
+/// [address, its lines at 32px in a 288px column]. At 16px each fits one line.
 const LONG_ADDRESSES: [address: string, doubled: string[]][] = [
   ['aminata.kone@exemple.ci', ['aminata.kone', '@exemple.ci']],
   ['awa.kone.nouvelle@exemple.ci', ['awa.kone.nouvelle', '@exemple.ci']],
+  // A piece wider than a line by itself: no seam can help, so `break-words`
+  // cuts inside it — the fallback, and the app's limit too. Without it the
+  // page grows to 332px. The only row that holds the fallback in a layout:
+  // with the two above, removing `break-words` left this block green.
+  ['ouattaraaminatakone@exemple.ci', ['ouattaraaminatako', 'ne@exemple.ci']],
 ];
 
 /// The code step's paragraph as it is DRAWN: its visible text, line by line
