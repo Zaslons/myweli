@@ -10,7 +10,7 @@
 | **Rule** | [WEB-SYSTEM.md](WEB-SYSTEM.md) §9 « An e-mail address breaks only at its seams » · the app's rule, [SYSTEM.md](SYSTEM.md) §13.3 (#895) |
 | **Governs** | `web/components/BreakableEmail.tsx` (new: `BreakableEmail`, `EmailLink`, `EmailSeams`) · every place §2 lists · `CodeSentTo` (its drawing) · `web/tests/email-seams.test.tsx` · the « every other place that draws an address » block of `web/tests/e2e/type-overflow.spec.ts` · `web/tests/e2e/_email.ts` |
 | **Skills checked** | `myweli-web-guardrails`, `myweli-dev-guardrails` |
-| **Builds on** | [web-code-sent-to.md](web-code-sent-to.md) (#898, the code step; not merged yet — this branch stacks on it) |
+| **Builds on** | [web-code-sent-to.md](web-code-sent-to.md) (#898, the code step; merged 2026-11-27, `6e4f6140`) |
 
 ---
 
@@ -23,8 +23,8 @@ of its name part, and a sentence that names one gives it a line of its own.
 
 **In scope:** §2's twelve places. **Out of scope:** §7.
 
-Since this branch stacks on #898, `CodeSentTo` now draws through the shared
-`EmailSeams`; its shape and tests are unchanged.
+`CodeSentTo` (#898) now draws through the shared `EmailSeams`; its shape and
+tests are unchanged.
 
 ## 2. Measured before building
 

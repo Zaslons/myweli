@@ -1832,9 +1832,13 @@ async function serveAddress(page: Page, from: string[], to: string) {
 type DrawnAddress = {
   lines: string[];
   font: number;
-  /// The right edge of its drawn text, of its own box, and the screen's.
+  /// The right edge of its drawn text; of the column it is laid out in (the
+  /// content edge of its nearest block, not its own inline box, which grows
+  /// with the text); and of the screen.
   textRight: number;
   boxRight: number;
+  /// The box whose content edge `boxRight` is, for the failure message.
+  column: string;
   screen: number;
   /// No character outside the address is drawn on one of its lines.
   ownLine: boolean;
@@ -1889,7 +1893,30 @@ async function drawnAddresses(page: Page, address: string, scope: string): Promi
           lines: [...rows.entries()].sort((a, b) => a[0] - b[0]).map(([, x]) => x),
           font: Math.max(...[...el.querySelectorAll('*'), el].map((e) => parseFloat(getComputedStyle(e).fontSize))),
           textRight: Math.round(Math.max(...own.map((c) => c.right))),
-          boxRight: Math.round(el.getBoundingClientRect().right),
+          // The tightest content edge among the boxes it is laid out in, up
+          // to the first that scrolls or clips sideways (the roster's table
+          // scroller): a flex item that cannot shrink below its text
+          // overflows its row by the text's excess, so its own box would
+          // hide the spill (the data row without `min-w-0`, by 1 px).
+          ...(() => {
+            let edge = Infinity;
+            let column = '';
+            for (let a: Element | null = el; a && a !== document.body; a = a.parentElement) {
+              const s = getComputedStyle(a);
+              const r = a.getBoundingClientRect();
+              // An inline box grows with its text, and a `contents` or empty
+              // box lays nothing out: neither is a column.
+              if (s.display !== 'inline' && s.display !== 'contents' && r.width > 0) {
+                const right = r.right - parseFloat(s.paddingRight) - parseFloat(s.borderRightWidth);
+                if (right < edge) {
+                  edge = right;
+                  column = `<${a.tagName.toLowerCase()} class="${(a.getAttribute('class') ?? '').slice(0, 60)}">`;
+                }
+              }
+              if (s.overflowX !== 'visible') break;
+            }
+            return { boxRight: Math.round(edge), column };
+          })(),
           screen: window.screen.width,
           ownLine: !others.some((c) => [...tops].some((t) => Math.abs(t - c.top) <= 1)),
         };
@@ -1949,7 +1976,7 @@ function expectDrawnAtItsSeams(
     expect(outside, `broken outside its seams: ${JSON.stringify(d.lines)}`).toEqual([]);
   }
   if (opts.broken) expect(d.lines.length, 'the address never broke here (vacuous)').toBeGreaterThan(1);
-  expect(d.textRight, `the address spills its box: ${JSON.stringify(d)}`).toBeLessThanOrEqual(d.boxRight + 1);
+  expect(d.textRight, `the address spills its column: ${JSON.stringify(d)}`).toBeLessThanOrEqual(d.boxRight + 1);
   expect(d.textRight, `the address runs off the screen: ${JSON.stringify(d)}`).toBeLessThanOrEqual(d.screen + 1);
   if (opts.sentence) expect(d.ownLine, `the address shares a line with its sentence: ${JSON.stringify(d.lines)}`).toBe(true);
 }
@@ -2081,7 +2108,10 @@ test.describe('every other place that draws an address (web-email-seams)', () =>
       test.describe('320', () => {
         test.use({ viewport: PHONE_320, ...mode.use });
 
-        for (const address of SEAM_ADDRESSES) {
+        // The wide piece here too: with the two others every piece fits these
+        // columns, so the fallback and the `min-w-0` that lets it narrow a
+        // flex item went untested (two mutations survived, web-email-seams.md §6).
+        for (const address of [...SEAM_ADDRESSES, WIDE_PIECE]) {
           test(`${mode.name} at 320 — « Alertes par e-mail »: « ${address} » ends the sentence on a line of its own`, async ({ page }) => {
             await inMode(page, mode.css);
             await serveAddress(page, ['salon@example.com'], address);
