@@ -330,6 +330,8 @@ void main() {
           if (!glyphs.contains(paragraph))
             paragraph.text
                 .toPlainText()
+                // The address's break marks (`Formatters.breakableEmail`).
+                .replaceAll('\u200B', '')
                 .replaceFirst(RegExp(r'\(\d+s\)$'), '(Ns)')
                 .replaceFirst(RegExp(r'^Expire le .+$'), 'Expire le {date}')
                 .replaceFirst(
@@ -353,7 +355,9 @@ void main() {
     };
     Set<String> codeSentences(String email, {required String count}) => {
       'Espace Pro',
-      'Entrez le code reçu par e-mail à $email.',
+      // The address on a line of its own (§13.3).
+      'Entrez le code reçu par e-mail à',
+      email,
       'Code à 6 chiffres',
       count,
       'Code (dev) : ${MockAuthService.demoOtp}',

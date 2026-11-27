@@ -20,6 +20,7 @@ import 'package:myweli/screens/notifications/notifications_screen.dart';
 import 'package:myweli/screens/profile/notification_preferences_screen.dart';
 import 'package:myweli/screens/providers/provider_detail_screen.dart';
 import 'package:myweli/services/mock/mock_data.dart';
+import 'package:myweli/widgets/common/app_text_field.dart';
 import 'package:provider/provider.dart';
 import 'package:provider/single_child_widget.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -200,6 +201,39 @@ void main() {
         findsOneWidget,
       );
       await expectGolden(tester, 'consumer_login_heart_w360_x2');
+    });
+
+    // account-email-change.md §12, SYSTEM.md §13.3: the code step names the
+    // address on a line of its own, broken only before its « @ » — wider than
+    // the line, as most real addresses are at the floor and 200 %.
+    testWidgets('the sign-in\'s code step, at the floor, at 200% text', (
+      tester,
+    ) async {
+      await _pumpScreen(
+        tester,
+        const LoginScreen(),
+        size: const Size(360, 1600),
+        scale: 2,
+        signedOut: true,
+      );
+      await tester.enterText(
+        find.descendant(
+          of: find.byWidgetPredicate(
+            (w) => w is AppTextField && w.label == 'Votre e-mail',
+          ),
+          matching: find.byType(TextField),
+        ),
+        'aminata.kone@exemple.ci',
+      );
+      await tester.pump();
+      FocusManager.instance.primaryFocus?.unfocus();
+      await tester.pump();
+      await tester.ensureVisible(find.text('Continuer avec e-mail'));
+      await tester.pump();
+      await tester.tap(find.text('Continuer avec e-mail'));
+      await settleMocks(tester, rounds: 2);
+      expect(find.text('Code à 6 chiffres'), findsOneWidget);
+      await expectGolden(tester, 'consumer_login_code_w360_x2');
     });
 
     // §2.5 (decision 207): the two tabs a guest used to be sent away from, or

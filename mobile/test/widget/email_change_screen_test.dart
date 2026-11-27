@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:myweli/core/constants/failure_messages.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/theme/app_theme.dart';
+import 'package:myweli/core/utils/formatters.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/email_change_request.dart';
 import 'package:myweli/models/user.dart';
@@ -16,6 +17,7 @@ import 'package:myweli/screens/profile/email_change_screen.dart';
 import 'package:myweli/services/mock/mock_auth_service.dart';
 import 'package:myweli/services/mock/mock_data.dart';
 import 'package:myweli/widgets/common/app_text_field.dart';
+import 'package:myweli/widgets/common/code_sent_to.dart';
 import 'package:myweli/widgets/common/inline_feedback.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -166,6 +168,11 @@ void main() {
       .map((e) => (e.widget as EditableText).focusNode.hasFocus)
       .single;
 
+  /// The code step's sentence, by what a screen reader hears: the address is
+  /// drawn on a line of its own, with break marks (`CodeSentTo`).
+  Finder sentTo(String spoken) =>
+      find.byWidgetPredicate((w) => w is CodeSentTo && w.spoken == spoken);
+
   Future<void> tapText(WidgetTester tester, String text) async {
     await tester.ensureVisible(find.text(text).last);
     await tester.tap(find.text(text).last);
@@ -201,12 +208,9 @@ void main() {
 
       await requestFor(tester, next);
 
+      expect(sentTo('Entrez le code reçu par e-mail à $next.'), findsOneWidget);
       expect(
-        find.text('Entrez le code reçu par e-mail à $next.'),
-        findsOneWidget,
-      );
-      expect(
-        find.text('Entrez le code reçu à votre adresse actuelle, $old.'),
+        sentTo('Entrez le code reçu à votre adresse actuelle, $old.'),
         findsOneWidget,
         reason: 'decision 265: the address is the account\'s only way in',
       );
@@ -218,7 +222,14 @@ void main() {
       await tapText(tester, 'Confirmer');
 
       expect(find.text('Modifier le profil'), findsOneWidget);
-      expect(find.text(next), findsOneWidget);
+      // The row's — the code step, sliding out, draws the address too.
+      expect(
+        find.descendant(
+          of: find.byType(EditProfileScreen),
+          matching: find.text(Formatters.breakableEmail(next)),
+        ),
+        findsOneWidget,
+      );
       expect(
         find.text(
           'Adresse e-mail mise à jour. Connectez-vous désormais avec '
@@ -578,7 +589,7 @@ void main() {
 
       expect(spy.requests, [typed]);
       expect(
-        find.text('Entrez le code reçu par e-mail à $typed.'),
+        sentTo('Entrez le code reçu par e-mail à $typed.'),
         findsOneWidget,
       );
       await tester.enterText(field(oneCode), code);
@@ -690,8 +701,60 @@ void main() {
     await openProfile(tester, by: byCode(own), realFont: true);
 
     expectNoMidWordBreak(tester, 'Adresse e-mail', '360 × 2×');
-    expectNoMidWordBreak(tester, own, '360 × 2×');
+    expectEmailAddressOnItsOwnLine(tester, own, '360 × 2×');
     expectNoMidWordBreak(tester, 'Modifier', '360 × 2×');
+  });
+
+  // An address wider than the line (« aminata.kone.N@exemple.ci », ≈ 410 px
+  // of 312) was cut where the line ran out — « awa.kone@exemple. » / « ci »
+  // in the first golden. It breaks before its « @ » now (§13.3), which every
+  // name part and domain here fits beside.
+  testWidgets('at 200 % text on 360 dp, a long address in the row breaks '
+      'at its « @ »', (tester) async {
+    tester.view.physicalSize = const Size(360, 740);
+    tester.view.devicePixelRatio = 1;
+    tester.platformDispatcher.textScaleFactorTestValue = 2;
+    addTearDown(tester.view.reset);
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    final own = address('aminata.kone');
+    await openProfile(tester, by: byCode(own), realFont: true);
+
+    expectEmailAddressOnItsOwnLine(tester, own, 'the row, 360 × 2×');
+  });
+
+  // docs/design/account-email-change.md §12: « Entrez le code reçu par e-mail
+  // à {adresse}. » started a long address on the line « à » began and cut it
+  // where the line ran out (« à awa.kon » / « e.nouvelle@exemple. » / « ci. »
+  // in B16.3b's golden). Each address now owns a line, breaks only at its
+  // seams, and a screen reader hears the sentence it always heard.
+  testWidgets('at 200 % text on 360 dp, the code step\'s two addresses each '
+      'own a line', (tester) async {
+    tester.view.physicalSize = const Size(360, 1600);
+    tester.view.devicePixelRatio = 1;
+    tester.platformDispatcher.textScaleFactorTestValue = 2;
+    addTearDown(tester.view.reset);
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    final handle = tester.ensureSemantics();
+    final old = address('aminata.kone');
+    final next = address('awa.nouvelle');
+    await openProfile(tester, by: byCode(old), realFont: true);
+    await openChange(tester);
+    await requestFor(tester, next);
+    expect(field(currentCode), findsOneWidget);
+
+    expectEmailAddressOnItsOwnLine(tester, next, 'the new address, 360 × 2×');
+    expectEmailAddressOnItsOwnLine(tester, old, 'the current one, 360 × 2×');
+    expect(
+      find.bySemanticsLabel('Entrez le code reçu par e-mail à $next.'),
+      findsOneWidget,
+    );
+    expect(
+      find.bySemanticsLabel(
+        'Entrez le code reçu à votre adresse actuelle, $old.',
+      ),
+      findsOneWidget,
+    );
+    handle.dispose();
   });
 
   testWidgets('at 200 % text on 360 dp, « Confirmer » stays reachable', (

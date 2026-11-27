@@ -318,4 +318,31 @@ class Formatters {
   /// « 1,2 » — a number with one decimal, French comma (a delta in points).
   static String formatOneDecimal(double value) =>
       NumberFormat('0.0', kAppLocale).format(value);
+
+  /// An e-mail address with the places it may break marked (SYSTEM.md §13.3):
+  /// U+200B, the zero-width space, **before its « @ » and before each « . » of
+  /// its name part**. The engine draws nothing there and breaks there, rather
+  /// than wherever the line runs out: « aminata.kone » / « @exemple.ci », not
+  /// « aminata.kone@exem » / « ple.ci » (360 dp at 200 %, where a line holds
+  /// about 18 characters — fewer than most real addresses).
+  ///
+  /// **Never before a « . » of the domain.** The engine fills each line
+  /// greedily, so a mark there orphans the domain's end: « koffi.yao@gmail » /
+  /// « .com » (measured 2026-11-27). A piece longer than a line by itself —
+  /// a name of 18-odd letters with no dot — still breaks inside: no layout has
+  /// more width, and §13.3 forbids a smaller font.
+  ///
+  /// **For drawing only.** A screen reader must hear the address without the
+  /// marks (give the `Text` a `semanticsLabel`), and nothing typed, compared
+  /// or sent may carry them.
+  static String breakableEmail(String address) {
+    final at = address.lastIndexOf('@');
+    if (at <= 0) return address;
+    final name = address.substring(0, at).replaceAll('.', '$_breakHere.');
+    return '$name$_breakHere${address.substring(at)}';
+  }
+
+  /// U+200B, ZERO WIDTH SPACE: a break opportunity that draws nothing
+  /// (UAX #14 LB8).
+  static const String _breakHere = '\u200B';
 }
