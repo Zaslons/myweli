@@ -182,7 +182,8 @@ a live region, so TalkBack announces it.
 
 **E-mail**, from E3:
 
-1. The sign-up opens with « Compte : {e-mail} ».
+1. The sign-up opens with « Compte : », then the address on a line of its own
+   ([app-pro-profile-email-seams.md](app-pro-profile-email-seams.md) §4.2).
 2. The salon fields.
 3. « Créer mon compte »: the check, then register, with the carried code.
 4. If that code is no longer usable (`otp_expired`, `otp_none`,
@@ -211,7 +212,7 @@ validation rules.
 | 5 | « Téléphone du salon » | `PhoneNumberField` (Côte d'Ivoire by default) + `Validators.phoneNumber`, the server's rule and the app's sentences. Helper: « Le numéro que vos clients appellent. » |
 | 6 | « Adresse » | required, two lines: « Indiquez l’adresse de l’entreprise. ». Hint: « Rue, quartier, repère » |
 | 7 | « Commune (optionnel) » | `showCommunePicker` (returns the `areaId`); optional, as on the website and the deleted screen (R2). Going live needs one, and « Configurer mon profil » asks for it then |
-| 8 | Section heading « Votre identité de connexion », with the sub-line « Elle vous servira à vous connecter à votre espace pro. » | heading level 2; the website's words. **From E3**, the section shows only « Compte : {e-mail} », « Créer mon compte » and a text button « Utiliser une autre adresse », which opens the standard section below |
+| 8 | Section heading « Votre identité de connexion », with the sub-line « Elle vous servira à vous connecter à votre espace pro. » | heading level 2; the website's words. **From E3**, the section shows only « Compte : » with the address on a line of its own under it (`EmailSentence`, the label secondary, the address in ink, broken only at its seams, one node heard « Compte : {e-mail} »; SYSTEM.md §13.3, [app-pro-profile-email-seams.md](app-pro-profile-email-seams.md)), « Créer mon compte » and a text button « Utiliser une autre adresse », which opens the standard section below |
 | 9 | Consent: `LegalConsentText(lead: 'En créant votre compte professionnel')` | « En créant votre compte professionnel, vous acceptez nos Conditions d’utilisation et notre Politique de confidentialité. », both linked to the site (decision 122). Passive, no checkbox. It sits **above the first button that can create the account** |
 | 10 | « Continuer avec Google » | secondary `AppButton` with the G logo, as on the sign-in. It validates rows 3–7 first, focusing the first fault, and only then opens Google's sheet |
 | 11 | « ou », « Votre e-mail », « Continuer avec e-mail » | the sign-in's controls and labels. The button validates rows 3–7 and the e-mail first |
