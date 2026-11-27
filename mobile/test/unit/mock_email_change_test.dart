@@ -72,6 +72,36 @@ void main() {
     expect(req.data!.currentDevCode, isNull);
   });
 
+  test('by the link first: a Google account that changed its address still '
+      'signs in with Google (§5.1)', () async {
+    final s = MockAuthService();
+    final first = (await s.signInWithGoogle()).data!;
+    final next = address('g.new');
+    await s.requestEmailChange(next);
+    expect((await s.confirmEmailChange(next, code)).success, isTrue);
+
+    final again = (await s.signInWithGoogle()).data!;
+
+    expect(again.id, first.id, reason: 'the link, not the address, finds it');
+    expect(again.email, next);
+  });
+
+  test('decision 265 is about links: a code account Google later links asks '
+      'one code', () async {
+    final s = MockAuthService();
+    // The address the mock's Google asserts, first proven by a code.
+    const googles = 'mock.google@myweli.test';
+    await s.requestEmailOtp(googles);
+    final byCode = (await s.verifyEmailOtp(googles, code)).data!;
+    final unlinked = await s.requestEmailChange(address('x'));
+    expect(unlinked.data!.currentCodeSent, isTrue);
+
+    final linked = (await s.signInWithGoogle()).data!;
+    expect(linked.id, byCode.id);
+    final withLink = await s.requestEmailChange(address('y'));
+    expect(withLink.data!.currentCodeSent, isFalse);
+  });
+
   test('its own proven address: `email_unchanged`, at both steps', () async {
     final own = address('awa');
     final (s, _) = await signedInByCode(own);

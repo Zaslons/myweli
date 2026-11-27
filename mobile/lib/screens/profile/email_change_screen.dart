@@ -154,17 +154,19 @@ class _EmailChangeScreenState extends State<EmailChangeScreen>
     });
   }
 
-  /// Step 1's « Recevoir un code », and step 2's « Renvoyer le code ».
+  /// Step 1's « Recevoir un code », and step 2's « Renvoyer le code » — which
+  /// sends to the address the code went to, not to a field off screen.
   Future<void> _send() async {
+    final resending = _step == _Step.code;
     // §14 rule 5: never disabled for validity, so the press answers.
-    if (!_errors.validate({'email': _emailController.text})) {
+    if (!resending && !_errors.validate({'email': _emailController.text})) {
       setState(() {});
       focusFirstError(_errors, _focusNodes);
       return;
     }
     final auth = context.read<AuthProvider>();
     final account = auth.user?.id;
-    final email = _emailController.text.trim();
+    final email = resending ? _sentTo : _emailController.text.trim();
     setState(() {
       _sending = true;
       _formMessage = null;
@@ -304,7 +306,8 @@ class _EmailChangeScreenState extends State<EmailChangeScreen>
     return PopScope(
       // Back on the code step returns to the address; while a request runs
       // it is ignored, as at sign-in.
-      canPop: _step == _Step.address && !_busy,
+      // Signed out here, the code step is gone from the screen: back leaves.
+      canPop: (_step == _Step.address || user == null) && !_busy,
       onPopInvokedWithResult: (didPop, _) => _onPop(didPop),
       child: Scaffold(
         backgroundColor: AppColors.background,

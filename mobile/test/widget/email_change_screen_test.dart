@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -425,13 +427,144 @@ void main() {
     await openChange(tester);
     await requestFor(tester, address('g'));
     expect(spy.requests, hasLength(1));
+    await tester.pump(const Duration(seconds: 30));
+    await tester.tap(find.text('Renvoyer le code (30s)'));
+    await settle(tester);
+    expect(spy.requests, hasLength(1), reason: 'the cooldown holds it');
 
-    await tester.pump(const Duration(seconds: 61));
+    await tester.pump(const Duration(seconds: 31));
     expect(find.text('Renvoyer le code'), findsOneWidget);
     await tapText(tester, 'Renvoyer le code');
 
     expect(spy.requests, hasLength(2));
     expect(find.text('Renvoyer le code (60s)'), findsOneWidget);
+  });
+
+  testWidgets('a resend refused for the address says so in the form', (
+    tester,
+  ) async {
+    await openProfile(tester, by: byGoogle);
+    await openChange(tester);
+    await requestFor(tester, address('g'));
+    // The address field is off screen on the code step: a fault there would
+    // be said to nobody.
+    spy.refuseRequestWith = ApiResponse.error(
+      'C’est déjà votre adresse.',
+      code: 'email_unchanged',
+    );
+    await tester.pump(const Duration(seconds: 61));
+    await tapText(tester, 'Renvoyer le code');
+
+    expect(inForm('C’est déjà votre adresse.'), findsOneWidget);
+    expect(find.text('Confirmer'), findsOneWidget);
+  });
+
+  testWidgets(
+    'a `current_` refusal with no second field on screen: the form says it',
+    (tester) async {
+      await openProfile(tester, by: byGoogle);
+      await openChange(tester);
+      await requestFor(tester, address('g'));
+      expect(field(currentCode), findsNothing);
+      const words =
+          'Aucun code actif pour votre adresse actuelle. Demandez un nouveau '
+          'code.';
+      spy.refuseConfirmWith = ApiResponse.error(
+        words,
+        code: 'current_otp_none',
+      );
+      await tester.enterText(field(oneCode), code);
+      await tester.pump();
+      await tapText(tester, 'Confirmer');
+
+      expect(inForm(words), findsOneWidget);
+    },
+  );
+
+  testWidgets('an answer for the previous account is said to nobody', (
+    tester,
+  ) async {
+    final auth = await openProfile(tester, by: byGoogle);
+    await openChange(tester);
+    final held = Completer<ApiResponse<EmailChangeRequest>>();
+    spy.holdRequest = held;
+    await requestFor(tester, 'n@exemple.ci');
+
+    // Another account signs in over the screen while A's request is out.
+    final other = address('b');
+    await tester.runAsync(() async {
+      await spy.requestEmailOtp(other);
+      expect(await auth.verifyEmailOtp(other, code), isTrue);
+    });
+    await settle(tester);
+    expect(
+      tester
+          .widget<TextField>(field('Nouvelle adresse e-mail'))
+          .controller!
+          .text,
+      isEmpty,
+      reason: 'B sees a fresh screen',
+    );
+
+    held.complete(ApiResponse.error('…', code: 'rate_limited'));
+    await settle(tester);
+
+    expect(
+      find.descendant(
+        of: find.byType(InlineFeedback),
+        matching: find.byType(Text),
+      ),
+      findsNothing,
+      reason: 'A\'s refusal is not B\'s',
+    );
+  });
+
+  testWidgets('back while a request is out is ignored', (tester) async {
+    await openProfile(tester, by: byGoogle);
+    await openChange(tester);
+    final held = Completer<ApiResponse<EmailChangeRequest>>();
+    spy.holdRequest = held;
+    await requestFor(tester, 'n@exemple.ci');
+
+    await tester.tap(find.byType(BackButton));
+    await settle(tester);
+    expect(find.text('Nouvelle adresse e-mail'), findsOneWidget);
+
+    held.complete(
+      ApiResponse.success(
+        const EmailChangeRequest(expiresInSeconds: 300, currentCodeSent: false),
+      ),
+    );
+    await settle(tester);
+    expect(find.text('Confirmer'), findsOneWidget);
+  });
+
+  testWidgets('signed out on the code step: back leaves', (tester) async {
+    final auth = await openProfile(tester, by: byGoogle);
+    await openChange(tester);
+    await requestFor(tester, address('g'));
+    expect(find.text('Confirmer'), findsOneWidget);
+
+    await tester.runAsync(auth.logout);
+    await settle(tester);
+    expect(
+      find.descendant(
+        of: find.byType(EmailChangeScreen),
+        matching: find.text('Connectez-vous pour modifier votre profil'),
+      ),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.byType(BackButton));
+    await settle(tester);
+    // The route's exit animation outlasts `settle`.
+    await tester.pump(const Duration(seconds: 1));
+    expect(
+      find.byType(EmailChangeScreen),
+      findsNothing,
+      reason: 'one back leaves — not a hidden step first',
+    );
+    expect(find.byType(EditProfileScreen), findsOneWidget);
   });
 
   testWidgets(
@@ -496,11 +629,46 @@ void main() {
     handle.dispose();
   });
 
+  testWidgets('« Non vérifiée » and « Vérifier » read as one node', (
+    tester,
+  ) async {
+    final handle = tester.ensureSemantics();
+    await openProfile(tester, by: planted(email: address('typed')));
+
+    final data = tester.getSemantics(find.text('Vérifier')).getSemanticsData();
+    expect(data.label, 'Non vérifiée\nVérifier');
+    expect(data.flagsCollection.isButton, isTrue);
+    handle.dispose();
+  });
+
   testWidgets('every target is at least 48 px', (tester) async {
     final handle = tester.ensureSemantics();
     await openProfile(tester, by: planted(email: address('typed')));
     await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
     await openChange(tester);
+    await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
+    handle.dispose();
+  });
+
+  testWidgets('every target on the code step, « taken » included, is 48 px', (
+    tester,
+  ) async {
+    final handle = tester.ensureSemantics();
+    await openProfile(tester, by: byCode(address('awa')));
+    await openChange(tester);
+    await requestFor(tester, address('awa.new'));
+    expect(field(currentCode), findsOneWidget);
+    await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
+
+    spy.refuseConfirmWith = ApiResponse.error(
+      kEmailTakenMessage,
+      code: 'email_taken',
+    );
+    await tester.enterText(field(newCode), code);
+    await tester.enterText(field(currentCode), code);
+    await tester.pump();
+    await tapText(tester, 'Confirmer');
+    expect(find.text('Choisir une autre adresse'), findsOneWidget);
     await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
     handle.dispose();
   });
@@ -552,11 +720,17 @@ void main() {
 /// the server and the network do.
 class _Spy extends MockAuthService {
   ApiResponse<EmailChangeRequest>? refuseRequestWith;
+  ApiResponse<User>? refuseConfirmWith;
+
+  /// Holds the next request until the test answers it.
+  Completer<ApiResponse<EmailChangeRequest>>? holdRequest;
   final requests = <String>[];
   final confirms = <String>[];
 
   void disarm() {
     refuseRequestWith = null;
+    refuseConfirmWith = null;
+    holdRequest = null;
     requests.clear();
     confirms.clear();
   }
@@ -566,6 +740,11 @@ class _Spy extends MockAuthService {
     String email,
   ) async {
     requests.add(email);
+    final held = holdRequest;
+    if (held != null) {
+      holdRequest = null;
+      return held.future;
+    }
     final refusal = refuseRequestWith;
     if (refusal != null) {
       await Future<void>.delayed(const Duration(milliseconds: 300));
@@ -579,8 +758,13 @@ class _Spy extends MockAuthService {
     String email,
     String code, {
     String? currentCode,
-  }) {
+  }) async {
     confirms.add(email);
+    final refusal = refuseConfirmWith;
+    if (refusal != null) {
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+      return refusal;
+    }
     return super.confirmEmailChange(email, code, currentCode: currentCode);
   }
 }

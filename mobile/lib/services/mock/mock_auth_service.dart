@@ -168,29 +168,50 @@ class MockAuthService implements AuthServiceInterface {
     return _socialLogin(email: 'mock.apple@myweli.test', provider: 'apple');
   }
 
-  /// Find-or-create by email — first login has NO phone, so the mandatory
-  /// contact-phone step is exercised on mocks exactly like production.
+  /// The account each mock identity is linked to — the server's `google_sub`
+  /// and `apple_sub`, one fixed identity per provider here.
+  final Map<String, String> _linkedTo = {};
+
+  /// The server's order (account-email-change.md §5.1, decision 260): by the
+  /// link first — an account that changed its address keeps its Google or
+  /// Apple sign-in, and its own unproven address is proven; then the account
+  /// that PROVED the address, which gets the link; else the address is taken
+  /// from an unproven holder and an account created. A first login has NO
+  /// phone, so the mandatory contact-phone step runs on mocks as in
+  /// production.
   Future<ApiResponse<User>> _socialLogin({
     required String email,
     required String provider,
   }) async {
-    // The server's rule (decision 260): only an account that PROVED the
-    // address is found by it; a proof takes it from an unproven holder.
-    final user = MockData.users.firstWhere(
-      (u) => u.email?.toLowerCase() == email && u.emailVerified,
-      orElse: () {
-        _takeUnproven(email);
-        final created = User(
-          id: MockIds.next('user'),
-          email: email,
-          emailVerified: true,
-          authProvider: provider,
-          createdAt: AppClock.now(),
-        );
-        MockData.users.add(created);
-        return created;
-      },
-    );
+    final linked = _linkedTo[provider];
+    final byLink = linked == null
+        ? -1
+        : MockData.users.indexWhere((u) => u.id == linked);
+    late User user;
+    if (byLink != -1) {
+      user = MockData.users[byLink];
+      if (user.email?.toLowerCase() == email && !user.emailVerified) {
+        user = user.copyWith(emailVerified: true);
+        MockData.users[byLink] = user;
+      }
+    } else {
+      user = MockData.users.firstWhere(
+        (u) => u.email?.toLowerCase() == email && u.emailVerified,
+        orElse: () {
+          _takeUnproven(email);
+          final created = User(
+            id: MockIds.next('user'),
+            email: email,
+            emailVerified: true,
+            authProvider: provider,
+            createdAt: AppClock.now(),
+          );
+          MockData.users.add(created);
+          return created;
+        },
+      );
+      _linkedTo[provider] = user.id;
+    }
     _currentUser = user;
     await _persistSession(user);
     return ApiResponse.success(user, message: 'Connexion réussie');
@@ -316,10 +337,12 @@ class MockAuthService implements AuthServiceInterface {
 
   // ---- The address change (B16.3 — docs/design/account-email-change.md) ----
 
-  /// Decision 265's test, the mock's way: the server asks whether the account
-  /// has a Google or Apple link; the mock knows only how it signed in.
+  /// Decision 265's test, as the server's (`emailIsOnlySignIn`): a proven
+  /// address and no Google or Apple link.
   bool _emailIsOnlySignIn(User user) =>
-      user.email != null && user.emailVerified && user.authProvider == 'email';
+      user.email != null &&
+      user.emailVerified &&
+      !_linkedTo.containsValue(user.id);
 
   @override
   Future<ApiResponse<EmailChangeRequest>> requestEmailChange(

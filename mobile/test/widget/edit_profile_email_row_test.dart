@@ -166,6 +166,7 @@ void main() {
             'email_change_requires_code`',
       );
       expect(patches.single['name'], 'Awa Koné');
+      expect(patches.single['phone'], '+2250707123456');
     },
   );
 

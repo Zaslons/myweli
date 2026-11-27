@@ -26,7 +26,7 @@ Future<ApiResponse<User>> signInWithGoogle();            // native flow → idTo
 Future<ApiResponse<User>> signInWithApple();             // seam; flag-gated UI
 Future<ApiResponse<String>> requestEmailOtp(String email);   // devCode when backend != prod
 Future<ApiResponse<User>> verifyEmailOtp(String email, String code);
-Future<ApiResponse<User>> updateUser({String? name, String? email, String? avatarUrl, String? phone}); // + phone
+Future<ApiResponse<User>> updateUser({String? name, String? avatarUrl, String? phone}); // + phone; no email since B16.3b: it changes by a code (account-email-change.md §5.4)
 ```
 - **Api impl:** `google_sign_in` (**^7** since the v7 migration — [app-google-signin-v7.md](app-google-signin-v7.md)) yields the **ID token**. `serverClientId` = the **web** client ID, so the token's `aud` is in the backend allowlist; under v7 it is passed to `GoogleSignIn.instance.initialize()` rather than a constructor, and the token's audience is unchanged → `POST /auth/google {idToken}` → parse AuthSession exactly like `verifyOtp` today. Email OTP → the two new endpoints. `updateUser` passes `phone` to `PATCH /me`.
 - **Mock impl:** simulated latency + failure paths; `123456` verifies; a mock Google user (`mock.google@myweli.test`); first login returns `phoneNumber: null` so the phone step is exercised in dev/tests.
