@@ -656,9 +656,9 @@ void expectNoGluedTokenBreaks(WidgetTester tester, {required String context}) {
 /// **Re-read on 2026-11-27, once an ellipsis with no `maxLines` was measured**
 /// (SYSTEM.md §21 row 100). The suite gained one legitimate site, the Pro
 /// appointment list's client name at 360 × 2×, at **9**. Off the suite, two
-/// sites land exactly **on 8**: the client card at 390 × 1× and a member's
-/// « Profil » at 390 × 2×. Both are below the floor at 360, so neither is a
-/// legitimate site sitting on the threshold. The 7 / 9 separation holds, and
+/// sites landed exactly **on 8**: the client card at 390 × 1× and a member's
+/// « Profil » at 390 × 2× (that one gone since #912). Both are below the floor
+/// at 360, so neither is a legitimate site sitting on the threshold. The 7 / 9 separation holds, and
 /// the number did not move.
 ///
 /// Set to `0` to return to report-only mode when re-calibrating.
