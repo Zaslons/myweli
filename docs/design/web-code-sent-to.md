@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Built (2026-11-27), not merged |
+| **Status** | Built (2026-11-27). **Merged and live on myweli.com 2026-11-27** (#898, `6e4f6140`, on the owner's « Merge and ship »; Vercel production 14:44 UTC; read back: §7) |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-11-27 |
 | **Approved** | by the owner, 2026-11-27 (« Approved, build it »), on the plan in §4 |
@@ -134,3 +134,31 @@ aminata.kone                            ← textPrimary (ink), a line of its own
   [web-email-seams.md](web-email-seams.md) (twelve places, not four), which
   also moves this step's drawing into the shared `EmailSeams`.
 - A name piece or a domain wider than a line still breaks inside (§3).
+
+## 7. Merged, and read back on myweli.com (2026-11-27)
+
+- **The rebase:** `main` had moved while the PR waited (#895, #896). Rebased
+  onto `43be35ea`, with one conflict (this spec's row in the index, kept above
+  A6's rewritten one) and one docs commit: [SYSTEM.md](SYSTEM.md) §21 row 99's
+  clause on the website now points here. The web unit suite passed locally
+  (3476, 1 skipped); CI was green on the new head `ea94bc2f` (12 of 12; the
+  e2e job ran the 18 code-step cases, 750 passed).
+- **The owner's word:** « Merge it », then, once told that a merge to `main`
+  is a production deploy (Vercel builds Production from every commit on
+  `main`), « Merge and ship ».
+- **The merge:** squash, pinned to `ea94bc2f` (`--match-head-commit`), at
+  14:41 UTC → `6e4f6140`. `main` had not moved since the rebase, so main's
+  tree is the head's tree (`47fb36d4`). Main's CI run is green and the Vercel
+  production deployment succeeded at 14:44 UTC.
+- **The control, taken before the deployment landed:** the chunks myweli.com
+  served for `/connexion` (`3343-d4ae134bc6c66f89.js`) and `/pro/connexion`
+  (`page-e1697f2cdab9d915.js`) held the old inline sentence
+  (`…e-mail \xe0 ",C.trim(),"."`). The marker of the new step (the lead as a
+  string of its own, and `block break-words text-textPrimary`) was first
+  matched against the branch's own build, in the same two chunks.
+- **After:** both pages' chunks (`3343-98d355eae59db307.js`,
+  `page-ad3f1d552419f4a5.js`) carry `CodeSentTo`, and the old inline sentence
+  is gone from both.
+- **Not read:** the drawn step itself in production. Reaching it sends a real
+  code to a real address; the layout is held by the e2e gate (§5), on CI's
+  Linux.

@@ -1,0 +1,4 @@
+- 🟡 **Registres : l’étape du code du site fusionnée et en ligne (docs · 2026-11-27 — web, la forme de l’app #895).** PR #907. Spec : [web-code-sent-to.md](../../design/web-code-sent-to.md) §7.
+  - **L’étape du code (#898) :** son entrée passe au vert, avec la fusion (`6e4f6140`, sur le mot du propriétaire) : l’arbre de `main` est celui de la tête testée, la CI de `main` est verte, et Vercel l’a mise en ligne sur myweli.com à 14:44 UTC. Le statut de la spec et son index le disent aussi.
+  - **Relue sur myweli.com** (spec §7) : un témoin pris avant le déploiement (le code servi portait l’ancienne phrase sur les deux connexions), puis la même lecture après (il porte `CodeSentTo`, l’ancienne phrase n’y est plus). Pas lue : l’étape elle-même en production.
+  - **Reste :** rien pour cette tranche. Les autres adresses du site sont fusionnées avec #902 (le 2026-11-27, `0bc14543`), celles de l’app avec #905 ; #906 suit.
