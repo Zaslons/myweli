@@ -7,20 +7,27 @@
   - **Un seul parcours partagé** (`LocationAccess`) à la place des trois copies :
     - lire ce que le téléphone permet, sans fenêtre et sans jamais planter ;
     - une seule lecture à la fois dans toute l’app (deux en même temps bloquent le greffon) ;
-    - jamais plus de 30 secondes, par la limite du greffon lui-même, qui annule aussi la lecture sur Android ;
+    - jamais plus de 30 secondes de lecture, par la limite du greffon lui-même, qui annule aussi la lecture sur Android ; la fenêtre d’autorisation abandonne au bout de 2 minutes, au cas où Android ne répondrait jamais ;
     - précision « moyenne » pour le client, « la meilleure » pour Pro ;
     - sur iPhone, un refus qui survit à une demande veut dire « limitée » (Temps d’écran, profil installé).
   - **La carte :**
     - n’ouvre plus jamais la fenêtre du système d’elle-même : « Voir les salons autour de vous ? », une seule fois par téléphone, avec « Plus tard » et « Activer » ;
+    - à l’ouverture, sur Android, elle ne montre que la dernière position du téléphone si elle a moins de 15 minutes, sans lancer de lecture : une lecture peut ouvrir la fenêtre « activer la localisation » de Google ;
     - chaque issue dit ce qui s’est passé et offre la sortie qui marche : « Autoriser », « Ouvrir les réglages » (la page de l’app, ou celle de la localisation quand elle est coupée sur Android), « Réessayer », ou une phrase seule quand aucun bouton ne peut marcher (iPhone) ;
-    - au retour des réglages qu’elle a ouverts, et seulement ceux-là, elle se recentre sans redemander ;
-    - le point dit « Votre position » à un lecteur d’écran, un cercle montre sa précision, et la carte cadre le cercle au-delà de 500 m ;
+    - au retour des réglages qu’elle a ouverts, et seulement ceux-là, elle se recentre sans redemander ; sinon, elle dit ce qui reste vrai (« bloquée » sur Android quand rien n’a changé, la demande quand la localisation vient d’être activée) ;
+    - le point dit « Votre position » à un lecteur d’écran, un cercle montre sa précision, et la carte cadre le cercle au-delà de 500 m, sous la pastille de la commune, jamais plus près qu’une position précise ;
+    - les boutons de la bannière ne déplacent pas la carte quand un salon est ouvert ;
     - le focus va à « Me localiser » quand la bannière part, ou à la sortie de la nouvelle bannière.
   - **« Près de moi »** dit chaque issue dans la feuille, avec « Ouvrir les réglages » quand il le faut (`InlineFeedback` reçoit une action). **« Utiliser ma position » (Pro)** dit chaque issue en snackbar, et « Position approximative : touchez la carte pour placer votre salon exactement. » quand le téléphone a donné une position approximative.
   - **Les gardes :**
     - les manifestes épinglés dans le code, commentaires retirés ;
     - l’APK client lu en CI par `tool/verify_android_location.sh`, qui refuse toute ligne nommant la position précise ; ses refus tournent à chaque PR sur les lignes réelles des APK d’avant et d’après ;
     - chaque issue en test, et les images de la carte (la demande, la position bloquée, le point et son cercle) faites sur Linux.
+  - **Relu par un lecteur indépendant, chargé de le réfuter :** 11 constats, chacun vérifié dans le code ou dans le greffon (spec §15.1) :
+    - 7 corrigés, chacun avec son test : la carte qui quittait un salon ouvert, « refusée » au lieu de « bloquée » au retour sur Android, « refusée » à qui n’avait rien refusé, une demande sans réponse qui bloquait tous les boutons de localisation, la fenêtre de Google à l’ouverture, le cadrage qui zoomait au lieu de dézoomer, un `setState` après la fermeture ;
+    - 3 notés comme limites connues, dont une fenêtre fermée par « Retour » que le greffon lit comme un refus définitif ;
+    - les images n’étaient pas encore dans le commit relu : elles l’ont été ensuite.
+  - **Trouvé en construisant :** sur les images, à 360 dp et 200 %, « Ouvrir les réglages » se coupait sous un « Fermer » aligné à droite : ses lignes finissent maintenant au même bord ; deux mutations restées vertes ont donné deux tests de plus (la carte lit en précision « moyenne », un retour qui n’en est pas un), et une troisième a montré qu’un test sur un téléphone haut ne pouvait pas échouer.
   - **Tests :** RESULTS.
   - **Reste :**
     - la fusion, sur le mot du propriétaire ;

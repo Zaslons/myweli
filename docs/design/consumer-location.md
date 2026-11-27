@@ -619,6 +619,20 @@ second; its fixture test uses those lines.
 - **The outcomes' names:** `Located`, `LocationRefused`, `LocationBlocked`,
   `LocationRestricted`, `LocationOff`, `LocationFailed` (§5's short names,
   prefixed).
+- **Opening « Carte » on Android shows only a recent position** (§15.1 #6):
+  the phone's last position from `getLastLocation()`, if it is under 15
+  minutes old (`LocationAccess.recent`), and no read. A read there can open
+  Google's « turn on location » dialog. iOS keeps the silent read of §2.1.
+- **Back from the Settings, « not decided » depends on the page** (§15.1 #3,
+  #4):
+  - from the phone's location page, it is the ask;
+  - from the app's page, it is « bloquée » on Android, where nothing else can
+    be read, and « refusée » with « Autoriser » on iOS (« Demander la
+    prochaine fois »).
+- **The permission request gives up after 2 minutes** (§15.1 #5); the 30 s
+  bound is the read's.
+- **The framing never zooms closer than a precise position** (13.5, or 14
+  for « Me localiser »), and keeps the circle below the pill (§15.1 #7).
 - **The 30 s bound is the plugin's own `timeLimit`.** A `.timeout` around the
   call would leave Android's native request running; the plugin's limit
   cancels it (`cancelGetCurrentPosition`, `geolocator_android.dart:128-136`).
@@ -627,7 +641,7 @@ second; its fixture test uses those lines.
   button drops it. The banner's actions are disabled, as §2.1 says.
 - **« Me localiser » always moves the camera to the position,** even with a
   salon opened: the person asked for it. The banner's actions do not move it
-  off an opened salon.
+  off an opened salon (§15.1 #2).
 - **The return from the Settings counts only once the app has left**
   (`hidden` or `paused`), then a `resumed`. A resume without a departure is
   not a return.
@@ -647,8 +661,52 @@ second; its fixture test uses those lines.
   test reads it in `runAsync`. The map then shows nothing, as it should
   (`carto_basemap_layer_test`).
 
+**Known limits** (§15.1 #8, #10, #11):
+- on Android 11+, dismissing the first dialog reads as « bloquée »;
+- while a banner's read runs, the keyboard focus leaves its button, and comes
+  back when the read ends;
+- a read that joins one already running keeps that one's accuracy;
+- refusing Google's own dialog reads « La localisation du téléphone est
+  désactivée », as §2.4 says, though the phone's location may be on.
+
 **Not verified:**
 - every device row of §8.4 (with the first client build, Track C, and Pro's
   next build);
 - the radius a real approximate position reports, and so the circle's size;
 - a phone without Google Play services.
+
+### 15.1 The build's independent review (2026-11-27)
+
+One reader, told to refute the build, read the code against this spec and the
+plugins' source. It ran nothing. It made 11 findings. Each was checked in the
+code or the plugin before anything changed.
+
+| # | Finding | Taken? |
+|---|---|---|
+| 1 | The goldens were not in the commit it read | they were in the tree, from `goldens.yml`; committed |
+| 2 | « Activer », « Autoriser » and « Réessayer » moved the camera off a salon the person opened, against §2.1 and this section's own claim | yes: they recentre only with no salon opened; a test |
+| 3 | Android: back from the app's Settings with nothing changed, « bloquée » became « refusée », then « bloquée » again on « Autoriser ». Android's `checkPermission` never says « refused for good » (`PermissionManager.java:63-64`), so §2.1's return table could not hold there. The test's fake phone answered like iOS | yes: on Android, « not decided » after the app's page keeps « bloquée »; the fake answers like each platform. **The price:** a person who chose « Demander à chaque fois » there also sees « bloquée »; « Me localiser » still asks |
+| 4 | Back from the phone's location page, a person who never refused anything read « Localisation refusée » | yes: from the location page, « not decided » is the ask |
+| 5 | A permission request that never answers held every location button in the app until it restarted: Android drops the callback on an empty result (`PermissionManager.java:148-153`), and the 30 s bound covered only the read | yes: the request itself gives up after 2 minutes (`permissionBound`), and the next tap asks again |
+| 6 | The silent read on opening could open Google's « turn on location » dialog (`FusedLocationClient.java:236-257`), on every opening for a phone whose settings do not meet the request. « Medium » could add phones to that list | yes, on Android: opening shows only the phone's last position, from `getLastLocation()` (no setting checked, no dialog), if it is under 15 minutes old. Otherwise nothing, and « Me localiser » reads a new one. iOS keeps its silent read: no such dialog there. **The price:** on Android, a dot on opening only when the phone located itself recently |
+| 7 | Framing zoomed IN for circles of 500 m to 2.4 km (600 m gave about 15.5), and the pill covered the circle's top | yes: never closer than the zoom a precise position gets, and the circle below the pill and its lines; tests at 600 m and 3 km |
+| 8 | Android 11+: dismissing the first dialog (Back, or a tap outside) answers « refused for good » (no rationale left, `PermissionManager.java:183-186`), so « bloquée » shows while the next tap would show the dialog again | **no, noted:** the plugin cannot tell them apart; a timing guess would be fragile. « Ouvrir les réglages » still works, and so does « Me localiser » |
+| 9 | `setState` after leaving the map, if the opening's status read was still pending | yes: `mounted` checked after it, and at the read's start |
+| 10 | A banner action disabled while its read runs drops the keyboard focus it held | **no, noted:** focus comes back to the way out, or to « Me localiser », when the read ends (§2.5) |
+| 11 | A read that joins one already running keeps that one's accuracy (Pro: « Près de moi » at medium, then « Utiliser ma position ») | **no, noted:** it takes closing the picker mid-read and tapping within the same seconds; the pin can still be placed by touch |
+
+Minor, taken: the verifier's comment claimed to catch an implied feature's
+reason, which its quoted match cannot; it now says what it matches. The
+source pin reads either XML quote.
+
+What the reader tried to refute and could not:
+- the single read's bookkeeping;
+- iOS's mapping, restricted included;
+- the Android plugin's handling of approximate-only and of « Approximative »
+  in Pro;
+- the return-from-Settings gate (the permission dialog makes the app inactive
+  only; the Settings app makes it hidden and paused);
+- the 30 s bound cancelling the native read;
+- the copy of the picker and of Pro;
+- the manifests' merge;
+- the verifier and its CI step.
