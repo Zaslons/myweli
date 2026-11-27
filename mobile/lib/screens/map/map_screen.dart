@@ -955,7 +955,9 @@ class _MapBanner extends StatelessWidget {
         TextButton(
           focusNode: i == actions.length - 1 ? lastActionFocus : null,
           onPressed: actions[i].onPressed,
-          child: Text(actions[i].label),
+          // At 360 dp and 200 %, « Ouvrir les réglages » cannot fit on one
+          // line: its lines end where « Fermer » ends (seen in the golden).
+          child: Text(actions[i].label, textAlign: TextAlign.end),
         ),
     ];
     return Material(
