@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../../core/constants/app_constants.dart';
+import '../../core/constants/failure_messages.dart';
 import '../../core/constants/salon_validation_copy.dart';
 import '../../core/di/dependency_injection.dart';
 import '../../core/utils/app_clock.dart';
@@ -16,6 +17,7 @@ import '../../models/payment.dart';
 import '../../models/pro_membership.dart';
 import '../../models/provider.dart';
 import '../../models/provider_user.dart';
+import '../../models/revenue_analytics.dart';
 import '../../models/review_summary.dart';
 import '../../models/salon_membership_info.dart';
 import '../../models/salon_subscription.dart';
@@ -25,6 +27,7 @@ import '../../models/team_member.dart';
 import '../interfaces/pro_service_interface.dart';
 import 'mock_data.dart';
 import 'mock_ids.dart';
+import 'mock_revenue.dart';
 import 'mock_session.dart';
 import 'mock_subscription_service.dart';
 
@@ -1219,6 +1222,61 @@ class MockProService implements ProServiceInterface {
         transactions: transactions,
       ),
     );
+  }
+
+  // Revenue analytics — folded by `MockRevenueWorld` on the server's rules
+  // (pro-revenue-analytics.md §3, §7.4). Owner-only, as the server: a member
+  // without `finances.view` gets the same `forbidden` as another salon.
+  @override
+  Future<ApiResponse<RevenueAnalytics>> getRevenueAnalytics(
+    SalonId providerId,
+    RevenueQuery query,
+  ) async {
+    await Future.delayed(AppConstants.mockDelay);
+    if (!await mockCan(providerId, ProCap.financesView)) {
+      return _refused('forbidden');
+    }
+    if (MockRevenueWorld.failNext) {
+      MockRevenueWorld.failNext = false;
+      return ApiResponse.error(kNoConnectionMessage, code: 'network');
+    }
+    final r = MockRevenueWorld.analytics(providerId, query, AppClock.now());
+    if (r.data == null) {
+      return ApiResponse.error('Informations invalides.', code: r.error);
+    }
+    return ApiResponse.success(r.data!);
+  }
+
+  @override
+  Future<ApiResponse<RevenueLedgerPage>> getRevenueLedger(
+    SalonId providerId,
+    RevenueQuery query, {
+    RevenueLedgerStatus status = RevenueLedgerStatus.completed,
+    int page = 1,
+    int pageSize = 20,
+    DateTime? asOf,
+  }) async {
+    await Future.delayed(AppConstants.mockDelay);
+    if (!await mockCan(providerId, ProCap.financesView)) {
+      return _refused('forbidden');
+    }
+    if (MockRevenueWorld.failNext) {
+      MockRevenueWorld.failNext = false;
+      return ApiResponse.error(kNoConnectionMessage, code: 'network');
+    }
+    final r = MockRevenueWorld.ledger(
+      providerId,
+      query,
+      status,
+      page,
+      pageSize,
+      AppClock.now(),
+      asOf,
+    );
+    if (r.data == null) {
+      return ApiResponse.error('Informations invalides.', code: r.error);
+    }
+    return ApiResponse.success(r.data!);
   }
 
   @override

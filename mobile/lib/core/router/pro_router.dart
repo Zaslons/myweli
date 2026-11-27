@@ -1,6 +1,7 @@
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../models/revenue_analytics.dart';
 import '../../providers/pro_auth_provider.dart';
 import '../../screens/profile/about_screen.dart';
 import '../../screens/provider/appointments/appointment_list_screen.dart';
@@ -14,7 +15,9 @@ import '../../screens/provider/availability/availability_screen.dart';
 import '../../screens/provider/clients/client_detail_screen.dart';
 import '../../screens/provider/clients/client_list_screen.dart';
 import '../../screens/provider/dashboard/dashboard_screen.dart';
-import '../../screens/provider/earnings/earnings_screen.dart';
+import '../../screens/provider/earnings/revenue_detail_screen.dart';
+import '../../screens/provider/earnings/revenue_ledger_screen.dart';
+import '../../screens/provider/earnings/revenue_screen.dart';
 import '../../screens/provider/journal/pro_journal_screen.dart';
 import '../../screens/provider/notifications/pro_notifications_screen.dart';
 import '../../screens/provider/onboarding/pro_kyc_screen.dart';
@@ -294,7 +297,43 @@ class ProRouter {
       GoRoute(
         path: '/pro/earnings',
         name: 'pro-earnings',
-        builder: (context, state) => const EarningsScreen(),
+        // « Revenus » (docs/design/pro-revenue-analytics.md §4.1): the path
+        // is kept, no deep link breaks; the period rides in the query.
+        builder: (context, state) =>
+            RevenueScreen(routeQuery: state.uri.queryParameters),
+      ),
+      GoRoute(
+        path: '/pro/earnings/collaborateur/:artistId',
+        name: 'pro-earnings-artist',
+        builder: (context, state) => RevenueDetailScreen(
+          axis: RevenueAxis.artist,
+          rowKey: state.pathParameters['artistId']!,
+          routeQuery: state.uri.queryParameters,
+        ),
+      ),
+      GoRoute(
+        path: '/pro/earnings/prestation/:serviceId',
+        name: 'pro-earnings-service',
+        builder: (context, state) => RevenueDetailScreen(
+          axis: RevenueAxis.service,
+          rowKey: state.pathParameters['serviceId']!,
+          routeQuery: state.uri.queryParameters,
+        ),
+      ),
+      GoRoute(
+        path: '/pro/earnings/canal/:channel',
+        name: 'pro-earnings-channel',
+        builder: (context, state) => RevenueDetailScreen(
+          axis: RevenueAxis.channel,
+          rowKey: state.pathParameters['channel']!,
+          routeQuery: state.uri.queryParameters,
+        ),
+      ),
+      GoRoute(
+        path: '/pro/earnings/rendez-vous',
+        name: 'pro-earnings-ledger',
+        builder: (context, state) =>
+            RevenueLedgerScreen(routeQuery: state.uri.queryParameters),
       ),
       GoRoute(
         path: '/pro/data-export',

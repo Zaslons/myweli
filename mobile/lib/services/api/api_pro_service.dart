@@ -16,6 +16,7 @@ import '../../models/payment.dart';
 import '../../models/pro_membership.dart';
 import '../../models/provider.dart';
 import '../../models/provider_session.dart';
+import '../../models/revenue_analytics.dart';
 import '../../models/review.dart';
 import '../../models/review_summary.dart';
 import '../../models/salon_membership_info.dart';
@@ -812,6 +813,65 @@ class ApiProService implements ProServiceInterface {
     return readOrUnreadable(
       res,
       (json) => EarningsData.fromJson(json! as Map<String, dynamic>),
+    );
+  }
+
+  @override
+  Future<ApiResponse<RevenueAnalytics>> getRevenueAnalytics(
+    SalonId providerId,
+    RevenueQuery query,
+  ) async {
+    if (await _authed.accessToken() == null) {
+      return ApiResponse.error('Non connecté');
+    }
+    final uri = _uri(
+      '/providers/$providerId/analytics/revenue',
+    ).replace(queryParameters: query.toQueryParameters());
+    final res = await _authed.send(
+      (t) => _client.get(uri, headers: _bearer(t)),
+    );
+    if (res == null) return networkError();
+    if (res.statusCode != 200) return _refused(res);
+    // A body without its parts is `unreadable` — never a screen of zeros.
+    return readOrUnreadable(
+      res,
+      (json) => RevenueAnalytics.fromJson(json! as Map<String, dynamic>),
+    );
+  }
+
+  @override
+  Future<ApiResponse<RevenueLedgerPage>> getRevenueLedger(
+    SalonId providerId,
+    RevenueQuery query, {
+    RevenueLedgerStatus status = RevenueLedgerStatus.completed,
+    int page = 1,
+    int pageSize = 20,
+    DateTime? asOf,
+  }) async {
+    if (await _authed.accessToken() == null) {
+      return ApiResponse.error('Non connecté');
+    }
+    // The ledger has no comparison (the contract's parameter list, §7.2):
+    // the route would validate one and then ignore it, so it is left out.
+    final params = query.toQueryParameters()..remove('compare');
+    final uri = _uri('/providers/$providerId/analytics/revenue/appointments')
+        .replace(
+          queryParameters: {
+            ...params,
+            'status': status.name,
+            'page': '$page',
+            'pageSize': '$pageSize',
+            if (asOf != null) 'asOf': asOf.toUtc().toIso8601String(),
+          },
+        );
+    final res = await _authed.send(
+      (t) => _client.get(uri, headers: _bearer(t)),
+    );
+    if (res == null) return networkError();
+    if (res.statusCode != 200) return _refused(res);
+    return readOrUnreadable(
+      res,
+      (json) => RevenueLedgerPage.fromJson(json! as Map<String, dynamic>),
     );
   }
 

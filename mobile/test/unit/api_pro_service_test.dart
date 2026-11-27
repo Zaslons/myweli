@@ -8,12 +8,15 @@ import 'package:myweli/core/utils/team_error_messages.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/appointment.dart';
 import 'package:myweli/models/availability.dart';
+import 'package:myweli/models/revenue_analytics.dart';
 import 'package:myweli/models/salon_membership_info.dart';
 import 'package:myweli/models/salon_validation.dart';
 import 'package:myweli/services/api/api_pro_service.dart';
 import 'package:myweli/services/interfaces/pro_service_interface.dart';
 import 'package:myweli/services/interfaces/session_store.dart';
 import 'package:myweli/services/mock/mock_data.dart';
+
+import '../support/revenue_fixtures.dart';
 
 Map<String, dynamic> _svcJson({bool active = false}) => {
   'id': 'svc1',
@@ -319,6 +322,97 @@ void main() {
       expect(res.data!.transactions.single.appointmentId, 'a1');
     },
   );
+
+  // docs/design/pro-revenue-analytics.md §7.1, §7.2, §13.2.
+  group('revenue analytics', () {
+    test('GETs …/analytics/revenue with the period, its comparison and '
+        'filter; parses', () async {
+      late Uri seen;
+      final client = MockClient((req) async {
+        seen = req.url;
+        expect(req.method, 'GET');
+        return http.Response(jsonEncode(revenueAnalyticsJson()), 200);
+      });
+      final res = await _linked(client).getRevenueAnalytics(
+        SalonId('provider1'),
+        RevenueQuery(
+          period: RevenuePeriod.week,
+          date: revenueDay(2026, 11, 25),
+          compare: RevenueCompare.year,
+          artistId: RevenueQuery.kNoArtist,
+        ),
+      );
+      expect(seen.path, '/providers/provider1/analytics/revenue');
+      expect(seen.queryParameters, {
+        'period': 'week',
+        'date': '2026-11-25',
+        'compare': 'year',
+        'artistId': 'none',
+      });
+      expect(res.success, isTrue);
+      expect(res.data!.groups.single.current.completedAmount, 1250000);
+    });
+
+    test('the ledger: status, page, size and the figures’ asOf — no '
+        'comparison', () async {
+      late Uri seen;
+      final client = MockClient((req) async {
+        seen = req.url;
+        return http.Response(jsonEncode(revenueLedgerJson(total: 48)), 200);
+      });
+      final res = await _linked(client).getRevenueLedger(
+        SalonId('provider1'),
+        const RevenueQuery().filteredOn(RevenueAxis.service, 'svc1'),
+        status: RevenueLedgerStatus.toClose,
+        page: 3,
+        asOf: DateTime.utc(2026, 11, 25, 14, 30),
+      );
+      expect(seen.path, '/providers/provider1/analytics/revenue/appointments');
+      expect(seen.queryParameters, {
+        'period': 'month',
+        'serviceId': 'svc1',
+        'status': 'toClose',
+        'page': '3',
+        'pageSize': '20',
+        'asOf': '2026-11-25T14:30:00.000Z',
+      });
+      expect(res.data!.total, 48);
+    });
+
+    test(
+      'a 403 keeps its code: the screen’s « Réservé au propriétaire »',
+      () async {
+        final client = MockClient(
+          (req) async => http.Response(jsonEncode({'error': 'forbidden'}), 403),
+        );
+        final res = await _linked(
+          client,
+        ).getRevenueAnalytics(SalonId('provider1'), const RevenueQuery());
+        expect(res.success, isFalse);
+        expect(res.code, 'forbidden');
+      },
+    );
+
+    test('a 200 without its parts is unreadable, never zeros', () async {
+      final client = MockClient(
+        (req) async => http.Response(
+          jsonEncode(revenueAnalyticsJson()..remove('groups')),
+          200,
+        ),
+      );
+      final res = await _linked(
+        client,
+      ).getRevenueAnalytics(SalonId('provider1'), const RevenueQuery());
+      expect(res.code, 'unreadable');
+      final ledger = MockClient(
+        (req) async => http.Response(jsonEncode({'items': []}), 200),
+      );
+      final page = await _linked(
+        ledger,
+      ).getRevenueLedger(SalonId('provider1'), const RevenueQuery());
+      expect(page.code, 'unreadable');
+    });
+  });
 
   test('getEarnings tolerates a pre-MP1 payload without currency', () async {
     final client = MockClient(

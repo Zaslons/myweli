@@ -252,4 +252,70 @@ class Formatters {
     if (m == 0) return '${h}h00';
     return '${h}h${m.toString().padLeft(2, '0')}';
   }
+
+  // ── Revenue analytics (docs/design/pro-revenue-analytics.md §4) ──────────
+  //
+  // Calendar days of the salon (`DateTime.utc(y, m, d)`, never an instant):
+  // the server resolves every period, these only name its dates.
+
+  /// « 1er » for the first of a month, else the number — French typography.
+  static String _dayOrdinal(DateTime d) => d.day == 1 ? '1er' : '${d.day}';
+
+  /// « 4 nov. » · « 1er nov. » — a chart's date, a range's end.
+  static String formatDayMonthShort(DateTime d) =>
+      '${_dayOrdinal(d)} ${DateFormat('MMM', kAppLocale).format(d)}';
+
+  /// « mar. 4 nov. » — the chart's selected day.
+  static String formatWeekdayDayMonthShort(DateTime d) =>
+      '${DateFormat('EEE', kAppLocale).format(d)} ${formatDayMonthShort(d)}';
+
+  /// « Mardi 25 novembre » — a « Jour » period's title; the year is added
+  /// when it is not [currentYear] (« Lundi 24 novembre 2025 »).
+  static String formatPeriodDay(DateTime d, {required int currentYear}) {
+    final text =
+        '${DateFormat('EEEE', kAppLocale).format(d)} ${_dayOrdinal(d)} '
+        '${DateFormat('MMMM', kAppLocale).format(d)}'
+        '${d.year == currentYear ? '' : ' ${d.year}'}';
+    return capitalized(text);
+  }
+
+  /// « nov. » — a month bucket's name under the chart.
+  static String formatMonthShort(DateTime d) =>
+      DateFormat('MMM', kAppLocale).format(d);
+
+  /// A range of days, the year always said once at the end:
+  /// « 25 nov. 2026 » · « 24 – 30 nov. 2026 » · « 3 oct. – 25 nov. 2026 » ·
+  /// « 29 déc. 2025 – 4 janv. 2026 ». Breaks fall between words only (a
+  /// narrow tile wraps it, never inside a number).
+  static String formatDayRange(DateTime from, DateTime to) {
+    final sameDay =
+        from.year == to.year && from.month == to.month && from.day == to.day;
+    if (sameDay) return '${formatDayMonthShort(to)} ${to.year}';
+    if (from.year != to.year) {
+      return '${formatDayMonthShort(from)} ${from.year} – '
+          '${formatDayMonthShort(to)} ${to.year}';
+    }
+    final start = from.month == to.month
+        ? _dayOrdinal(from)
+        : formatDayMonthShort(from);
+    return '$start – ${formatDayMonthShort(to)} ${to.year}';
+  }
+
+  /// The first letter in capitals — a title that starts with a month or a
+  /// weekday (« Novembre 2026 »), which French writes in lower case
+  /// mid-sentence.
+  static String capitalized(String text) =>
+      text.isEmpty ? text : '${text[0].toUpperCase()}${text.substring(1)}';
+
+  /// « 5,9 % » — a ratio (0–1) as a French percentage: decimal comma, and the
+  /// narrow no-break space (U+202F) before « % » that keeps the sign on the
+  /// number's line.
+  static String formatPercent(double ratio, {int decimals = 0}) {
+    final pattern = decimals == 0 ? '0' : '0.${'0' * decimals}';
+    return '${NumberFormat(pattern, kAppLocale).format(ratio * 100)} %';
+  }
+
+  /// « 1,2 » — a number with one decimal, French comma (a delta in points).
+  static String formatOneDecimal(double value) =>
+      NumberFormat('0.0', kAppLocale).format(value);
 }
