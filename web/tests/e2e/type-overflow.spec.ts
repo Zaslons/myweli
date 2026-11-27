@@ -2573,9 +2573,11 @@ test.describe('the dialogs, the toast and /mon-compte at doubled text (web-dialo
 
       test(`${mode.name} at 320 — the toast: a one-word salon name stays inside the gutters, broken inside the pill`, async ({ page }) => {
         await inMode(page, mode.css);
-        // The rejoin of roles.spec: the stub re-arms this former member's one
-        // pending invitation at each sign-in. Rename-tolerant (pro.spec's
-        // « Beauté Divine Web »).
+        // The rejoin of roles.spec, by a former member of this test's own
+        // (`nomlong` in the stub: a sign-in re-arms its one pending
+        // invitation, and sharing roles.spec's « rejoint » across parallel
+        // workers would race). Rename-tolerant (pro.spec's « Beauté Divine
+        // Web »).
         await page.route('**/api/pro/invitations', async (route) => {
           if (route.request().method() !== 'GET') return route.fallback();
           const r = await route.fetch();
@@ -2583,7 +2585,7 @@ test.describe('the dialogs, the toast and /mon-compte at doubled text (web-dialo
           await route.fulfill({ response: r, body });
         });
         await page.goto('/pro/connexion');
-        await page.getByLabel('Votre e-mail').fill('ancien.rejoint@equipe.test');
+        await page.getByLabel('Votre e-mail').fill('ancien.nomlong@equipe.test');
         await page.getByRole('button', { name: 'Continuer avec e-mail' }).click();
         await page.getByLabel('Code à 6 chiffres').fill('123456');
         await page.getByRole('button', { name: 'Se connecter' }).click();

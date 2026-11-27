@@ -826,7 +826,7 @@ const MEMBER_EMAILS = {
 };
 
 // --- the rejoin gate (docs/design/pro-rejoin-gate.md) ----------------------
-// Two FORMER members of p1: revoked, then re-invited (#596), so their session
+// Three FORMER members of p1: revoked, then re-invited (#596), so their session
 // is live but every /me/provider answers not_a_member until they accept.
 // They are kept OUT of `teamMembers` on purpose: team.spec owns that roster,
 // and an accept or a decline here must not move its seat count. Each login
@@ -838,6 +838,12 @@ const FORMER_MEMBERS = new Map(
     { key: 'rejoint', email: 'ancien.rejoint@equipe.test', role: 'staff' },
     // Declines the only invitation → signed out onto the banner.
     { key: 'refus', email: 'ancien.refus@equipe.test', role: 'reception' },
+    // Joins, for type-overflow.spec's toast (« Vous avez rejoint {salon} »
+    // with a one-word name, web-dialogs-toast-doubled-text.md). Its own
+    // fixture: a login re-arms it, and spec files run in parallel workers, so
+    // sharing roles.spec's « rejoint » could revoke that test's membership
+    // between its accept and its planning.
+    { key: 'nomlong', email: 'ancien.nomlong@equipe.test', role: 'staff' },
   ].map((f) => [
     f.key,
     { ...f, status: 'revoked', invitationId: `inv-former-${f.key}` },
