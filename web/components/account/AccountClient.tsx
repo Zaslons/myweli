@@ -342,7 +342,9 @@ export function AccountClient() {
             `justify-between` never guaranteed. This row is the latent twin: it
             did not fire, because the seeded name is shorter than the phone. */}
         <div className="flex flex-wrap items-center justify-between gap-s">
-          <div>
+          {/* `min-w-0`: a flex item, so only with it can an address with a
+              piece wider than the line narrow it (WEB-SYSTEM §9). */}
+          <div className="min-w-0">
             {editingName ? (
               <>
                 <div className="flex flex-wrap items-center gap-s">

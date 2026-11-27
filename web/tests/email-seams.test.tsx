@@ -428,7 +428,13 @@ describe.each(ADDRESSES)('the client’s account — « %s »', (address, pieces
     await waitFor(() => expect(document.body.textContent).toContain(address));
     const holder = innermostHeard(address).parentElement as HTMLElement;
     expectHeardWhole(holder, address);
-    expectDrawnAtItsSeams(address, pieces, holder);
+    const drawn = expectDrawnAtItsSeams(address, pieces, holder);
+    // The name-and-address column sits in a flex row beside « Se déconnecter »:
+    // without `min-w-0` a piece wider than the line pushed it past the row
+    // (306 px in a 287 px row, Android 200 %, found by the mutation pass).
+    let item: HTMLElement = drawn;
+    while (item.parentElement && !classes(item.parentElement).includes('flex')) item = item.parentElement;
+    expect(classes(item), 'the identity column has no min-w-0').toContain('min-w-0');
   });
 
   it('/mon-compte/donnees: the « Profil » row wraps, its value heard whole and drawn at its seams', async () => {
