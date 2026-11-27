@@ -227,6 +227,124 @@ void main() {
       );
       expectNoLegibilityCrush(tester);
     });
+
+    // ---- An ellipsis with NO `maxLines` (2026-11-27) ----------------------
+    //
+    // The most common truncation shape in `lib/` — `Text(overflow: ellipsis)`
+    // and nothing else — and this gate could not see it. PR #905 measured the
+    // Pro « Équipe » roster drawing a member's address in 28dp at 360 × 200 %
+    // as « a… », while the sweep in report mode said the row showed all 30
+    // characters ([app-team-email-seams.md] §2, §7).
+    //
+    // The paragraph's own guard was never the problem: the engine draws an
+    // ellipsised paragraph with no `maxLines` on ONE line and reports
+    // `didExceedMaxLines` for it. The problem was `_prefixFits`, which laid the
+    // prefix out with `maxLines: p.maxLines` — null — and no ellipsis, so the
+    // prefix wrapped onto as many lines as it liked and always « fit ».
+
+    /// The paragraph rendering [text], asserted to be the shape under test:
+    /// no `maxLines`, an ellipsis, drawn on one line and truncated by it.
+    ///
+    /// C — without these the falsifier below could go red for a reason that
+    /// is not this one (a fixture that wraps, or does not truncate, never
+    /// reaches `_prefixFits` at all).
+    RenderParagraph ellipsisWithoutMaxLines(WidgetTester tester, String text) {
+      final p = tester.renderObject<RenderParagraph>(find.text(text));
+      expect(p.maxLines, isNull, reason: 'the shape is « no maxLines »');
+      expect(p.overflow, TextOverflow.ellipsis);
+      expect(
+        p.didExceedMaxLines,
+        isTrue,
+        reason:
+            'the engine reports an ellipsised paragraph with no maxLines as '
+            'exceeded once it truncates — if this ever reads false, the '
+            'sweep skips the shape at its first guard and the falsifier '
+            'below is red for that reason, not for _prefixFits',
+      );
+      final oneLine = TextPainter(
+        text: TextSpan(text: 'M', style: p.text.style),
+        textDirection: TextDirection.ltr,
+        textScaler: p.textScaler,
+      )..layout();
+      final lineHeight = oneLine.height;
+      oneLine.dispose();
+      expect(
+        p.size.height,
+        lessThan(lineHeight * 1.5),
+        reason:
+            'the engine draws an ellipsised paragraph with no maxLines on '
+            'ONE line (${p.size.height.toStringAsFixed(1)}dp tall, a line is '
+            '${lineHeight.toStringAsFixed(1)}) — the behaviour the gate now '
+            'measures by',
+      );
+      return p;
+    }
+
+    testWidgets('fails on an ellipsis with no maxLines, squeezed below the '
+        'floor — the « Équipe » roster shape', (tester) async {
+      await pumpAtWidth(
+        tester,
+        width: 360,
+        scale: 1,
+        home: const Scaffold(
+          body: Row(
+            children: [
+              // `Flexible`, `bodyLarge`, ellipsis, no `maxLines`: the roster
+              // row's address as #905 found it.
+              Flexible(
+                child: Text(
+                  'aminata.kone@exemple.ci',
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.bodyLarge,
+                ),
+              ),
+              // Unflexed and wide, the role chip's part: 40dp are left, and
+              // eight characters of `bodyLarge` plus « … » need about 70.
+              SizedBox(width: 320, child: Text('Collaborateur')),
+            ],
+          ),
+        ),
+      );
+      ellipsisWithoutMaxLines(tester, 'aminata.kone@exemple.ci');
+      expect(
+        () => expectNoLegibilityCrush(tester),
+        throwsA(isA<TestFailure>()),
+        reason:
+            'the address has ~40dp on one line and shows three or four '
+            'characters. If this passes, the gate is measuring a paragraph '
+            'that wraps — which the engine never drew',
+      );
+    });
+
+    testWidgets('passes an ellipsis with no maxLines that keeps a readable '
+        'prefix', (tester) async {
+      // The twin: the same shape, truncated, with room for well over eight
+      // characters on its one line. A gate that fired here would be counting
+      // ellipses, not illegible ones.
+      await pumpAtWidth(
+        tester,
+        width: 360,
+        scale: 1,
+        home: const Scaffold(
+          body: Row(
+            children: [
+              Flexible(
+                child: Text(
+                  'aminata.kone@exemple.ci',
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.bodyLarge,
+                ),
+              ),
+              // 140dp left: the address does not fit (it truncates — the
+              // guard checks) but a dozen characters and « … » do.
+              SizedBox(width: 220, child: Text('Collaborateur')),
+            ],
+          ),
+        ),
+      );
+      ellipsisWithoutMaxLines(tester, 'aminata.kone@exemple.ci');
+      expectNoLegibilityCrush(tester);
+    });
   });
   group('expectNoMidWordBreak', () {
     // A13. This helper took `tester.renderObject`, which throws
