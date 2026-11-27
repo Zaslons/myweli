@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Module** | backend: the two sign-in stores (`provider_auth_repository.dart` and `postgres_provider_auth_repository.dart` for MyWeli Pro; `auth_repository.dart` and `postgres_auth_repository.dart` for the client accounts); then one sentence in the Pro app and one on the website |
-| **Status** | **Draft, 2026-11-27,** written on the owner's « Yes, spec B16.4 ». Read once by an independent reviewer (§13). Docs only. Five questions in §11 (decisions 284–288). |
+| **Status** | **Approved 2026-11-27.** Written on the owner's « Yes, spec B16.4 » and read once by an independent reviewer (§13). The owner answered the five questions of §11 at once, « Approve as recommended »: decisions 284–288 in BACKLOG, batch 16 (#911). Docs only. Next, each on the owner's word: B16.4a (the backend), the read (decision 287), B16.4b and B16.4c, then B16.4a's deploy. |
 | **Owner** | the project owner: the answers, then each build, read, merge and deploy, each on the owner's word |
 | **Last updated** | 2026-11-27 |
 | **PRD ref / phase** | FR-AUTH (the Pro sign-in) and the admin console's user list · V1 |
@@ -409,12 +409,12 @@ These follow B16.3a's [race insert] (`postgres_repositories_test.dart:2410-2442`
 
 ---
 
-## 11. Questions for the owner
+## 11. Questions for the owner — answered 2026-11-27, « Approve as recommended » (decisions 284–288)
 
 Numbered from **284**, after the A5 spec's 279–283.
 
 **Q1. A Pro account already linked to a Google (or Apple) account: may another Google account that asserts the same verified address take its place?**
-- **Recommended: no, never relinked, on both twins** (§5.1). This is decision 260's rule, applied to MyWeli Pro.
+- **Recommended: no, never relinked, on both twins** (§5.1). This is decision 260's rule, applied to MyWeli Pro. → ✅ **Decision 284.**
   - The sign-in is refused with `409 social_link_taken`. The Pro app and the website say which link it is and point to the e-mail code (§5.6).
   - Cost: a salon whose Google account was recreated signs in by code from then on.
   - A relink that already happened stays, and the old account is then sent to the code (§5.1).
@@ -422,7 +422,7 @@ Numbered from **284**, after the A5 spec's 279–283.
 - Or never relinked, answered as `provider_not_found`. No client change, but both clients then say there is no account at an address that has one, and the Android sign-up answers « account exists » (§2.3).
 
 **Q2. The Pro e-mail code: where is it checked and spent?**
-- **Recommended: under its row's lock, in the transaction that spends it, in every Pro code path,** as B16.3a's build does for client codes (§5.2).
+- **Recommended: under its row's lock, in the transaction that spends it, in every Pro code path,** as B16.3a's build does for client codes (§5.2). → ✅ **Decision 285.**
   - A refused sign-up keeps its code, on both twins.
   - A lost race answers `provider_exists`, whatever the identity: never a 500.
   - Parallel wrong guesses each cost an attempt.
@@ -431,20 +431,20 @@ Numbered from **284**, after the A5 spec's 279–283.
 - Or spent at the check, on both twins (the twin's behaviour): a refused sign-up costs the code.
 
 **Q3. The admin console's user list: one rule on both twins?**
-- **Recommended: Postgres's order** (newest first), with a tie broken by the id in byte order.
+- **Recommended: Postgres's order** (newest first), with a tie broken by the id in byte order. → ✅ **Decision 286.**
   - `q` matches name, phone or e-mail each on its own, case ignored.
   - `%`, `_` and `\` are taken as typed; accents as typed, as today (§5.3).
 - Or the same, with accents and spaces folded as the salon search does: « elodie » finds « Élodie ».
 
 **Q4. Read production before B16.4a's deploy?**
-- **Recommended: yes,** read-only, counts only, after the build, on your word (§9 step 2):
+- **Recommended: yes,** read-only, counts only, after the build, on your word (§9 step 2). → ✅ **Decision 287.** It counts:
   - whether any Pro account holds an address it never proved. None → B16.4a also requires a proven address to find an account by it. Any → the deploy waits for your choice;
   - how many accounts hold a Google or an Apple link;
   - Sentry's 30 days for the race's 500.
 - Or deploy without reading. A Pro account holding an unproven address would then stay B16.3's trap, unseen.
 
 **Q5. When, and in how many PRs?**
-- **Recommended: as a P2** (a takeover path in production, rarely reachable), **in three PRs, each built and merged on your word** (§9):
+- **Recommended: as a P2** (a takeover path in production, rarely reachable), **in three PRs, each built and merged on your word** (§9). → ✅ **Decision 288.** The PRs:
   - B16.4a, the backend;
   - B16.4b, the Pro app's sentence, which reaches people with the next Pro build;
   - B16.4c, the website's sentence, whose merge is a production deploy.
@@ -494,3 +494,4 @@ Numbered from **284**, after the A5 spec's 279–283.
   - the handler test that guarded nothing new, dropped.
 
   **Added to §12:** the invitation decline's spent code.
+- **2026-11-27, answered:** « Approve as recommended », all five (decisions 284–288, batch 16 in the BACKLOG).
