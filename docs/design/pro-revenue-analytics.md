@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Approved 2026-11-25** — the owner answered all thirteen questions of §17 at once, « Approve as recommended » (decisions 237–249). **R0w live 2026-11-25** (#866, `afd2de97`). **R1's production read done 2026-11-25** (§19). **R1 live 2026-11-26** (#872, migration **0052**, merged 2026-11-25 `3f3305a5`, deployed 2026-11-26 11:09 UTC, revision `myweli-api-00061-kwl`); the count after waits for real bookings, on the owner's word. **R2 live 2026-11-26** (#884, merged `306a5d50`, deployed 19:40 UTC, revision `myweli-api-00062-f5c`; as built: §20). **R3 built 2026-11-27** (#893, branch `feat/pro-revenue-r3-app`; as built: §21); it reaches users with the next Pro store build. R4 next, on the owner's word. |
+| **Status** | **Approved 2026-11-25** — the owner answered all thirteen questions of §17 at once, « Approve as recommended » (decisions 237–249). **R0w live 2026-11-25** (#866, `afd2de97`). **R1's production read done 2026-11-25** (§19). **R1 live 2026-11-26** (#872, migration **0052**, merged 2026-11-25 `3f3305a5`, deployed 2026-11-26 11:09 UTC, revision `myweli-api-00061-kwl`); the count after waits for real bookings, on the owner's word. **R2 live 2026-11-26** (#884, merged `306a5d50`, deployed 19:40 UTC, revision `myweli-api-00062-f5c`; as built: §20). **R3 merged 2026-11-27** (#893, `6b1ed6a9`; as built: §21); it reaches users with the next Pro store build. R4 next, on the owner's word. |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-11-27 |
 | **PRD ref / phase** | FR-PRO-EARN-001 [V1] (« completed revenue by day/week/month ») + FR-PRO-DASH-001 [V1] (« no-show rate ») + the revenue half of **FR-PRO-OPS-004 [V3]** (« revenue, top services/staff, no-show analytics »), pulled forward on the owner's request of 2026-11-25 — Q1 |
@@ -1593,11 +1593,46 @@ The past ones are closed through the Pro app's own path,
 card's last visit. Collaborateurs: the salon's own in turn, every fourth
 booking unassigned; with none on the roster, every booking is unassigned.
 
-**So, until the owner acts, « Par collaborateur » on the demo shows one row,
-« Sans collaborateur attribué ».** Adding two or three collaborateurs is the
-owner's step: on the demo account in the app, **then a new capture**
-(`POST /admin/demo/snapshot`) — the reset restores the snapshot's `artists`,
-so collaborateurs added without a capture are removed at the next reset.
+**Until 2026-11-27, « Par collaborateur » on the demo showed one row, « Sans
+collaborateur attribué ».** The reset restores the snapshot's `artists`, so
+collaborateurs added on the demo account alone are removed at the next
+reset; a new capture (`POST /admin/demo/snapshot`) would keep them, but it
+would also freeze the hours the owner chose to let the reset restore (B16.2)
+and move the next reset to about 4 December.
+
+**Added 2026-11-27, 00:03 UTC** (on the owner's « add the 2-3 collaborateurs
+in the demo account »), by one script, rehearsed first:
+- **Adjoua K.** (Tresses et soins), **Salimata O.** (Coupe femme et
+  brushing), **Koffi A.** (Coupe homme) — no photo, the salon's hours;
+  created through `ProviderCatalogService.createArtist` as the demo owner
+  account, the writer behind the app's « Ajouter un collaborateur »;
+- **the same three into the snapshot's `artists` only**, in one guarded
+  `UPDATE` (the snapshot's id and salon, `artists` empty, the capture and
+  last-reset dates equal to the ones read): one row. The capture date, the
+  last-reset date and every other key stayed as they were, so the reset
+  still falls on 2026-11-30 at 03:30 UTC and still restores the 14 October
+  hours.
+- **Read first** in a read-only session (the write probe refused with
+  25006): the demo account and its salon, the snapshot pointing at it, the
+  salon owned by the demo identity, no collaborateur live or captured.
+- **Read back:** seven checks true (the live list is the created one, the
+  snapshot's equals it, both dates and every other snapshot key unchanged,
+  the prestations unchanged), then an independent read-only read: 3 live,
+  3 in the snapshot, the same ids; 5 prestations, none bound; 4 confirmed
+  bookings.
+- **Rehearsed** on a throwaway Postgres shaped like production: without the
+  script, the real reset (`DemoResetService.tickIfDue` at 2026-11-30 04:00)
+  left no collaborateur; with it, the three stayed and the 16 bookings
+  spread 4 to each and 4 unassigned. A second run, another owner, and a
+  snapshot already holding a collaborateur were each refused, nothing
+  written.
+- **Not in `audit_log`**: the script is not an admin route. This record is
+  its trace.
+- **To know:** renaming one of them in the app on the demo account is undone
+  at the next reset, unless the snapshot gets the new name too.
+
+**Still owed:** the read after the 2026-11-30 reset (the hours restored, the
+three kept, the agenda spread across them).
 
 Early in a month, « Mois » can show no completed booking yet: the agenda's
 latest is three days back. « Semaine », « Année » and « Dates » still show
@@ -1644,7 +1679,9 @@ Three first attempts proved nothing and were redone: two did not apply
 ## 21. R3 as built (2026-11-27)
 
 On the owner's « Oui, construire R3 » (2026-11-27), to the plan approved
-with it. PR #893, branch `feat/pro-revenue-r3-app`, one PR (Q12).
+with it. PR #893, branch `feat/pro-revenue-r3-app`, one PR (Q12). **Merged
+2026-11-27** (`6b1ed6a9`, on the owner's « Oui, fusionner »; main's tree =
+the tested head's, main's CI and iOS build green).
 
 **Where it lives** (`mobile/`):
 - `lib/models/revenue_analytics.dart` — `RevenueQuery` and the answers,
