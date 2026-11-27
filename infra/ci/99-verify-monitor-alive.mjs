@@ -33,6 +33,17 @@
 // this was written the workflow had four runs, three of them manual — so an
 // unfiltered query would have reported a healthy schedule on the strength of
 // someone clicking "Run workflow". `event=schedule` is the whole point.
+//
+// ## A run is not a check (2026-11-27, B19.3)
+//
+// It used to count runs CREATED. A run cancelled before it started, or one
+// whose checks were all skipped, is created too, and checks nothing. Once a
+// GitHub App can start and cancel this workflow (the 06:00 trigger,
+// docs/design/infra-production-checks-on-time.md §4.7), a leaked key could
+// cancel the scheduled backup every day and this would stay green (§3.5). So a
+// scheduled run counts only when its Core Web Vitals job concluded `success`
+// or `failure`: the checks ran, whatever they found. A run with jobs but none
+// of that name fails this check rather than guess.
 
 const REPO = process.env.GH_REPO;
 const TOKEN = process.env.GH_TOKEN ?? process.env.GITHUB_TOKEN;
@@ -56,6 +67,14 @@ if (!Number.isFinite(MAX_AGE_DAYS) || MAX_AGE_DAYS <= 0) {
 // log, and the CI-wiring test forbids it — and the other two MONITOR_* knobs —
 // from appearing in ci.yml at all.
 const fixture = process.env.MONITOR_RUNS_JSON;
+// The jobs answer for each run, by run id, beside the runs answer. Same seam,
+// same ban in ci.yml.
+const jobsFixture = process.env.MONITOR_JOBS_JSON;
+
+/// The job whose conclusion says the run's checks ran. Matched by its `name:`
+/// in production-checks.yml, which is what the jobs API returns.
+const CHECK_JOB = 'Real domain — Core Web Vitals (mobile)';
+const CHECKED = new Set(['success', 'failure']);
 
 async function runs() {
   if (fixture) {
@@ -69,10 +88,14 @@ async function runs() {
   if (!REPO) fail('GH_REPO is not set — this job does not check out, so nothing else can supply it');
   if (!TOKEN) fail('GH_TOKEN is not set — the runs API needs `actions: read`');
 
-  const url = `https://api.github.com/repos/${REPO}/actions/workflows/${WORKFLOW}/runs?event=schedule&per_page=1`;
+  // 20 newest: three days of a daily schedule, with room for a burst.
+  return get(`/repos/${REPO}/actions/workflows/${WORKFLOW}/runs?event=schedule&per_page=20`);
+}
+
+async function get(path) {
   let res;
   try {
-    res = await fetch(url, {
+    res = await fetch(`https://api.github.com${path}`, {
       headers: {
         authorization: `Bearer ${TOKEN}`,
         accept: 'application/vnd.github+json',
@@ -85,12 +108,27 @@ async function runs() {
   }
   if (!res.ok) {
     fail(
-      `GitHub API answered ${res.status} for ${WORKFLOW} — a 404 usually means ` +
+      `GitHub API answered ${res.status} for ${path} — a 404 usually means ` +
         `the workflow was renamed or deleted, a 403 that this job lacks ` +
         `\`actions: read\``,
     );
   }
   return res.json();
+}
+
+/// The run's jobs, latest attempt. A run cancelled before it started has none.
+async function jobsOf(run) {
+  if (fixture) {
+    let all;
+    try {
+      all = JSON.parse(jobsFixture ?? '');
+    } catch (e) {
+      fail(`MONITOR_JOBS_JSON is not JSON: ${e.message}`);
+    }
+    if (!(String(run.id) in all)) fail(`MONITOR_JOBS_JSON has no entry for run ${run.id}`);
+    return all[String(run.id)];
+  }
+  return get(`/repos/${REPO}/actions/runs/${run.id}/jobs?per_page=100`);
 }
 
 const body = await runs();
@@ -129,5 +167,46 @@ if (days > MAX_AGE_DAYS) {
   );
 }
 
-console.log(`  ✓ ${WORKFLOW} last ran on its schedule ${days} day(s) ago (${latest.created_at})`);
-console.log(`    conclusion: ${latest.conclusion ?? 'in progress'}`);
+// The newest scheduled run in the window whose checks ran.
+let seen = 0;
+for (const run of list) {
+  const created = new Date(run.created_at);
+  if (Number.isNaN(created.getTime())) {
+    fail(`a scheduled run has an unreadable date: ${run.created_at}`);
+  }
+  const age = Math.floor((Date.now() - created.getTime()) / 86_400_000);
+  if (age > MAX_AGE_DAYS) break;
+  seen += 1;
+
+  const answer = await jobsOf(run);
+  const jobs = answer?.jobs;
+  if (!Array.isArray(jobs)) fail(`unexpected API shape for run ${run.id}: no jobs array`);
+  // Cancelled before it started: no job at all. It checked nothing.
+  if (jobs.length === 0) continue;
+  const cwv = jobs.find((j) => j.name === CHECK_JOB);
+  if (!cwv) {
+    fail(
+      `run ${run.id} of ${WORKFLOW} has jobs but none named « ${CHECK_JOB} ». ` +
+        `That job is how this check tells a run that checked from one that did ` +
+        `not; it was probably renamed. Rename it here too, rather than guess.`,
+    );
+  }
+  if (CHECKED.has(cwv.conclusion)) {
+    console.log(
+      `  ✓ ${WORKFLOW} ran its checks on its schedule ${age} day(s) ago ` +
+        `(${run.created_at}, Core Web Vitals: ${cwv.conclusion})`,
+    );
+    console.log(`    newest scheduled run: ${latest.created_at}, ${latest.conclusion ?? 'in progress'}`);
+    process.exit(0);
+  }
+}
+
+fail(
+  `${WORKFLOW} was created on its schedule ${seen} time(s) in the last ` +
+    `${MAX_AGE_DAYS} days, and none of those runs ran its checks: each was ` +
+    `cancelled, had its checks skipped, or has not finished. « Enable workflow » ` +
+    `is not the fix — the schedule fires. Open Actions → ${WORKFLOW}: a run ` +
+    `cancelled every day is the sign of someone holding the 06:00 trigger's key ` +
+    `(docs/design/infra-production-checks-on-time.md §4.7); checks skipped ` +
+    `every time mean a job condition changed.`,
+);

@@ -136,6 +136,23 @@ jobs:
       id-token: write # required for the OIDC token — nothing else needs write
 
     steps:
+      # **Defence in depth, not the fence** (docs/design/infra-production-checks-on-time.md
+      # §4.4, B19.3). The fence is the environment above: once the owner sets
+      # its rules, `backend-production` needs their approval and accepts `main`
+      # only, which a GitHub App cannot get round, whatever copy of this file it
+      # starts. This step fails a run started by anyone but the owner before it
+      # does anything, on staging too. Every run so far, push and dispatch, was
+      # started by `Zaslons` (60 read on 2026-11-27): a merge is a push by the
+      # owner. `triggering_actor`, not `actor`: a re-run keeps the original
+      # `actor`, and the re-runner is the one who matters.
+      - name: Guard — only the owner starts a deploy
+        if: github.triggering_actor != 'Zaslons'
+        env:
+          STARTED_BY: ${{ github.triggering_actor }}
+        run: |
+          echo "::error::Only the owner starts a deploy; this run was started by '${STARTED_BY}'."
+          exit 1
+
       - name: Guard — a PRODUCTION dispatch must be confirmed
         # Scoped to production. The old form was `github.event_name ==
         # 'workflow_dispatch' && inputs.confirm != 'deploy'`, which would have

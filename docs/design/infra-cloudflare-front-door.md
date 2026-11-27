@@ -464,8 +464,11 @@ repeated through the Worker in §9 step 8.
   event leaves the process (`observability_test.dart`).
 - `CLOUDFLARE_FRONT_DOOR_TOKEN` (§6.3) lives in Secret Manager and is read on
   the owner's machine. **CI never reads it** — `production-checks.yml` asserts
-  CI cannot read *any* secret value, and the Worker is not a CI deploy (the
-  R2 stance: « CI has no Cloudflare identity » stays true).
+  CI cannot read *any* secret value, and the Worker is not a CI deploy.
+  *(2026-11-27: this said « CI has no Cloudflare identity », which was already
+  untrue: `deploy-admin.yml` has held a Cloudflare Pages token since
+  2026-06-29. No CI job holds a token for Workers, R2 or the zone —
+  [infra-production-checks-on-time.md](infra-production-checks-on-time.md) §2.7.)*
 
 ### 6.3 The one Cloudflare token (owner mints it; dashboard only)
 
