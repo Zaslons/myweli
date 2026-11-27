@@ -1,0 +1,19 @@
+- 🟡 **MyWeli (client) et site, A5 : l’équipe du salon et tous ses avis — la spec, avant tout code (documentation · app · site · serveur · 2026-11-27 — BACKLOG B0.10, décision 160, piste A ; écart 18 de l’audit ; FR-DISC-006, FR-REV-002, FR-REV-003, FR-REV-005).** Branche `docs/a5-salon-team-reviews-spec`, depuis `main` `2e148f89`. Spec : [salon-team-and-reviews.md](../../design/salon-team-and-reviews.md). Documentation seule : aucun code, aucun build, aucun déploiement.
+  - **Pourquoi :**
+    - la page du salon, dans l’app, ne montre pas qui y travaille, alors que le serveur l’envoie et que le site l’affiche ;
+    - elle montre cinq avis et s’arrête, sans moyen de lire les autres ; le site s’arrête à dix ;
+    - choisir une spécialiste puis une prestation qu’elle ne fait pas l’oublie sans un mot, dans l’app comme sur le site ;
+    - un visiteur qui touche « Signaler » ne peut pas se connecter depuis là.
+  - **Ce que la spec prévoit, chaque « aujourd’hui » relu dans le code avec son fichier et sa ligne :**
+    - une section « Équipe » après « Services » : photo, nom, spécialité, note à partir d’un avis ; toucher une personne ouvre la réservation avec elle ;
+    - « Voir les N avis » sous les cinq : un écran avec la note, la répartition des étoiles et chaque avis, vingt par page, « Afficher plus d’avis », et « Réserver » toujours en bas ;
+    - la réservation, une spécialiste choisie, grise les prestations qu’elle ne fait pas (« Pas avec … ») au lieu de l’oublier, avec la règle qui grise déjà les spécialistes ;
+    - « Signaler » connecte d’abord un visiteur, puis ouvre le signalement de cet avis ;
+    - côté serveur (A5-api), la répartition des notes sur la liste publique, et un ordre qui ne bouge plus d’une page à l’autre ;
+    - côté site (A5w), la même équipe, « Afficher plus d’avis » sur place, « avec … » et « Réservation vérifiée » sur chaque avis.
+  - **Relue par un lecteur indépendant, chargé de la réfuter :** aucun blocage, 18 constats, chacun relu dans le code, puis intégré (§12). Les plus importants :
+    - deux auraient fait échouer un build tel qu’écrit : la lecture de la répartition sur le site, qui doit ne jamais bloquer la page, et les types du site à régénérer avec le contrat ;
+    - l’app ne vérifie pas une spécialiste envoyée seule : l’identifiant d’une personne retirée du salon serait parti avec la réservation ;
+    - l’app affiche des prestations désactivées, que le site et le serveur cachent : A5 les cache aussi.
+  - **Sept questions pour le propriétaire** (décisions 277 à 283), chacune avec une recommandation. Aucun code avant ses réponses.
+  - **Reste :** les réponses, puis la fusion de la spec, sur le mot du propriétaire ; ensuite A5-api, A5 et A5w, chacun dans sa PR.
