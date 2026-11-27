@@ -3,6 +3,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
+import 'package:myweli/core/utils/formatters.dart';
 import 'package:myweli/providers/auth_provider.dart';
 import 'package:myweli/screens/profile/edit_profile_screen.dart';
 import 'package:myweli/screens/profile/email_change_screen.dart';
@@ -86,7 +87,7 @@ void main() {
 
     testWidgets('the address row, proven, at 200% text', (tester) async {
       await pumpProfile(tester);
-      expect(find.text(email), findsOneWidget);
+      expect(find.text(Formatters.breakableEmail(email)), findsOneWidget);
       await expectGolden(tester, 'consumer_edit_profile_email_w360_x2');
     });
 

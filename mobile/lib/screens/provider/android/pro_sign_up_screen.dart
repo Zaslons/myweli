@@ -24,6 +24,7 @@ import '../../../widgets/common/app_button.dart';
 import '../../../widgets/common/app_chip.dart';
 import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/app_text_field.dart';
+import '../../../widgets/common/code_sent_to.dart';
 import '../../../widgets/common/commune_picker_sheet.dart';
 import '../../../widgets/common/google_g_logo.dart';
 import '../../../widgets/common/inline_feedback.dart';
@@ -855,9 +856,9 @@ class _ProSignUpScreenState extends State<ProSignUpScreen> {
 
   /// The sign-in's code step, cooldown included (§2.4 row 12).
   List<Widget> _codeStep(ProAuthProvider auth, bool busy) => [
-    Text(
-      'Entrez le code reçu par e-mail à ${_emailController.text.trim()}.',
-      style: AppTextStyles.bodyLarge.copyWith(color: AppColors.textSecondary),
+    // The address on a line of its own (§13.3).
+    CodeSentTo.byEmail(
+      _emailController.text.trim(),
       textAlign: TextAlign.center,
     ),
     const SizedBox(height: AppTheme.spacingL),

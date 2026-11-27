@@ -18,6 +18,7 @@ import '../../providers/auth_provider.dart';
 import '../../widgets/common/app_button.dart';
 import '../../widgets/common/app_snack_bar.dart';
 import '../../widgets/common/app_text_field.dart';
+import '../../widgets/common/code_sent_to.dart';
 import '../../widgets/common/inline_feedback.dart';
 import '../../widgets/common/screen_title.dart';
 
@@ -403,10 +404,8 @@ class _EmailChangeScreenState extends State<EmailChangeScreen>
     final devCode = auth.emailChange?.devCode;
     final currentDevCode = auth.emailChange?.currentDevCode;
     return [
-      Text(
-        'Entrez le code reçu par e-mail à $_sentTo.',
-        style: AppTextStyles.bodyLarge.copyWith(color: AppColors.textSecondary),
-      ),
+      // Each address on a line of its own (§13.3; the spec's §12).
+      CodeSentTo.byEmail(_sentTo),
       const SizedBox(height: AppTheme.spacingM),
       AppTextField(
         controller: _codeController,
@@ -423,12 +422,7 @@ class _EmailChangeScreenState extends State<EmailChangeScreen>
       if (devCode != null && devCode.isNotEmpty) _devHint(devCode),
       if (needsCurrent) ...[
         const SizedBox(height: AppTheme.spacingM),
-        Text(
-          'Entrez le code reçu à votre adresse actuelle, ${current ?? ''}.',
-          style: AppTextStyles.bodyLarge.copyWith(
-            color: AppColors.textSecondary,
-          ),
-        ),
+        CodeSentTo.currentAddress(current ?? ''),
         const SizedBox(height: AppTheme.spacingM),
         AppTextField(
           controller: _currentCodeController,

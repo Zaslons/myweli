@@ -314,7 +314,8 @@ Future<void> pumpPushedAtWidth(
 /// **U+200B, the zero-width space, is one** (UAX #14 LB8: the engine breaks
 /// after it, and draws nothing). The app places it where an e-mail address may
 /// break (`Formatters.breakableEmail`, §13.3); read on the engine 2026-11-27 —
-/// « à a​.kone​@exemple​.ci. » broke at « a.kone » / « @exemple.ci. ».
+/// « à a.kone@exemple.ci. », marked before each « . » and the « @ », broke at
+/// « a.kone » / « @exemple.ci. ».
 final RegExp _kBreakOpportunity = RegExp(
   '[\\u0009-\\u000D\\u0020\\u1680\\u2000-\\u2006\\u2008-\\u200B'
   '\\u2028\\u2029\\u205F\\u3000]+',
@@ -430,7 +431,7 @@ void expectNoMidWordBreak(WidgetTester tester, String text, String at) {
 }
 
 /// U+200B: where the app lets an e-mail address break ([_kBreakOpportunity]).
-const String _kZeroWidthSpace = '​';
+const String _kZeroWidthSpace = '\u200B';
 
 /// Fails unless the e-mail [address] is drawn on a line of its own and breaks
 /// only at its seams (SYSTEM.md §13.3): **before its « @ », or before a « . »

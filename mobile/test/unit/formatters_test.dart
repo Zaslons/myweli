@@ -398,4 +398,37 @@ void main() {
       test('$name → $expected', () => expect(Formatters.de(name), expected));
     });
   });
+
+  // SYSTEM.md §13.3: an address breaks only before its « @ » or a « . » of
+  // its name part. « | » stands for U+200B in the vectors.
+  group('Formatters.breakableEmail', () {
+    String marks(String s) => s.replaceAll('\u200B', '|');
+    const vectors = {
+      'awa@exemple.ci': 'awa|@exemple.ci',
+      'aminata.kone@exemple.ci': 'aminata|.kone|@exemple.ci',
+      // Never in the domain: the engine would orphan « .com ».
+      'koffi.yao@gmail.com': 'koffi|.yao|@gmail.com',
+      'a.b.c@sous.domaine.ci': 'a|.b|.c|@sous.domaine.ci',
+      // The domain follows the LAST « @ ».
+      '"a@b"@exemple.ci': '"a@b"|@exemple.ci',
+      // Not an address: drawn as it is.
+      'Aucune adresse': 'Aucune adresse',
+      '@exemple.ci': '@exemple.ci',
+      '': '',
+    };
+    vectors.forEach((address, expected) {
+      test('$address → $expected', () {
+        expect(marks(Formatters.breakableEmail(address)), expected);
+      });
+    });
+
+    test('only marks are added: removing them gives the address back', () {
+      for (final address in vectors.keys) {
+        expect(
+          Formatters.breakableEmail(address).replaceAll('\u200B', ''),
+          address,
+        );
+      }
+    });
+  });
 }
