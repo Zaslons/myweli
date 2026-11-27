@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Approved 2026-11-25** — the owner answered all thirteen questions of §17 at once, « Approve as recommended » (decisions 237–249). **R0w live 2026-11-25** (#866, `afd2de97`). **R1's production read done 2026-11-25** (§19). **R1 live 2026-11-26** (#872, migration **0052**, merged 2026-11-25 `3f3305a5`, deployed 2026-11-26 11:09 UTC, revision `myweli-api-00061-kwl`); the count after waits for real bookings, on the owner's word. **R2 live 2026-11-26** (#884, merged `306a5d50`, deployed 19:40 UTC, revision `myweli-api-00062-f5c`; as built: §20). **R3 built 2026-11-27** (branch `feat/pro-revenue-r3-app`; as built: §21); it reaches users with the next Pro store build. R4 next, on the owner's word. |
+| **Status** | **Approved 2026-11-25** — the owner answered all thirteen questions of §17 at once, « Approve as recommended » (decisions 237–249). **R0w live 2026-11-25** (#866, `afd2de97`). **R1's production read done 2026-11-25** (§19). **R1 live 2026-11-26** (#872, migration **0052**, merged 2026-11-25 `3f3305a5`, deployed 2026-11-26 11:09 UTC, revision `myweli-api-00061-kwl`); the count after waits for real bookings, on the owner's word. **R2 live 2026-11-26** (#884, merged `306a5d50`, deployed 19:40 UTC, revision `myweli-api-00062-f5c`; as built: §20). **R3 built 2026-11-27** (#893, branch `feat/pro-revenue-r3-app`; as built: §21); it reaches users with the next Pro store build. R4 next, on the owner's word. |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-11-27 |
 | **PRD ref / phase** | FR-PRO-EARN-001 [V1] (« completed revenue by day/week/month ») + FR-PRO-DASH-001 [V1] (« no-show rate ») + the revenue half of **FR-PRO-OPS-004 [V3]** (« revenue, top services/staff, no-show analytics »), pulled forward on the owner's request of 2026-11-25 — Q1 |
@@ -1644,7 +1644,7 @@ Three first attempts proved nothing and were redone: two did not apply
 ## 21. R3 as built (2026-11-27)
 
 On the owner's « Oui, construire R3 » (2026-11-27), to the plan approved
-with it. Branch `feat/pro-revenue-r3-app`, one PR (Q12).
+with it. PR #893, branch `feat/pro-revenue-r3-app`, one PR (Q12).
 
 **Where it lives** (`mobile/`):
 - `lib/models/revenue_analytics.dart` — `RevenueQuery` and the answers,

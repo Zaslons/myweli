@@ -1,4 +1,4 @@
-- 🟡 **MyWeli Pro : l'écran « Revenus » devient les analyses de revenus du salon — R3 (application · 2026-11-27 — BACKLOG B17.3, décisions 238, 240, 244).** PR #R3PR, branche `feat/pro-revenue-r3-app`. Spec : [pro-revenue-analytics.md](../../design/pro-revenue-analytics.md) §4, §12, §13.2 et, tel que construit, §21.
+- 🟡 **MyWeli Pro : l'écran « Revenus » devient les analyses de revenus du salon — R3 (application · 2026-11-27 — BACKLOG B17.3, décisions 238, 240, 244).** PR #893, branche `feat/pro-revenue-r3-app`. Spec : [pro-revenue-analytics.md](../../design/pro-revenue-analytics.md) §4, §12, §13.2 et, tel que construit, §21.
   - **Pourquoi :** le propriétaire ne voyait qu'un chiffre par période. Il voit maintenant ce que rapporte chaque collaborateur, chaque prestation et chaque canal (application, site, ajouté par le salon), son panier moyen et son taux d'absence, comparés à la période d'avant ou à l'an dernier. Le serveur (R2, en production depuis le 26 novembre) calcule tout ; l'application ne fait qu'afficher.
   - **Ce qui change dans l'application :**
     - **Les périodes :** Jour, Semaine, Mois, Année ou deux dates au choix (366 jours au plus), avec ‹ › pour avancer ou reculer, et « Comparé à » (période précédente, l'an dernier, ou rien). Pendant une période en cours, la ligne dit « même avancement ».
@@ -21,6 +21,6 @@
     - chaque état de l'écran, la période et ses flèches, « Comparé à », « Dates… », le détail, le registre, les cartes de l'Accueil, les phrases du lecteur d'écran, le graphique, les textes sans « encaissé » ;
     - la mise en page à 360, 375 et 390 de large, en texte normal et à 200 %, avec des montants à 7 et 8 chiffres, cibles de 48 dp comprises ;
     - sept images de référence faites sous Linux par GitHub, chacune regardée ; aucune autre image n'a bougé, donc l'Accueil est identique au pixel ;
-    - la suite mobile complète ;
+    - la suite mobile complète sur l'arbre final : 4 420 tests verts ;
     - **24 mutations, chacune rouge sur le test attendu** (spec §21.4), dont la réponse en retard gardée, le refus lu comme une panne, deux devises additionnées, la grille non mesurée, « encaissé » dans la note, le registre sans l'instant des chiffres. Une modification témoin est restée verte. Une mutation est d'abord restée verte (le registre fictif qui daterait « À clôturer » par le début) : le test manquant a été écrit, puis elle a viré au rouge.
   - **Arrive chez les salons** avec la prochaine version de MyWeli Pro dans les stores, sur le mot du propriétaire.
