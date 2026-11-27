@@ -72,9 +72,12 @@ void main() {
   /// its domain each fit one. The manager.
   const long = 'aminata.kone@exemple.ci';
 
-  /// Three pieces of name, each narrower than the roster's 192 dp at 2×. The
-  /// pending Collaborateur.
-  const pending = 'awa.kone.nouvelle@exemple.ci';
+  /// Three pieces of name, and a domain of twelve characters — one piece,
+  /// never broken at its « . » — the width of `@hotmail.com`, `@myweli.com`:
+  /// 213 dp at 2×, wider than the 192 the initial avatar left the title
+  /// (app-team-email-seams.md §3, found by the first Linux picture:
+  /// « @myweli.tes » / « t »). The pending Collaborateur.
+  const pending = 'awa.kone.nouvelle@outlook.com';
 
   /// Break points before EVERY « . » would orphan its « .com ». A réception.
   const seam = 'koffi.yao@gmail.com';
@@ -246,19 +249,21 @@ void main() {
     });
   }
 
-  testWidgets('a screen reader hears each row\'s address, without its marks, '
-      'then its role', (tester) async {
+  testWidgets('a screen reader hears each row\'s address first, without its '
+      'marks, then its role', (tester) async {
     final handle = tester.ensureSemantics();
     await openTeam(tester, scale: 2);
     for (final address in roster) {
       expect(
-        find.bySemanticsLabel(RegExp('\\n${RegExp.escape(address)}\\n')),
+        find.bySemanticsLabel(RegExp('^${RegExp.escape(address)}\\n')),
         findsOneWidget,
-        reason: '« $address » is one line of its row\'s one node',
+        // The initial avatar is gone (app-team-email-seams.md §5.3): a
+        // screen reader heard its letter first — « A, aminata.kone@… ».
+        reason: '« $address » begins its row\'s one node',
       );
     }
     expect(
-      find.bySemanticsLabel(RegExp('\\n${RegExp.escape(long)}\\nManager')),
+      find.bySemanticsLabel(RegExp('^${RegExp.escape(long)}\\nManager')),
       findsOneWidget,
       reason: 'the role follows the address, as it did beside it',
     );
