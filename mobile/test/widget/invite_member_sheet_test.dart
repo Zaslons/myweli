@@ -322,7 +322,8 @@ void main() {
     await tester.tap(find.text('Envoyer l’invitation'));
     await settle(tester);
 
-    expect(find.text('Invitation envoyée à ama@b.com'), findsOneWidget);
+    // The roster names who (docs/design/app-team-email-seams.md §4).
+    expect(find.text('Invitation envoyée.'), findsOneWidget);
     expect(MockData.teamMembers.any((m) => m.email == 'ama@b.com'), isTrue);
   });
 
@@ -348,7 +349,8 @@ void main() {
 
     await tester.tap(find.text('Envoyer l’invitation'));
     await settle(tester);
-    expect(find.text('Invitation envoyée à ama@b.com'), findsOneWidget);
+    // The roster names who (docs/design/app-team-email-seams.md §4).
+    expect(find.text('Invitation envoyée.'), findsOneWidget);
     final row = MockData.teamMembers.singleWhere((m) => m.email == 'ama@b.com');
     expect(row.artistName, 'Fatou');
   });
