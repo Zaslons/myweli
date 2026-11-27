@@ -38,6 +38,14 @@ test('manager: filtered sidebar, identity block, counts sans revenus', async ({
   await expect(page.getByText(/^Revenus prévus/)).toHaveCount(0);
   // Owner-only cards are absent.
   await expect(page.getByText('Configurer mon profil')).toBeVisible();
+
+  // A deep link to « Revenus » (a shared address, an old bookmark): the
+  // server refuses it, and the page says why — no period bar, nothing to
+  // retry (docs/design/pro-revenue-analytics.md §4.11, R4).
+  await page.goto('/pro/revenus?periode=semaine');
+  await expect(page.getByText('Réservé au propriétaire')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Semaine' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Réessayer' })).toHaveCount(0);
 });
 
 test('réception: the reduced sidebar (planning + clients + profil)', async ({

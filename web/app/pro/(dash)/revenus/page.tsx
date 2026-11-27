@@ -7,11 +7,13 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
+/// docs/design/pro-revenue-analytics.md §5 (R4). The period, the tab and the
+/// sort live in the address (§5.2): `?periode=semaine&date=…&comparer=…`.
 export default function ProRevenusPage() {
-  // B7 (§9/§10): the desktop cap — every state (skeleton, error,
-  // success) shares it, so nothing flashes full-bleed then snaps.
+  // The tables' width (§5.1): every state (skeleton, error, success) shares
+  // the cap, so nothing flashes full-bleed then snaps.
   return (
-    <div className="max-w-content">
+    <div className="max-w-5xl">
       <RevenusClient />
     </div>
   );

@@ -1,0 +1,313 @@
+{
+  "period": "year",
+  "from": "2026-01-01",
+  "to": "2026-12-31",
+  "inProgress": true,
+  "timezone": "Africa/Abidjan",
+  "asOf": "2026-11-27T09:05:53.991584Z",
+  "bucket": "month",
+  "comparison": {
+    "mode": "year",
+    "from": "2025-01-01",
+    "to": "2025-12-31",
+    "likeForLike": true,
+    "cutoff": "2025-11-27T09:05:53.991584Z"
+  },
+  "filters": {
+    "artistId": null,
+    "serviceId": null,
+    "channel": null,
+    "label": null,
+    "state": null
+  },
+  "everCompleted": true,
+  "groups": [
+    {
+      "currency": "XOF",
+      "current": {
+        "completedAmount": 130000.0,
+        "completedCount": 12,
+        "averageTicket": 10833.0,
+        "upcomingAmount": 20000.0,
+        "upcomingCount": 2,
+        "pendingAmount": 0.0,
+        "pendingCount": 0,
+        "toCloseAmount": 10000.0,
+        "toCloseCount": 1,
+        "noShowAmount": 10000.0,
+        "noShowCount": 1,
+        "noShowRate": 0.07692307692307693,
+        "cancelledAmount": 0.0,
+        "cancelledCount": 0,
+        "estimated": false
+      },
+      "previous": {
+        "completedAmount": 0.0,
+        "completedCount": 0,
+        "averageTicket": null,
+        "upcomingAmount": 0.0,
+        "upcomingCount": 0,
+        "pendingAmount": 0.0,
+        "pendingCount": 0,
+        "toCloseAmount": 0.0,
+        "toCloseCount": 0,
+        "noShowAmount": 0.0,
+        "noShowCount": 0,
+        "noShowRate": null,
+        "cancelledAmount": 0.0,
+        "cancelledCount": 0,
+        "estimated": false
+      },
+      "series": [
+        {
+          "start": "2026-01-01",
+          "end": "2026-01-31",
+          "completedAmount": 0.0,
+          "completedCount": 0
+        },
+        {
+          "start": "2026-02-01",
+          "end": "2026-02-28",
+          "completedAmount": 0.0,
+          "completedCount": 0
+        },
+        {
+          "start": "2026-03-01",
+          "end": "2026-03-31",
+          "completedAmount": 0.0,
+          "completedCount": 0
+        },
+        {
+          "start": "2026-04-01",
+          "end": "2026-04-30",
+          "completedAmount": 0.0,
+          "completedCount": 0
+        },
+        {
+          "start": "2026-05-01",
+          "end": "2026-05-31",
+          "completedAmount": 0.0,
+          "completedCount": 0
+        },
+        {
+          "start": "2026-06-01",
+          "end": "2026-06-30",
+          "completedAmount": 0.0,
+          "completedCount": 0
+        },
+        {
+          "start": "2026-07-01",
+          "end": "2026-07-31",
+          "completedAmount": 0.0,
+          "completedCount": 0
+        },
+        {
+          "start": "2026-08-01",
+          "end": "2026-08-31",
+          "completedAmount": 0.0,
+          "completedCount": 0
+        },
+        {
+          "start": "2026-09-01",
+          "end": "2026-09-30",
+          "completedAmount": 0.0,
+          "completedCount": 0
+        },
+        {
+          "start": "2026-10-01",
+          "end": "2026-10-31",
+          "completedAmount": 60000.0,
+          "completedCount": 5
+        },
+        {
+          "start": "2026-11-01",
+          "end": "2026-11-30",
+          "completedAmount": 70000.0,
+          "completedCount": 7
+        },
+        {
+          "start": "2026-12-01",
+          "end": "2026-12-31",
+          "completedAmount": 0.0,
+          "completedCount": 0
+        }
+      ],
+      "byArtist": [
+        {
+          "key": null,
+          "label": null,
+          "state": "unassigned",
+          "share": 0.3077,
+          "current": {
+            "completedAmount": 40000.0,
+            "completedCount": 3,
+            "averageTicket": 13333.0
+          },
+          "previous": {
+            "completedAmount": 0.0,
+            "completedCount": 0,
+            "averageTicket": null
+          },
+          "estimated": false
+        },
+        {
+          "key": "artist_adjoua",
+          "label": "Adjoua K.",
+          "state": "active",
+          "share": 0.2308,
+          "current": {
+            "completedAmount": 30000.0,
+            "completedCount": 3,
+            "averageTicket": 10000.0
+          },
+          "previous": {
+            "completedAmount": 0.0,
+            "completedCount": 0,
+            "averageTicket": null
+          },
+          "estimated": false
+        },
+        {
+          "key": "artist_koffi",
+          "label": "Koffi A.",
+          "state": "active",
+          "share": 0.2308,
+          "current": {
+            "completedAmount": 30000.0,
+            "completedCount": 3,
+            "averageTicket": 10000.0
+          },
+          "previous": {
+            "completedAmount": 0.0,
+            "completedCount": 0,
+            "averageTicket": null
+          },
+          "estimated": false
+        },
+        {
+          "key": "artist_salimata",
+          "label": "Salimata O.",
+          "state": "active",
+          "share": 0.2307,
+          "current": {
+            "completedAmount": 30000.0,
+            "completedCount": 3,
+            "averageTicket": 10000.0
+          },
+          "previous": {
+            "completedAmount": 0.0,
+            "completedCount": 0,
+            "averageTicket": null
+          },
+          "estimated": false
+        }
+      ],
+      "byService": [
+        {
+          "key": "svc-Tresses",
+          "label": "Tresses",
+          "state": "active",
+          "share": 0.3077,
+          "current": {
+            "completedAmount": 40000.0,
+            "completedCount": 4,
+            "averageTicket": 10000.0
+          },
+          "previous": {
+            "completedAmount": 0.0,
+            "completedCount": 0,
+            "averageTicket": null
+          },
+          "estimated": false
+        },
+        {
+          "key": "svc-Coupe",
+          "label": "Coupe",
+          "state": "active",
+          "share": 0.2308,
+          "current": {
+            "completedAmount": 30000.0,
+            "completedCount": 3,
+            "averageTicket": 10000.0
+          },
+          "previous": {
+            "completedAmount": 0.0,
+            "completedCount": 0,
+            "averageTicket": null
+          },
+          "estimated": false
+        },
+        {
+          "key": "svc-Brushing",
+          "label": "Brushing",
+          "state": "active",
+          "share": 0.1539,
+          "current": {
+            "completedAmount": 20000.0,
+            "completedCount": 2,
+            "averageTicket": 10000.0
+          },
+          "previous": {
+            "completedAmount": 0.0,
+            "completedCount": 0,
+            "averageTicket": null
+          },
+          "estimated": false
+        },
+        {
+          "key": "svc-Manucure",
+          "label": "Manucure",
+          "state": "active",
+          "share": 0.1538,
+          "current": {
+            "completedAmount": 20000.0,
+            "completedCount": 2,
+            "averageTicket": 10000.0
+          },
+          "previous": {
+            "completedAmount": 0.0,
+            "completedCount": 0,
+            "averageTicket": null
+          },
+          "estimated": false
+        },
+        {
+          "key": "svc-Soin visage",
+          "label": "Soin visage",
+          "state": "active",
+          "share": 0.1538,
+          "current": {
+            "completedAmount": 20000.0,
+            "completedCount": 2,
+            "averageTicket": 10000.0
+          },
+          "previous": {
+            "completedAmount": 0.0,
+            "completedCount": 0,
+            "averageTicket": null
+          },
+          "estimated": false
+        }
+      ],
+      "byChannel": [
+        {
+          "key": "salon",
+          "label": null,
+          "state": "active",
+          "share": 1.0,
+          "current": {
+            "completedAmount": 130000.0,
+            "completedCount": 12,
+            "averageTicket": 10833.0
+          },
+          "previous": {
+            "completedAmount": 0.0,
+            "completedCount": 0,
+            "averageTicket": null
+          },
+          "estimated": false
+        }
+      ]
+    }
+  ]
+}

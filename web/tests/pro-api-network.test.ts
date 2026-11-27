@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as pro from '../lib/api/pro';
+import { revenueQuery } from '../lib/pro/revenue';
 
 /// docs/design/web-pro-network-failure.md §2 — a wrapper of `lib/api/pro.ts`
 /// never throws. A dropped connection is status 0 (or `ok: false`), and the
@@ -46,6 +47,17 @@ const ROWS: Row[] = [
   { name: 'getSalonSubscription', kind: 'read', call: () => pro.getSalonSubscription('p1') },
   { name: 'getDashboard', kind: 'read', call: () => pro.getDashboard('p1') },
   { name: 'getEarnings', kind: 'read', call: () => pro.getEarnings('p1', null) },
+  // « Revenus » (docs/design/pro-revenue-analytics.md §7, R4).
+  {
+    name: 'getRevenueAnalytics',
+    kind: 'read',
+    call: () => pro.getRevenueAnalytics('p1', revenueQuery()),
+  },
+  {
+    name: 'getRevenueLedger',
+    kind: 'read',
+    call: () => pro.getRevenueLedger('p1', revenueQuery(), { status: 'completed' }),
+  },
   { name: 'getDepositPolicy', kind: 'read', call: () => pro.getDepositPolicy('p1') },
   { name: 'getTeamMembers', kind: 'read', call: () => pro.getTeamMembers() },
   { name: 'getMyInvitations', kind: 'read', call: () => pro.getMyInvitations() },

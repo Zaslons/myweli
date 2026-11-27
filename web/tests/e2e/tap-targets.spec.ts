@@ -425,6 +425,8 @@ const TAB_STRIPS: {
   { name: 'strip #3 — catalogue', url: '/pro/catalogue', auth: 'pro', tab: 'Services', inactive: 'Employés' },
   { name: 'strip #4 — médias', url: '/pro/medias', auth: 'pro', tab: 'Photos', inactive: 'Avant / Après' },
   { name: 'strip #5 — the account booking tabs', url: '/mon-compte', auth: 'consumer', tab: 'À venir', inactive: 'Annulés' },
+  // « Revenus » (pro-revenue-analytics.md §12.3, R4): « Répartition »'s tabs.
+  { name: 'strip #6 — « Revenus », Répartition', url: '/pro/revenus', auth: 'pro', tab: 'Collaborateurs', inactive: 'Canaux' },
 ];
 
 for (const strip of TAB_STRIPS) {

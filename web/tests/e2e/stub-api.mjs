@@ -580,6 +580,172 @@ const isPro = (req) => (req.headers.authorization || '').includes('pro');
 // the bridge session) stays OWNER-shaped so the pre-R5b e2e are untouched.
 // NB: a refresh would rotate to the owner token (pro-access-2) — irrelevant
 // here because a 403 never triggers the BFF refresh (401 only).
+// ── « Revenus » analytics (R4) — the stub's calendar and fixed bookings ──────
+const REVENUE_BOOKINGS = [
+  // `pappt1` is the owner list's booking, so a ledger row opens a real page.
+  { id: 'pappt1', artistId: 'a1', serviceId: 's1', channel: 'app', amount: 35000, ledger: 'completed', client: 'Fatou B.' },
+  { id: 'rev-2', artistId: 'a2', serviceId: 's2', channel: 'salon', amount: 15000, ledger: 'completed', client: 'Mariam K.' },
+  { id: 'rev-3', artistId: 'a1', serviceId: 's1', channel: 'web', amount: 15000, ledger: 'toClose', client: 'Aïcha T.' },
+];
+const REVENUE_ARTISTS = { a1: 'Awa', a2: 'Binta' };
+const REVENUE_SERVICES = { s1: 'Tresses', s2: 'Soin visage' };
+const DAY_MS = 86_400_000;
+// Day keys through the stub's clock seam (stub-clock.test.ts pins it).
+const dayKey = (ms) => stubDayKey(new Date(ms));
+const dayMs = (key) => Date.parse(`${key}T00:00:00.000Z`);
+
+/// §3.5 on the harness's UTC clock: the period around `date` (or today).
+function revenuePeriod(q) {
+  const today = stubDayKey();
+  const kind = q.get('period');
+  if (kind === 'custom') {
+    const from = q.get('from');
+    const to = q.get('to');
+    if (!from || !to || to < from) return null;
+    return { kind, from, to, today };
+  }
+  const date = q.get('date') ?? today;
+  const ms = dayMs(date);
+  if (Number.isNaN(ms)) return null;
+  const d = new Date(ms);
+  if (kind === 'day') return { kind, from: date, to: date, today };
+  if (kind === 'week') {
+    const monday = ms - ((d.getUTCDay() + 6) % 7) * DAY_MS;
+    return { kind, from: dayKey(monday), to: dayKey(monday + 6 * DAY_MS), today };
+  }
+  if (kind === 'month') {
+    const y = d.getUTCFullYear();
+    const m = d.getUTCMonth();
+    return { kind, from: dayKey(Date.UTC(y, m, 1)), to: dayKey(Date.UTC(y, m + 1, 0)), today };
+  }
+  if (kind === 'year') {
+    const y = d.getUTCFullYear();
+    return { kind, from: `${y}-01-01`, to: `${y}-12-31`, today };
+  }
+  return null;
+}
+
+function revenueLedgerRow(b) {
+  return {
+    appointmentId: b.id,
+    appointmentDate: `${TODAY}T09:00:00.000Z`,
+    status: b.ledger === 'completed' ? 'completed' : 'confirmed',
+    amount: b.amount,
+    totalPrice: b.amount,
+    currency: 'XOF',
+    clientDisplayName: b.client,
+    serviceNames: [REVENUE_SERVICES[b.serviceId]],
+    artistLabel: REVENUE_ARTISTS[b.artistId],
+    artistState: 'active',
+    channel: b.channel,
+    estimated: false,
+  };
+}
+
+function revenueAnswer(period, compare, filters, rows) {
+  const days = Math.round((dayMs(period.to) - dayMs(period.from)) / DAY_MS) + 1;
+  const done = rows.filter((b) => b.ledger === 'completed');
+  const amount = done.reduce((s, b) => s + b.amount, 0);
+  const figures = (completed) => ({
+    completedAmount: completed.reduce((s, b) => s + b.amount, 0),
+    completedCount: completed.length,
+    averageTicket: completed.length ? Math.round(completed.reduce((s, b) => s + b.amount, 0) / completed.length) : null,
+    upcomingAmount: 0,
+    upcomingCount: 0,
+    pendingAmount: 0,
+    pendingCount: 0,
+    toCloseAmount: rows.filter((b) => b.ledger === 'toClose').reduce((s, b) => s + b.amount, 0),
+    toCloseCount: rows.filter((b) => b.ledger === 'toClose').length,
+    noShowAmount: 0,
+    noShowCount: 0,
+    noShowRate: completed.length ? 0 : null,
+    cancelledAmount: 0,
+    cancelledCount: 0,
+    estimated: false,
+  });
+  const byKey = (key, label) => {
+    const groups = new Map();
+    for (const b of done) groups.set(b[key], [...(groups.get(b[key]) ?? []), b]);
+    return [...groups.entries()]
+      .map(([k, bs]) => {
+        const total = bs.reduce((s, b) => s + b.amount, 0);
+        return {
+          key: k,
+          label: label ? label[k] : null,
+          state: 'active',
+          share: amount ? total / amount : 0,
+          current: { completedAmount: total, completedCount: bs.length, averageTicket: Math.round(total / bs.length) },
+          previous: null,
+          estimated: false,
+        };
+      })
+      .sort((a, b) => b.current.completedAmount - a.current.completedAmount);
+  };
+  // One bucket per day (≤ 31 days), else per month; the completed amount on
+  // the period's first day.
+  const series = [];
+  if (days <= 31) {
+    for (let i = 0; i < days; i++) {
+      const k = dayKey(dayMs(period.from) + i * DAY_MS);
+      series.push({ start: k, end: k, completedAmount: i === 0 ? amount : 0, completedCount: i === 0 ? done.length : 0 });
+    }
+  } else {
+    let cursor = dayMs(period.from);
+    while (cursor <= dayMs(period.to)) {
+      const d = new Date(cursor);
+      const end = Math.min(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0), dayMs(period.to));
+      series.push({
+        start: dayKey(cursor),
+        end: dayKey(end),
+        completedAmount: series.length === 0 ? amount : 0,
+        completedCount: series.length === 0 ? done.length : 0,
+      });
+      cursor = end + DAY_MS;
+    }
+  }
+  const label = filters.artistId
+    ? REVENUE_ARTISTS[filters.artistId] ?? null
+    : filters.serviceId
+      ? REVENUE_SERVICES[filters.serviceId] ?? null
+      : null;
+  return {
+    period: period.kind,
+    from: period.from,
+    to: period.to,
+    inProgress: period.from <= period.today && period.today <= period.to,
+    timezone: 'Africa/Abidjan',
+    asOf: new Date().toISOString(),
+    bucket: days <= 31 ? 'day' : 'month',
+    comparison:
+      compare === 'none'
+        ? { mode: 'none', from: null, to: null, likeForLike: false, cutoff: null }
+        : {
+            mode: compare,
+            from: dayKey(dayMs(period.from) - days * DAY_MS),
+            to: dayKey(dayMs(period.from) - DAY_MS),
+            likeForLike: false,
+            cutoff: null,
+          },
+    filters: {
+      ...filters,
+      label,
+      state: filters.artistId || filters.serviceId || filters.channel ? 'active' : null,
+    },
+    everCompleted: true,
+    groups: [
+      {
+        currency: 'XOF',
+        current: figures(done),
+        previous: figures([]),
+        series,
+        byArtist: filters.artistId ? [] : byKey('artistId', REVENUE_ARTISTS),
+        byService: filters.serviceId ? [] : byKey('serviceId', REVENUE_SERVICES),
+        byChannel: filters.channel ? [] : byKey('channel', null),
+      },
+    ],
+  };
+}
+
 function roleOf(req) {
   const auth = req.headers.authorization || '';
   // The rejoin gate's former members: revoked until their invitation is
@@ -2148,6 +2314,44 @@ createServer(async (req, res) => {
       });
     }
     return json(res, 202, { validation: validationViewOf(id, role) });
+  }
+  // « Revenus » analytics (docs/design/pro-revenue-analytics.md §7, R4).
+  // Owner only: every other role is refused as the backend's finances.view
+  // gate refuses it. The calendar is resolved like the server's (§3.5) on
+  // the harness's UTC clock; the figures are fixed — two completed bookings
+  // (Awa, Tresses, 35 000 · Binta, Soin visage, 15 000), one to close — and a
+  // period that has not begun has completed nothing.
+  if (url.pathname.match(/^\/providers\/[^/]+\/analytics\/revenue(\/appointments)?$/)) {
+    if (roleOf(req) !== 'owner') return json(res, 403, { error: 'forbidden' });
+    const q = url.searchParams;
+    const period = revenuePeriod(q);
+    if (!period) return json(res, 400, { error: 'invalid_input' });
+    const filters = {
+      artistId: q.get('artistId'),
+      serviceId: q.get('serviceId'),
+      channel: q.get('channel'),
+    };
+    const rows = REVENUE_BOOKINGS.filter(
+      (b) =>
+        (!filters.artistId || b.artistId === filters.artistId) &&
+        (!filters.serviceId || b.serviceId === filters.serviceId) &&
+        (!filters.channel || b.channel === filters.channel),
+    );
+    const started = period.from <= period.today;
+    if (url.pathname.endsWith('/appointments')) {
+      const status = q.get('status') ?? 'completed';
+      const page = Number(q.get('page') ?? 1);
+      const size = Number(q.get('pageSize') ?? 20);
+      const items = started ? rows.filter((b) => b.ledger === status) : [];
+      return json(res, 200, {
+        items: items.slice((page - 1) * size, page * size).map(revenueLedgerRow),
+        page,
+        pageSize: size,
+        total: items.length,
+        asOf: q.get('asOf') ?? new Date().toISOString(),
+      });
+    }
+    return json(res, 200, revenueAnswer(period, q.get('compare') ?? 'previous', filters, started ? rows : []));
   }
   // revenus (parity 9.1) — realized ledger, optional inclusive range.
   if (url.pathname.match(/^\/providers\/[^/]+\/earnings$/)) {

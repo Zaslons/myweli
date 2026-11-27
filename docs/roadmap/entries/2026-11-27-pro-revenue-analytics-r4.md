@@ -1,0 +1,25 @@
+- 🟡 **Site, espace pro : la page « Revenus » devient les analyses de revenus du salon — R4 (site · 2026-11-27 — BACKLOG B17.4, décisions 238, 244, 246).** PR #900, branche `feat/web-revenue-r4`. Spec : [pro-revenue-analytics.md](../../design/pro-revenue-analytics.md) §5, §12, §13.3 et, telle que construite, §22.
+  - **Pourquoi :** le même écran que l'application (R3), sur le site, pour le propriétaire qui gère son salon depuis un ordinateur : ce que rapporte chaque collaborateur, chaque prestation et chaque canal, comparé à la période d'avant ou à l'an dernier. Le serveur (R2, en production depuis le 26 novembre) calcule tout ; le site ne fait qu'afficher. Rien ne change côté serveur.
+  - **Ce qui change sur le site :**
+    - **Les périodes :** Jour, Semaine, Mois, Année ou deux dates au choix (366 jours au plus), avec ‹ › et les flèches ← → du clavier, et « Comparer à ». L'adresse garde la période, l'onglet et le tri : un lien se partage, un rechargement ou le bouton Retour reviennent au même endroit.
+    - **Les chiffres :** Réalisé, Rendez-vous terminés, Panier moyen, Taux d'absence, Prévu, chacun avec sa variation (une flèche et un signe, jamais la couleur seule), et le bandeau « À clôturer » avec « Voir ».
+    - **« Évolution » :** un graphique sans bibliothèque. La souris ou le doigt choisit un jour ; au clavier, les flèches passent d'une barre à l'autre et un lecteur d'écran lit chacune ; « Voir les données » le donne en tableau.
+    - **« Répartition » :** un tableau par collaborateur, prestation ou canal, trié par montant, nombre de rendez-vous ou nom, et « Exporter (CSV) », qui s'ouvre dans Excel, sans aucun nom de client. Chaque ligne ouvre son détail ; dans un détail, on peut encore ouvrir une ligne (une prestation d'un collaborateur, par exemple).
+    - **Les rendez-vous derrière les chiffres :** les cinq derniers terminés, puis la liste par filtre (Terminés, À venir, À clôturer, Absents, Annulés), par pages de 20 avec « Afficher plus ». Chaque ligne ouvre le rendez-vous.
+    - **L'Accueil :** les trois cartes « Revenus prévus » (aujourd'hui, cette semaine, ce mois) ouvrent « Revenus » sur leur période.
+    - **Supprimés :** l'ancien total et « Tout ». L'export « Exporter mes données » ne change pas.
+  - **Ce qui est dit, et ce qui ne l'est jamais :** les montants sont groupés par devise, jamais additionnés entre devises. Aucun texte ne dit « encaissé », « paiements reçus » ni « chiffre d'affaires » ; le seul « encaiss » est la note « MyWeli n'encaisse rien ».
+  - **Qui le voit :** le propriétaire seul. Un autre rôle qui ouvre l'adresse lit « Réservé au propriétaire », sans barre de période ni « Réessayer ».
+  - **Vingt-deux précisions à la spec, aucune décision changée** (§22.1) — quinze d'abord, dont trois trouvées en vérifiant, puis sept venues de la relecture indépendante (ci-dessous) :
+    - le scanner d'accessibilité (axe) a vu le titre de la page lu à voix haute à l'arrivée sur un détail : la page réécrivait l'adresse en y ajoutant le salon. Elle ne la réécrit plus quand ce n'est pas utile ;
+    - sur le vrai serveur, la variation d'une ligne se faisait lire deux fois (« stable, stable par rapport à… ») : elle ne se lit plus qu'une fois ;
+    - une ligne dont l'identifiant serait refusé par le serveur n'ouvre plus de détail (vu sur les données de test locales).
+  - **Vérifié :**
+    - **sur le vrai serveur :** le site construit contre le serveur de `main` lancé en local (base jetable, salon de démo avec ses trois collaborateurs et l'agenda de la vraie réinitialisation), dans le navigateur intégré. Mêmes chiffres que l'application R3 sur ces données ; « Voir » → le rendez-vous à clôturer → « Terminé » → retour : le bandeau a disparu, « Réalisé » passe de 70 000 à 80 000 FCFA, et 80 000 + 20 000 de « Prévu » = les 100 000 de l'Accueil. Serveur, site et base arrêtés et supprimés après ;
+    - les réponses réelles de ce serveur sont lues en test, et leurs versions abîmées refusées (jamais une page de zéros) ;
+    - chaque état de la page, la période, le clavier, l'adresse, le graphique, les tableaux, le CSV, le détail, le registre, les cartes de l'Accueil, les textes sans « encaissé » ;
+    - de bout en bout (Playwright) : le parcours propriétaire, le refus pour un Manager, l'accessibilité (axe) des trois pages, la taille des cibles, aucun débordement à 320 et 375 de large ;
+    - la suite web complète, le typage et le lint ;
+    - **une relecture indépendante du code, chargée de le réfuter** : sept défauts trouvés, tous corrigés dans la même PR (§22.1, points 16 à 22). Entre autres : le graphique bloquait le défilement vertical au doigt ; ‹ › faisaient perdre le focus clavier ; le registre ouvert depuis un détail dans un détail revenait sur la page miroir ; un test du registre ne lisait que des squelettes de chargement ;
+    - **47 mutations, chacune rouge sur le test attendu** (spec §22.4), dont une par défaut de la relecture ; une modification témoin est restée verte.
+  - **Reste :** votre relecture et la fusion, qui met la page en ligne sur le site.

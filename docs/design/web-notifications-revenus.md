@@ -45,6 +45,11 @@ rendez-vous sont toujours envoyés. »
 
 ## 3. Pro « Revenus » (9.1) — `/pro/revenus` (+ 9.2 week card)
 
+> **Superseded 2026-11-27 by R4** ([pro-revenue-analytics.md](pro-revenue-analytics.md)
+> §5, §22): `/pro/revenus` is now the salon's revenue analytics, and « Tout »
+> left (Q8). The section below is kept as history; the home's three cards
+> now open « Revenus » on their period.
+
 Mirrors the app's `earnings_screen`: period tabs **Aujourd'hui · Semaine ·
 Mois · Tout** (semaine = Monday-start, same ranges as the app) → total card
 (`formatFcfa`, realized/completed only) → transaction rows (date · montant).

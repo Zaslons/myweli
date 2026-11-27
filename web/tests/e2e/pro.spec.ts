@@ -1029,7 +1029,13 @@ test('go-live: le brouillon complet demande sa mise en ligne (pro-salon-lifecycl
   }
 });
 
-test('revenus: total + ledger + period tabs (parity 9.1)', async ({ page }) => {
+/// « Revenus » (docs/design/pro-revenue-analytics.md §5, §13.3, R4): the
+/// owner opens it, steps the period with the keyboard, opens a collaborateur,
+/// then the bookings behind the figure, then one booking — and Back returns
+/// through each, on the same period.
+test('revenus: period ← →, a collaborateur, the ledger, a booking, and Back keeps the period', async ({
+  page,
+}) => {
   await page.goto('/pro/connexion');
   await page.locator('input[type=email]').fill('salon@example.com');
   await page.getByRole('button', { name: 'Continuer avec e-mail' }).click();
@@ -1037,24 +1043,49 @@ test('revenus: total + ledger + period tabs (parity 9.1)', async ({ page }) => {
   await page.getByRole('button', { name: 'Se connecter' }).click();
   await expect(page).toHaveURL(/\/pro(\/)?$/);
 
-  await page.getByRole('link', { name: 'Revenus' }).click();
-  await expect(page).toHaveURL(/\/pro\/revenus/);
+  // `exact`: the Accueil's money cards open « Revenus » too, and their names
+  // carry the word (« … Revenus prévus ce mois »).
+  await page.getByRole('link', { name: 'Revenus', exact: true }).click();
+  await expect(page).toHaveURL(/\/pro\/revenus$/);
+  const month = page.getByRole('heading', { level: 2 }).first();
+  await expect(month).toHaveText(/^[A-ZÉ][a-zéû]+ \d{4}$/);
+  const current = await month.textContent();
+  // The stub's two completed bookings: 35 000 + 15 000.
+  await expect(page.getByText(/^Réalisé : 50\s000 FCFA/)).toBeAttached();
 
-  // « Tout » (default): the three stub transactions → 37 000 FCFA, under a
-  // label that says what it counts (provider-earnings.md §12).
-  // `exact`: the page's lead line also contains « rendez-vous terminés ».
-  await expect(page.getByText('Total réalisé', { exact: true })).toBeVisible();
-  await expect(
-    page.getByText('Rendez-vous terminés', { exact: true }),
-  ).toBeVisible();
-  await expect(page.getByText(/37\s000\sFCFA/)).toBeVisible();
+  // ← steps back a month (the address says it), → returns. The steps are
+  // computed from the server's answer (§3.5): until it lands, the arrows
+  // wait — as the buttons do, disabled.
+  const next = page.getByRole('button', { name: 'Période suivante' });
+  await expect(next).toBeEnabled();
+  await page.locator('body').press('ArrowLeft');
+  await expect(page).toHaveURL(/\?date=\d{4}-\d{2}-01$/);
+  await expect(month).not.toHaveText(current ?? '');
+  await expect(next).toBeEnabled();
+  await page.locator('body').press('ArrowRight');
+  await expect(page).toHaveURL(/\/pro\/revenus\?date=/);
+  await expect(month).toHaveText(current ?? '');
+  await expect(next).toBeEnabled();
 
-  // « Aujourd'hui » narrows to today's two transactions (15 000 + the 23:30
-  // salon-day-boundary probe — timezone-salon-time.md §8: device-local
-  // bucketing used to drop it on non-UTC machines).
-  await page.getByRole('button', { name: 'Aujourd’hui' }).click();
-  await expect(page.getByText(/17\s000\sFCFA/).first()).toBeVisible();
-  await expect(page.getByText(/37\s000\sFCFA/)).toBeHidden();
+  // A collaborateur's detail.
+  await page.getByRole('link', { name: 'Ouvrir le détail : Awa' }).click();
+  await expect(page).toHaveURL(/\/pro\/revenus\/collaborateurs\/a1\?/);
+  await expect(page.getByRole('heading', { level: 1, name: 'Awa' })).toBeVisible();
+  await expect(page.getByText(/^Réalisé : 35\s000 FCFA/)).toBeAttached();
+
+  // The bookings behind it, then one of them.
+  await page.getByRole('link', { name: 'Voir tout (1)' }).click();
+  await expect(page).toHaveURL(/\/pro\/revenus\/rendez-vous\?.*collaborateur=a1/);
+  await expect(page.getByRole('heading', { level: 1, name: 'Rendez-vous' })).toBeVisible();
+  await page.getByRole('link', { name: /^Ouvrir le rendez-vous du / }).click();
+  await expect(page).toHaveURL(/\/pro\/rendez-vous\/pappt1\?salon=p1/);
+
+  // Back, Back: the collaborateur, on the period it was opened on.
+  await page.goBack();
+  await expect(page.getByRole('heading', { level: 1, name: 'Rendez-vous' })).toBeVisible();
+  await page.goBack();
+  await expect(page.getByRole('heading', { level: 1, name: 'Awa' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 2 }).first()).toHaveText(current ?? '');
 });
 
 // LAST test in the file: it ends the pro session (stateless stub login —
