@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
+import 'package:myweli/core/theme/text_styles.dart';
+import 'package:myweli/core/utils/formatters.dart';
 import 'package:myweli/providers/auth_provider.dart';
 import 'package:myweli/providers/pro_auth_provider.dart';
 import 'package:myweli/screens/auth/login_screen.dart';
@@ -138,4 +140,63 @@ void main() {
       });
     });
   }
+
+  // The gate's own falsifiers: each wrong drawing must fail it, and for ITS
+  // reason. On correct code a check has nothing to catch, so without these a
+  // check could be deleted and every test above stay green (the mutation run
+  // found exactly that for the seam check).
+  group('expectEmailAddressOnItsOwnLine fails a wrong drawing', () {
+    Future<void> draw(WidgetTester tester, String text) => pumpAtWidth(
+      tester,
+      width: 360,
+      scale: 2,
+      home: Scaffold(
+        // The product's size: at the theme's default 14 px, « koffi.yao@gmail.com »
+        // fits a line and there is no break to judge.
+        body: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text(text, style: AppTextStyles.bodyLarge),
+        ),
+      ),
+    );
+
+    void fails(WidgetTester tester, String address, String because) => expect(
+      () => expectEmailAddressOnItsOwnLine(tester, address, 'instrument'),
+      throwsA(
+        isA<TestFailure>().having(
+          (e) => e.message,
+          'message',
+          contains(because),
+        ),
+      ),
+    );
+
+    testWidgets('cut inside a word', (tester) async {
+      await draw(tester, long);
+      fails(tester, long, 'being broken mid-word');
+    });
+
+    testWidgets('broken at the wrong seam: « .com » orphaned', (tester) async {
+      await draw(tester, 'koffi\u200B.yao\u200B@gmail\u200B.com');
+      fails(tester, seam, 'breaks between');
+    });
+
+    testWidgets('started on the line the sentence began', (tester) async {
+      await draw(
+        tester,
+        'Entrez le code reçu par e-mail à aminata\u200B.kone\u200B@exemple.ci',
+      );
+      fails(tester, long, 'starts on the line');
+    });
+
+    testWidgets('a period drawn after it', (tester) async {
+      await draw(tester, 'awa\u200B@exemple.ci.');
+      fails(tester, short, 'is drawn after');
+    });
+
+    testWidgets('control: the app\'s own marks pass', (tester) async {
+      await draw(tester, Formatters.breakableEmail(seam));
+      expectEmailAddressOnItsOwnLine(tester, seam, 'instrument');
+    });
+  });
 }
