@@ -310,8 +310,13 @@ Future<void> pumpPushedAtWidth(
 /// space) and U+FEFF — the very characters whose job is to forbid a break.
 /// French numbers are grouped with U+202F, so `\s` cut every amount into
 /// three-digit « words ».
+///
+/// **U+200B, the zero-width space, is one** (UAX #14 LB8: the engine breaks
+/// after it, and draws nothing). The app places it where an e-mail address may
+/// break (`Formatters.breakableEmail`, §13.3); read on the engine 2026-11-27 —
+/// « à a​.kone​@exemple​.ci. » broke at « a.kone » / « @exemple.ci. ».
 final RegExp _kBreakOpportunity = RegExp(
-  '[\\u0009-\\u000D\\u0020\\u1680\\u2000-\\u2006\\u2008-\\u200A'
+  '[\\u0009-\\u000D\\u0020\\u1680\\u2000-\\u2006\\u2008-\\u200B'
   '\\u2028\\u2029\\u205F\\u3000]+',
 );
 
@@ -422,6 +427,112 @@ void expectNoMidWordBreak(WidgetTester tester, String text, String at) {
         'every rendering of « $text » at $at is maxLines:1, so '
         'expectNoMidWordBreak asserted nothing — use expectNoLegibilityCrush',
   );
+}
+
+/// U+200B: where the app lets an e-mail address break ([_kBreakOpportunity]).
+const String _kZeroWidthSpace = '​';
+
+/// Fails unless the e-mail [address] is drawn on a line of its own and breaks
+/// only at its seams (SYSTEM.md §13.3): **before its « @ », or before a « . »
+/// of its name part** — never inside the domain, never inside a name. A hyphen
+/// stays the engine's own legal break (« @entreprise- » / « abidjan.ci »).
+///
+/// **Why [expectNoMidWordBreak] alone is not enough**, and it is run first, on
+/// each paragraph that draws the address:
+/// - it cannot see the wrong seam. Break points before EVERY « . » keep each
+///   piece whole, and the engine, greedy, orphans the domain's end —
+///   « koffi.yao@gmail » / « .com » (measured 2026-11-27);
+/// - it cannot see where the address starts. Inline after « à », the engine
+///   moves an address that fits a line to the next one whole — so a short
+///   address was never broken — and starts one that does not fit on the line
+///   the sentence began: « par e-mail à aminata. » / « kone@exemple.ci. ».
+///
+/// **Nothing is drawn after it**: the sentence's period belongs to what a
+/// screen reader hears, not to the line a user reads the address from.
+///
+/// Found by what the user sees, not by widget: every painted paragraph whose
+/// text, its U+200B removed, holds [address].
+void expectEmailAddressOnItsOwnLine(
+  WidgetTester tester,
+  String address,
+  String at,
+) {
+  final drawn = [
+    for (final p
+        in tester.allRenderObjects.whereType<RenderParagraph>().toSet())
+      if (p.hasSize &&
+          _isPainted(p) &&
+          p.text
+              .toPlainText()
+              .replaceAll(_kZeroWidthSpace, '')
+              .contains(address))
+        p,
+  ];
+  expect(
+    drawn,
+    isNotEmpty,
+    reason: 'C: « $address » is not on screen at $at, so this asserts nothing',
+  );
+
+  final atSign = address.lastIndexOf('@');
+  for (final p in drawn) {
+    final raw = p.text.toPlainText();
+    expectNoMidWordBreak(tester, raw, at);
+
+    // The drawn characters, U+200B left out, each with its line's top.
+    final visible = [
+      for (var i = 0; i < raw.length; i++)
+        if (raw[i] != _kZeroWidthSpace) i,
+    ];
+    final shown = visible.map((i) => raw[i]).join();
+    double lineOf(int k) => p
+        .getBoxesForSelection(
+          TextSelection(baseOffset: visible[k], extentOffset: visible[k] + 1),
+        )
+        .first
+        .top;
+    bool sameLine(int a, int b) => (lineOf(a) - lineOf(b)).abs() < 1;
+
+    final from = shown.indexOf(address);
+    final to = from + address.length;
+
+    final before = shown.substring(0, from).trimRight();
+    if (before.isNotEmpty) {
+      expect(
+        sameLine(before.length - 1, from),
+        isFalse,
+        reason:
+            '« $address » starts on the line « $before » began, at $at: the '
+            'address belongs on a line of its own (§13.3)',
+      );
+    }
+
+    final after = shown.substring(to).trim();
+    expect(
+      after,
+      isEmpty,
+      reason:
+          '« $after » is drawn after « $address » at $at: the address ends '
+          'its line; the sentence\'s period is the screen reader\'s alone',
+    );
+
+    for (var k = from + 1; k < to; k++) {
+      if (sameLine(k - 1, k)) continue;
+      final inName = k - from < atSign;
+      final seam =
+          k - from == atSign ||
+          (shown[k] == '.' && inName) ||
+          shown[k - 1] == '-';
+      expect(
+        seam,
+        isTrue,
+        reason:
+            '« $address » breaks between « ${shown.substring(from, k)} » and '
+            '« ${shown.substring(k, to)} » at $at: an address breaks only '
+            'before its « @ » or a « . » of its name part (§13.3)',
+      );
+    }
+  }
 }
 
 /// Characters that glue their neighbours together: the engine never breaks a

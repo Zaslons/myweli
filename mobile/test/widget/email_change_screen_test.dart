@@ -690,8 +690,60 @@ void main() {
     await openProfile(tester, by: byCode(own), realFont: true);
 
     expectNoMidWordBreak(tester, 'Adresse e-mail', '360 × 2×');
-    expectNoMidWordBreak(tester, own, '360 × 2×');
+    expectEmailAddressOnItsOwnLine(tester, own, '360 × 2×');
     expectNoMidWordBreak(tester, 'Modifier', '360 × 2×');
+  });
+
+  // An address wider than the line (« aminata.kone.N@exemple.ci », ≈ 410 px
+  // of 312) was cut where the line ran out — « awa.kone@exemple. » / « ci »
+  // in the first golden. It breaks before its « @ » now (§13.3), which every
+  // name part and domain here fits beside.
+  testWidgets('at 200 % text on 360 dp, a long address in the row breaks '
+      'at its « @ »', (tester) async {
+    tester.view.physicalSize = const Size(360, 740);
+    tester.view.devicePixelRatio = 1;
+    tester.platformDispatcher.textScaleFactorTestValue = 2;
+    addTearDown(tester.view.reset);
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    final own = address('aminata.kone');
+    await openProfile(tester, by: byCode(own), realFont: true);
+
+    expectEmailAddressOnItsOwnLine(tester, own, 'the row, 360 × 2×');
+  });
+
+  // docs/design/account-email-change.md §12: « Entrez le code reçu par e-mail
+  // à {adresse}. » started a long address on the line « à » began and cut it
+  // where the line ran out (« à awa.kon » / « e.nouvelle@exemple. » / « ci. »
+  // in B16.3b's golden). Each address now owns a line, breaks only at its
+  // seams, and a screen reader hears the sentence it always heard.
+  testWidgets('at 200 % text on 360 dp, the code step\'s two addresses each '
+      'own a line', (tester) async {
+    tester.view.physicalSize = const Size(360, 1600);
+    tester.view.devicePixelRatio = 1;
+    tester.platformDispatcher.textScaleFactorTestValue = 2;
+    addTearDown(tester.view.reset);
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    final handle = tester.ensureSemantics();
+    final old = address('aminata.kone');
+    final next = address('awa.nouvelle');
+    await openProfile(tester, by: byCode(old), realFont: true);
+    await openChange(tester);
+    await requestFor(tester, next);
+    expect(field(currentCode), findsOneWidget);
+
+    expectEmailAddressOnItsOwnLine(tester, next, 'the new address, 360 × 2×');
+    expectEmailAddressOnItsOwnLine(tester, old, 'the current one, 360 × 2×');
+    expect(
+      find.bySemanticsLabel('Entrez le code reçu par e-mail à $next.'),
+      findsOneWidget,
+    );
+    expect(
+      find.bySemanticsLabel(
+        'Entrez le code reçu à votre adresse actuelle, $old.',
+      ),
+      findsOneWidget,
+    );
+    handle.dispose();
   });
 
   testWidgets('at 200 % text on 360 dp, « Confirmer » stays reachable', (
