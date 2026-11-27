@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
@@ -254,6 +255,11 @@ void main() {
       expect(circles.circles.single.useRadiusInMeter, isTrue);
       expect(text(_ask), findsNothing);
       expect(await explained(), isTrue);
+      // Approximate is enough to centre a map (decision 275).
+      expect(
+        phone.positionSettings?['accuracy'],
+        LocationAccuracy.medium.index,
+      );
     });
 
     testWidgets('an approximate position: the camera frames its circle', (
@@ -441,6 +447,29 @@ void main() {
       phone.service = false;
       await leaveAndReturn(tester);
       expect(text(_offAndroid), findsOneWidget);
+    });
+
+    testWidgets('a resume before the app left is not the return', (
+      tester,
+    ) async {
+      phone.requests = [FakePhoneLocation.deniedForever];
+      await pumpMap(tester);
+      await tap(tester, 'Activer');
+      await tap(tester, 'Ouvrir les réglages');
+      final before = phone.calls.length;
+      phone.check = FakePhoneLocation.whileInUse;
+      for (final state in [
+        AppLifecycleState.inactive,
+        AppLifecycleState.resumed,
+      ]) {
+        tester.binding.handleAppLifecycleStateChanged(state);
+      }
+      await settle(tester);
+      expect(phone.calls.length, before, reason: 'the Settings never opened');
+      expect(text(_blocked), findsOneWidget);
+      // It still waits for the real return.
+      await leaveAndReturn(tester);
+      expect(dot(), findsOneWidget);
     });
 
     testWidgets('a return the map did not cause (the dialog closing) reads '
