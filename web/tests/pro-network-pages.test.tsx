@@ -30,6 +30,7 @@ import { SalonPreviewClient } from '../components/pro/SalonPreviewClient';
 import { VerificationClient } from '../components/pro/VerificationClient';
 import { NO_CONNECTION_MESSAGE } from '../lib/pro/team';
 import { resetLocalitiesClientCache } from '../lib/use-localities';
+import { analytics as revenueAnswer } from './revenue-fixtures';
 
 /// docs/design/web-pro-network-failure.md §1/§10 — every Pro page that loads
 /// on arrival, under a dropped connection. Before: the read threw into a load
@@ -121,7 +122,7 @@ const PAGES: Page[] = [
     h1: 'Revenus',
     el: () => <RevenusClient />,
     message: 'Chargement impossible.',
-    reads: ['/api/pro/earnings'],
+    reads: ['/api/pro/revenue'],
   },
   {
     h1: 'Vérification',
@@ -267,13 +268,10 @@ describe('Pro pages — a later read is cut, after the page loaded', () => {
         if (path === '/api/pro/me') {
           return new Response(JSON.stringify(PROFILE), { status: 200 });
         }
-        if (path === '/api/pro/earnings') {
+        if (path === '/api/pro/revenue') {
           calls += 1;
           if (calls > 1) throw new TypeError('Failed to fetch');
-          return new Response(
-            JSON.stringify({ totalEarnings: 0, currency: 'XOF', transactions: [] }),
-            { status: 200 },
-          );
+          return new Response(JSON.stringify(revenueAnswer()), { status: 200 });
         }
         return new Response('{}', { status: 404 });
       }),

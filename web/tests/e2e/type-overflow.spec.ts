@@ -807,6 +807,20 @@ const AUTHED_ROUTES: Route[] = [
     auth: 'pro',
   },
   {
+    // pro-revenue-analytics.md §5.1, §4.12 (R4): the figures (an amount never
+    // breaks), the period bar, the chart, the tables that scroll in their box.
+    name: 'the pro « Revenus » — figures, period bar, chart and tables',
+    url: '/pro/revenus',
+    anchor: 'Revenus',
+    auth: 'pro',
+  },
+  {
+    name: 'the pro revenue ledger — five columns and its filters',
+    url: '/pro/revenus/rendez-vous',
+    anchor: 'Rendez-vous',
+    auth: 'pro',
+  },
+  {
     name: 'the pro KYC page — the uploaded filename appears nowhere else',
     url: '/pro/verification',
     anchor: 'Vérification',

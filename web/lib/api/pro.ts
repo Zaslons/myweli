@@ -23,6 +23,14 @@ import type { JournalDay } from '../pro/journal';
 import type { ReviewSummary } from '../pro/reviews';
 import type { ProAppointment } from '../pro/today';
 import type { EarningsData } from '../pro/earnings';
+import {
+  type RevenueAnalytics,
+  type RevenueLedgerPage,
+  type RevenueLedgerStatus,
+  type RevenueQuery,
+  revenueApiParams,
+} from '../pro/revenue';
+import { readRevenueAnalytics, readRevenueLedger } from '../pro/revenue-read';
 import { wholeClientBase } from '../pro/export';
 import type { AppNotification } from '../account/notifications';
 import type { SalonValidation } from '../pro/salon-validation';
@@ -628,6 +636,56 @@ export async function getEarnings(
     typeof earnings.totalEarnings === 'number'
     ? { status: 200, earnings: earnings as EarningsData }
     : { status: 0 };
+}
+
+// --- « Revenus » analytics (docs/design/pro-revenue-analytics.md §7, R4) ----
+
+/// The figures of one period (§7.1). `refused`: a 403 — the server's
+/// `finances.view` gate (or another salon's id); retrying cannot succeed
+/// (§4.11 « Access refused »). A 200 the strict reader refuses is status 0,
+/// as every pro read's unreadable 2xx (web-pro-network-failure.md §2).
+export async function getRevenueAnalytics(
+  providerId: string,
+  query: RevenueQuery,
+): Promise<{ status: number; analytics?: RevenueAnalytics; error?: string }> {
+  const qs = revenueApiParams(query);
+  qs.set('providerId', providerId);
+  const res = await send(`/api/pro/revenue?${qs.toString()}`);
+  if (!res.ok) {
+    const body = await readJson<{ error?: string }>(res);
+    return { status: res.status, error: body?.error };
+  }
+  const analytics = readRevenueAnalytics(await readJson<unknown>(res));
+  return analytics ? { status: 200, analytics } : { status: 0 };
+}
+
+/// The bookings behind the figures (§7.2), a page at a time. [asOf] is the
+/// figures' own instant, so « À clôturer » lists what the banner counted.
+export async function getRevenueLedger(
+  providerId: string,
+  query: RevenueQuery,
+  options: {
+    status: RevenueLedgerStatus;
+    page?: number;
+    pageSize?: number;
+    asOf?: string | null;
+  },
+): Promise<{ status: number; ledger?: RevenueLedgerPage; error?: string }> {
+  const qs = revenueApiParams(query);
+  // The ledger has no comparison (§7.2).
+  qs.delete('compare');
+  qs.set('providerId', providerId);
+  qs.set('status', options.status);
+  qs.set('page', String(options.page ?? 1));
+  qs.set('pageSize', String(options.pageSize ?? 20));
+  if (options.asOf) qs.set('asOf', options.asOf);
+  const res = await send(`/api/pro/revenue/appointments?${qs.toString()}`);
+  if (!res.ok) {
+    const body = await readJson<{ error?: string }>(res);
+    return { status: res.status, error: body?.error };
+  }
+  const ledger = readRevenueLedger(await readJson<unknown>(res));
+  return ledger ? { status: 200, ledger } : { status: 0 };
 }
 
 // --- profil + acompte (7.3e-i) ----------------------------------------------

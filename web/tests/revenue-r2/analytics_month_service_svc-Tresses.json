@@ -1,0 +1,273 @@
+{
+  "period": "month",
+  "from": "2026-11-01",
+  "to": "2026-11-30",
+  "inProgress": true,
+  "timezone": "Africa/Abidjan",
+  "asOf": "2026-11-27T09:05:54.053579Z",
+  "bucket": "day",
+  "comparison": {
+    "mode": "none",
+    "from": null,
+    "to": null,
+    "likeForLike": false,
+    "cutoff": null
+  },
+  "filters": {
+    "artistId": null,
+    "serviceId": "svc-Tresses",
+    "channel": null,
+    "label": "Tresses",
+    "state": "active"
+  },
+  "everCompleted": true,
+  "groups": [
+    {
+      "currency": "XOF",
+      "current": {
+        "completedAmount": 20000.0,
+        "completedCount": 2,
+        "averageTicket": 10000.0,
+        "upcomingAmount": 0.0,
+        "upcomingCount": 0,
+        "pendingAmount": 0.0,
+        "pendingCount": 0,
+        "toCloseAmount": 10000.0,
+        "toCloseCount": 1,
+        "noShowAmount": 0.0,
+        "noShowCount": 0,
+        "noShowRate": 0.0,
+        "cancelledAmount": 0.0,
+        "cancelledCount": 0,
+        "estimated": false
+      },
+      "previous": null,
+      "series": [
+        {
+          "start": "2026-11-01",
+          "end": "2026-11-01",
+          "completedAmount": 0.0,
+          "completedCount": 0
+        },
+        {
+          "start": "2026-11-02",
+          "end": "2026-11-02",
+          "completedAmount": 0.0,
+          "completedCount": 0
+        },
+        {
+          "start": "2026-11-03",
+          "end": "2026-11-03",
+          "completedAmount": 0.0,
+          "completedCount": 0
+        },
+        {
+          "start": "2026-11-04",
+          "end": "2026-11-04",
+          "completedAmount": 0.0,
+          "completedCount": 0
+        },
+        {
+          "start": "2026-11-05",
+          "end": "2026-11-05",
+          "completedAmount": 0.0,
+          "completedCount": 0
+        },
+        {
+          "start": "2026-11-06",
+          "end": "2026-11-06",
+          "completedAmount": 10000.0,
+          "completedCount": 1
+        },
+        {
+          "start": "2026-11-07",
+          "end": "2026-11-07",
+          "completedAmount": 0.0,
+          "completedCount": 0
+        },
+        {
+          "start": "2026-11-08",
+          "end": "2026-11-08",
+          "completedAmount": 0.0,
+          "completedCount": 0
+        },
+        {
+          "start": "2026-11-09",
+          "end": "2026-11-09",
+          "completedAmount": 0.0,
+          "completedCount": 0
+        },
+        {
+          "start": "2026-11-10",
+          "end": "2026-11-10",
+          "completedAmount": 0.0,
+          "completedCount": 0
+        },
+        {
+          "start": "2026-11-11",
+          "end": "2026-11-11",
+          "completedAmount": 0.0,
+          "completedCount": 0
+        },
+        {
+          "start": "2026-11-12",
+          "end": "2026-11-12",
+          "completedAmount": 0.0,
+          "completedCount": 0
+        },
+        {
+          "start": "2026-11-13",
+          "end": "2026-11-13",
+          "completedAmount": 0.0,
+          "completedCount": 0
+        },
+        {
+          "start": "2026-11-14",
+          "end": "2026-11-14",
+          "completedAmount": 0.0,
+          "completedCount": 0
+        },
+        {
+          "start": "2026-11-15",
+          "end": "2026-11-15",
+          "completedAmount": 0.0,
+          "completedCount": 0
+        },
+        {
+          "start": "2026-11-16",
+          "end": "2026-11-16",
+          "completedAmount": 0.0,
+          "completedCount": 0
+        },
+        {
+          "start": "2026-11-17",
+          "end": "2026-11-17",
+          "completedAmount": 0.0,
+          "completedCount": 0
+        },
+        {
+          "start": "2026-11-18",
+          "end": "2026-11-18",
+          "completedAmount": 0.0,
+          "completedCount": 0
+        },
+        {
+          "start": "2026-11-19",
+          "end": "2026-11-19",
+          "completedAmount": 0.0,
+          "completedCount": 0
+        },
+        {
+          "start": "2026-11-20",
+          "end": "2026-11-20",
+          "completedAmount": 0.0,
+          "completedCount": 0
+        },
+        {
+          "start": "2026-11-21",
+          "end": "2026-11-21",
+          "completedAmount": 0.0,
+          "completedCount": 0
+        },
+        {
+          "start": "2026-11-22",
+          "end": "2026-11-22",
+          "completedAmount": 10000.0,
+          "completedCount": 1
+        },
+        {
+          "start": "2026-11-23",
+          "end": "2026-11-23",
+          "completedAmount": 0.0,
+          "completedCount": 0
+        },
+        {
+          "start": "2026-11-24",
+          "end": "2026-11-24",
+          "completedAmount": 0.0,
+          "completedCount": 0
+        },
+        {
+          "start": "2026-11-25",
+          "end": "2026-11-25",
+          "completedAmount": 0.0,
+          "completedCount": 0
+        },
+        {
+          "start": "2026-11-26",
+          "end": "2026-11-26",
+          "completedAmount": 0.0,
+          "completedCount": 0
+        },
+        {
+          "start": "2026-11-27",
+          "end": "2026-11-27",
+          "completedAmount": 0.0,
+          "completedCount": 0
+        },
+        {
+          "start": "2026-11-28",
+          "end": "2026-11-28",
+          "completedAmount": 0.0,
+          "completedCount": 0
+        },
+        {
+          "start": "2026-11-29",
+          "end": "2026-11-29",
+          "completedAmount": 0.0,
+          "completedCount": 0
+        },
+        {
+          "start": "2026-11-30",
+          "end": "2026-11-30",
+          "completedAmount": 0.0,
+          "completedCount": 0
+        }
+      ],
+      "byArtist": [
+        {
+          "key": null,
+          "label": null,
+          "state": "unassigned",
+          "share": 0.5,
+          "current": {
+            "completedAmount": 10000.0,
+            "completedCount": 1,
+            "averageTicket": 10000.0
+          },
+          "previous": null,
+          "estimated": false
+        },
+        {
+          "key": "artist_adjoua",
+          "label": "Adjoua K.",
+          "state": "active",
+          "share": 0.5,
+          "current": {
+            "completedAmount": 10000.0,
+            "completedCount": 1,
+            "averageTicket": 10000.0
+          },
+          "previous": null,
+          "estimated": false
+        }
+      ],
+      "byService": [],
+      "byChannel": [
+        {
+          "key": "salon",
+          "label": null,
+          "state": "active",
+          "share": 1.0,
+          "current": {
+            "completedAmount": 20000.0,
+            "completedCount": 2,
+            "averageTicket": 10000.0
+          },
+          "previous": null,
+          "estimated": false
+        }
+      ]
+    }
+  ]
+}

@@ -1,99 +1,91 @@
-import { cleanup, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const replace = vi.fn();
-// Stable object: the client's init callback depends on [router].
-const routerMock = { replace };
-vi.mock('next/navigation', () => ({ useRouter: () => routerMock }));
+const routerMock = { replace: vi.fn(), push: vi.fn(), refresh: vi.fn(), back: vi.fn(), prefetch: vi.fn() };
+vi.mock('next/navigation', () => ({
+  useRouter: () => routerMock,
+  usePathname: () => window.location.pathname,
+  useSearchParams: () => new URLSearchParams(window.location.search),
+  useParams: () => ({}),
+}));
 
+import { RevenueLedgerClient } from '../components/pro/RevenueLedgerClient';
+import { RevenueDetailClient } from '../components/pro/RevenueDetailClient';
 import { RevenusClient } from '../components/pro/RevenusClient';
+import { ledger, r2, stubRevenueFetch } from './revenue-fixtures';
 
-/// « Revenus » says what its total counts (provider-earnings.md §12): the
-/// total is completed bookings only, while the home's « Revenus prévus … »
-/// cards also count confirmed ones. So the card reads « Total réalisé », the
-/// figure, then « Rendez-vous terminés » — the app's words — and nothing on
-/// the page says « encaissé »: MyWeli never sees a payment.
+/// « Revenus » never says MyWeli took a payment (docs/design/pro-revenue-
+/// analytics.md §4.10, §21.1 item 10; PRD OQ-1): no « encaissé »,
+/// « encaissement », « chiffre d'affaires », « paiements reçus ». The one
+/// « encaiss » on the page is the footnote's negation — « MyWeli n'encaisse
+/// rien ». Read on the R2 server's own answers, every tab.
 
-function mockFetch(transactions: unknown[], total: number) {
-  vi.stubGlobal(
-    'fetch',
-    vi.fn(async (url: string) => {
-      if (url === '/api/pro/me') {
-        return new Response(
-          JSON.stringify({
-            account: { id: 'acc-o', email: 'o@salon.test' },
-            provider: { id: 'p1', name: 'Beauté Divine', status: 'active' },
-          }),
-          { status: 200 },
-        );
-      }
-      if (url.startsWith('/api/pro/earnings')) {
-        return new Response(
-          JSON.stringify({ totalEarnings: total, transactions }),
-          { status: 200 },
-        );
-      }
-      return new Response('{}', { status: 404 });
-    }),
-  );
+const FORBIDDEN = /encaissé|encaissement|chiffre d.affaires|paiements reçus/i;
+
+function expectNoPaymentWords() {
+  const text = document.body.textContent ?? '';
+  expect(text).not.toMatch(FORBIDDEN);
+  // Every « encaiss » is the footnote's own « n'encaisse rien ».
+  const all = text.match(/encaiss\w*/gi) ?? [];
+  const negations = text.match(/n.encaisse rien/gi) ?? [];
+  expect(all.length).toBe(negations.length);
 }
+
+const ok = (body: unknown) => ({ status: 200, body });
+
+beforeEach(() => window.history.replaceState(null, '', '/pro/revenus'));
 
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
-  replace.mockReset();
 });
 
-/// The total card's lines, top to bottom.
-async function totalCard(): Promise<string[]> {
-  const label = await screen.findByText('Total réalisé');
-  return Array.from(label.parentElement?.children ?? []).map(
-    (e) => e.textContent ?? '',
-  );
-}
-
-describe('RevenusClient — the words', () => {
-  it('with takings: « Total réalisé », the figure, « Rendez-vous terminés »', async () => {
-    mockFetch(
-      [
-        {
-          id: 'transaction_a1',
-          appointmentId: 'a1',
-          amount: 15000,
-          date: '2026-10-14T10:00:00Z',
-          status: 'completed',
-        },
-      ],
-      15000,
-    );
+describe('« Revenus » — the words', () => {
+  it('the overview, on each tab: « Réalisé », and MyWeli takes nothing', async () => {
+    stubRevenueFetch({ revenue: ok(r2('analytics_month')), ledger: ok(r2('ledger_completed')) });
     render(<RevenusClient />);
-
-    const lines = await totalCard();
-    expect(lines).toHaveLength(3);
-    expect(lines[0]).toBe('Total réalisé');
-    expect(lines[1]).toMatch(/15\s000/);
-    expect(lines[2]).toBe('Rendez-vous terminés');
-    expect(screen.queryByText('Total')).toBeNull();
-    expect(document.body.textContent).not.toMatch(/encaiss/i);
+    const tabs = await screen.findByRole('group', { name: 'Répartition' });
+    expect(screen.getByText(/MyWeli n’encaisse rien\.$/)).toBeInTheDocument();
+    expect(screen.getAllByText('Réalisé').length).toBeGreaterThan(0);
+    for (const name of ['Collaborateurs', 'Prestations', 'Canaux']) {
+      fireEvent.click(within(tabs).getByRole('button', { name }));
+      expectNoPaymentWords();
+    }
+    fireEvent.click(screen.getByRole('button', { name: 'Voir les données' }));
+    expectNoPaymentWords();
   });
 
-  it('empty period: the empty state promises completed bookings, not payments', async () => {
-    mockFetch([], 0);
-    render(<RevenusClient />);
+  it('a prestation’s detail', async () => {
+    window.history.replaceState(null, '', '/pro/revenus/prestations/svc-Tresses?salon=p1');
+    stubRevenueFetch({
+      revenue: ok(r2('analytics_month_service_svc-Tresses')),
+      ledger: ok(r2('ledger_completed')),
+    });
+    render(<RevenueDetailClient axis="service" filterKey="svc-Tresses" />);
+    await screen.findByRole('group', { name: 'Répartition' });
+    expectNoPaymentWords();
+  });
 
-    expect(await totalCard()).toEqual([
-      'Total réalisé',
-      expect.stringMatching(/^0\s/),
-      'Rendez-vous terminés',
-    ]);
-    expect(await screen.findByText('Aucune transaction')).toBeTruthy();
-    // Before the exact string, so the old « Les encaissements … » fails on
-    // the word that is wrong rather than on a near-miss.
-    expect(document.body.textContent).not.toMatch(/encaiss/i);
-    expect(
-      screen.getByText(
-        'Les rendez-vous terminés de la période choisie apparaîtront ici.',
-      ),
-    ).toBeTruthy();
+  it('the ledger, on each filter — its rows, then each empty sentence', async () => {
+    window.history.replaceState(null, '', '/pro/revenus/rendez-vous?salon=p1');
+    // The rows first; then every other filter answers empty, so its own
+    // sentence is on screen when the words are read — never a skeleton (the
+    // review found this test reading only skeletons: the chips render before
+    // the answer, and a click shows the skeleton at once).
+    stubRevenueFetch({ ledger: [ok(r2('ledger_completed')), ok(ledger([]))] });
+    render(<RevenueLedgerClient />);
+    await screen.findAllByRole('link', { name: /^Ouvrir le rendez-vous du / });
+    expectNoPaymentWords();
+    const group = screen.getByRole('group', { name: 'Statut des rendez-vous' });
+    for (const [name, sentence] of [
+      ['À venir', 'Aucun rendez-vous à venir sur cette période.'],
+      ['À clôturer', 'Aucun rendez-vous à clôturer sur cette période.'],
+      ['Absents', 'Aucune absence sur cette période.'],
+      ['Annulés', 'Aucun rendez-vous annulé ou refusé sur cette période.'],
+    ] as const) {
+      fireEvent.click(within(group).getByRole('button', { name }));
+      expect(await screen.findByText(sentence)).toBeInTheDocument();
+      expectNoPaymentWords();
+    }
   });
 });

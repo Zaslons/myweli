@@ -209,4 +209,22 @@ describe('AujourdhuiClient — role shapes', () => {
       screen.queryAllByText(MONEY_LABEL).map((e) => e.textContent),
     ).toEqual(labels.map(([l]) => l));
   });
+
+  /// pro-revenue-analytics.md §4.1 (R4): each money card opens « Revenus »
+  /// on its period — the whole card is the link, as the app's tappable card.
+  it('owner: each money card opens « Revenus » on its period', async () => {
+    mockFetch(OWNER);
+    render(<AujourdhuiClient />);
+    const links = [
+      ['Revenus prévus aujourd’hui', '/pro/revenus?periode=jour'],
+      ['Revenus prévus cette semaine', '/pro/revenus?periode=semaine'],
+      ['Revenus prévus ce mois', '/pro/revenus'],
+    ] as const;
+    for (const [label, href] of links) {
+      const el = await screen.findByText(label);
+      expect(el.closest('a')).toHaveAttribute('href', href);
+    }
+    // The count cards are not links.
+    expect(screen.getByText('Demandes en attente').closest('a')).toBeNull();
+  });
 });
