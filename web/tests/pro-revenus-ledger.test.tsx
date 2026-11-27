@@ -114,6 +114,37 @@ describe('the ledger', () => {
     expect(f.ledgerAsked()[0].has('asOf')).toBe(false);
   });
 
+  it('opened from a detail inside a detail, « ← » returns to that detail — not its mirror', async () => {
+    // Awa → Tresses → « Voir tout »: the page was Tresses, filtered by Awa.
+    at('/pro/revenus/rendez-vous?collaborateur=artist_awa&prestation=service_tresses&depuis=prestation&salon=p1');
+    stubRevenueFetch({ ledger: ok(ledger(rows(1))) });
+    render(<RevenueLedgerClient />);
+    const back = await screen.findByRole('link', { name: /Tresses$/ });
+    expect(back).toHaveAttribute(
+      'href',
+      '/pro/revenus/prestations/service_tresses?collaborateur=artist_awa&salon=p1',
+    );
+    expect(screen.getByText(/^Tresses · Awa Koné · /)).toBeInTheDocument();
+  });
+
+  it('the 23-hour line: an instant 22 h 30 old is kept, one 23 h 30 old is dropped', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-11-28T07:35:53.900Z'));
+    at('/pro/revenus/rendez-vous?statut=a-cloturer&instant=2026-11-27T09%3A05%3A53.900Z&salon=p1');
+    let f = stubRevenueFetch({ ledger: ok(ledger([])) });
+    render(<RevenueLedgerClient />);
+    await screen.findByText('Aucun rendez-vous à clôturer sur cette période.');
+    expect(f.ledgerAsked()[0].get('asOf')).toBe('2026-11-27T09:05:53.900Z');
+    cleanup();
+
+    vi.setSystemTime(new Date('2026-11-28T08:35:53.900Z'));
+    at('/pro/revenus/rendez-vous?statut=a-cloturer&instant=2026-11-27T09%3A05%3A53.900Z&salon=p1');
+    f = stubRevenueFetch({ ledger: ok(ledger([])) });
+    render(<RevenueLedgerClient />);
+    await screen.findByText('Aucun rendez-vous à clôturer sur cette période.');
+    expect(f.ledgerAsked()[0].has('asOf')).toBe(false);
+  });
+
   it('refused: « Réservé au propriétaire », no filters', async () => {
     stubRevenueFetch({ ledger: { status: 403, body: { error: 'forbidden' } } });
     render(<RevenueLedgerClient />);

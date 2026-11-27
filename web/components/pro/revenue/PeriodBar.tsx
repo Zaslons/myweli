@@ -22,6 +22,13 @@ const KINDS: { key: Exclude<RevenuePeriod, 'custom'>; label: string }[] = [
   { key: 'year', label: 'Année' },
 ];
 
+/// ‹ › are `aria-disabled`, never `disabled`: they wait for each answer (the
+/// server owns the calendar), and a focused button that turns `disabled`
+/// drops keyboard focus to the page — a keyboard user would lose their place
+/// after every step. A click while they wait does nothing.
+const STEP_CLASSES =
+  'flex min-h-12 min-w-12 items-center justify-center rounded-control text-iconM text-textPrimary hover:bg-surfaceVariant aria-disabled:cursor-default aria-disabled:text-textDisabled aria-disabled:hover:bg-transparent';
+
 /// The period bar (docs/design/pro-revenue-analytics.md §4.3, §5.1): the
 /// five chips (they wrap — every choice in sight, §21.1 item 2), ‹ the
 /// period ›, and « Comparer à » as a labelled native `<select>` with the
@@ -86,9 +93,9 @@ export function PeriodBar({
             type="button"
             aria-label="Période précédente"
             title="Période précédente"
-            disabled={previous == null}
+            aria-disabled={previous == null}
             onClick={() => previous && onStep(previous)}
-            className="flex min-h-12 min-w-12 items-center justify-center rounded-control text-iconM text-textPrimary hover:bg-surfaceVariant disabled:text-textDisabled disabled:hover:bg-transparent"
+            className={STEP_CLASSES}
           >
             <span aria-hidden="true">‹</span>
           </button>
@@ -108,9 +115,9 @@ export function PeriodBar({
             type="button"
             aria-label="Période suivante"
             title="Période suivante"
-            disabled={next == null}
+            aria-disabled={next == null}
             onClick={() => next && onStep(next)}
-            className="flex min-h-12 min-w-12 items-center justify-center rounded-control text-iconM text-textPrimary hover:bg-surfaceVariant disabled:text-textDisabled disabled:hover:bg-transparent"
+            className={STEP_CLASSES}
           >
             <span aria-hidden="true">›</span>
           </button>

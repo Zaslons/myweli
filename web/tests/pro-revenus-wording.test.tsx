@@ -12,7 +12,7 @@ vi.mock('next/navigation', () => ({
 import { RevenueLedgerClient } from '../components/pro/RevenueLedgerClient';
 import { RevenueDetailClient } from '../components/pro/RevenueDetailClient';
 import { RevenusClient } from '../components/pro/RevenusClient';
-import { r2, stubRevenueFetch } from './revenue-fixtures';
+import { ledger, r2, stubRevenueFetch } from './revenue-fixtures';
 
 /// « Revenus » never says MyWeli took a payment (docs/design/pro-revenue-
 /// analytics.md §4.10, §21.1 item 10; PRD OQ-1): no « encaissé »,
@@ -66,13 +66,25 @@ describe('« Revenus » — the words', () => {
     expectNoPaymentWords();
   });
 
-  it('the ledger, on each filter', async () => {
+  it('the ledger, on each filter — its rows, then each empty sentence', async () => {
     window.history.replaceState(null, '', '/pro/revenus/rendez-vous?salon=p1');
-    stubRevenueFetch({ ledger: ok(r2('ledger_completed')) });
+    // The rows first; then every other filter answers empty, so its own
+    // sentence is on screen when the words are read — never a skeleton (the
+    // review found this test reading only skeletons: the chips render before
+    // the answer, and a click shows the skeleton at once).
+    stubRevenueFetch({ ledger: [ok(r2('ledger_completed')), ok(ledger([]))] });
     render(<RevenueLedgerClient />);
-    const group = await screen.findByRole('group', { name: 'Statut des rendez-vous' });
-    for (const name of ['Terminés', 'À venir', 'À clôturer', 'Absents', 'Annulés']) {
+    await screen.findAllByRole('link', { name: /^Ouvrir le rendez-vous du / });
+    expectNoPaymentWords();
+    const group = screen.getByRole('group', { name: 'Statut des rendez-vous' });
+    for (const [name, sentence] of [
+      ['À venir', 'Aucun rendez-vous à venir sur cette période.'],
+      ['À clôturer', 'Aucun rendez-vous à clôturer sur cette période.'],
+      ['Absents', 'Aucune absence sur cette période.'],
+      ['Annulés', 'Aucun rendez-vous annulé ou refusé sur cette période.'],
+    ] as const) {
       fireEvent.click(within(group).getByRole('button', { name }));
+      expect(await screen.findByText(sentence)).toBeInTheDocument();
       expectNoPaymentWords();
     }
   });

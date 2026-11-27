@@ -17,8 +17,9 @@ export type BarPoint = {
 /// library, nothing repainted per frame.
 ///
 /// - **The pointer chooses the nearest bar** — hovering with a mouse, or
-///   pressing and dragging on a touch screen — so a 6px bar (31 on a phone)
-///   is still easy to reach. Leaving the chart with the mouse clears it.
+///   pressing and dragging sideways on a touch screen — so a 6px bar (31 on
+///   a phone) is still easy to reach; a vertical swipe scrolls the page.
+///   Leaving the chart with the mouse clears it.
 /// - **A chosen bar is told by its fill, not an outline**: it stays
 ///   `primary`, the others turn `borderStrong`. A `borderFocus` outline would
 ///   be black on a black bar.
@@ -120,7 +121,9 @@ export function BarSeries({
         onPointerLeave={(e) => {
           if (e.pointerType === 'mouse') setSelected(null);
         }}
-        className="mt-s flex h-40 cursor-pointer touch-none select-none items-end border-b border-divider"
+        // `touch-pan-y`: a vertical swipe still scrolls the page; only a
+        // horizontal drag chooses a bar (the app's own split).
+        className="mt-s flex h-40 cursor-pointer touch-pan-y select-none items-end border-b border-divider"
       >
         {points.map((p, i) => {
           // A non-zero bucket is always seen: at least a sliver.

@@ -307,7 +307,10 @@ export function RevenueAnalyticsView({
         router.replace(revenueOverviewHref(queryOf(addr)));
         return;
       }
-      seenUrl.current = search.replace(/^\?/, '');
+      // In the router's own encoding (`useSearchParams().toString()`), or an
+      // address written another way (`%20` for `+`) reads as a new one and
+      // asks the figures twice.
+      seenUrl.current = new URLSearchParams(search).toString();
       echoes.current = [];
       salonInAddress.current = addr.salon != null;
       setProfile(p);
@@ -531,7 +534,8 @@ export function RevenueAnalyticsView({
             currency={currency}
             preview={preview}
             listForm={listForm}
-            detailName={axis ? heading : null}
+            // A detail inside a detail names both rows in its file.
+            detailName={axis ? (parentName ? `${parentName} ${heading}` : heading) : null}
             onTab={setTab}
             onSort={setSort}
             onCurrency={setCurrency}
@@ -585,7 +589,7 @@ function Success({
   preview: Preview | null;
   listForm: boolean;
   detailName: string | null;
-  onTab: (t: RevenueAxis) => void;
+  onTab: (t: RevenueAxis | null) => void;
   onSort: (s: RevenueSort) => void;
   onCurrency: (c: string) => void;
   onListForm: (v: boolean) => void;
@@ -629,7 +633,7 @@ function Success({
         </div>
         {/* Under the banner, not in it — the app's StatusBanner has no
             action slot (SYSTEM §11.1). */}
-        <ButtonLink variant="text" href={revenueLedgerHref(query, 'toClose', salon, a.asOf)} className="-ml-m mt-xs">
+        <ButtonLink variant="text" href={revenueLedgerHref(query, 'toClose', salon, a.asOf, axis)} className="-ml-m mt-xs">
           Voir
         </ButtonLink>
       </div>
@@ -805,7 +809,8 @@ function Success({
             label="Répartition"
             items={axes.map((x) => ({ key: x, label: revenueAxisTitle(x) }))}
             value={activeTab}
-            onChange={onTab}
+            // The first tab is the default: never written in the address.
+            onChange={(t) => onTab(t === axes[0] ? null : t)}
           />
           {empty ? (
             <div className="mt-m">
@@ -872,7 +877,7 @@ function Success({
         <Section
           title="Rendez-vous terminés"
           action={
-            <ButtonLink variant="text" href={revenueLedgerHref(query, 'completed', salon, a.asOf)}>
+            <ButtonLink variant="text" href={revenueLedgerHref(query, 'completed', salon, a.asOf, axis)}>
               {`Voir tout (${cur.completedCount})`}
             </ButtonLink>
           }

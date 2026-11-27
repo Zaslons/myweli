@@ -127,6 +127,10 @@ describe('« Revenus » — the answer, drawn', () => {
     render(<RevenusClient />);
     const chart = await screen.findByRole('slider', { name: 'Évolution du réalisé' });
     expect(chart).toHaveAttribute('aria-valuetext', expect.stringMatching(/^Réalisé sur la période : 50\s000 FCFA · 2\srendez-vous$/));
+    // A vertical swipe on the chart scrolls the page (the review: `touch-none`
+    // took it on a phone, where the chart is full-width and 160 px tall).
+    expect(chart.className).toContain('touch-pan-y');
+    expect(chart.className).not.toContain('touch-none');
     const bars = () => Array.from(chart.children).map((b) => (b.className.includes('bg-primary') ? 'primary' : 'other'));
     expect(bars()).toEqual(['primary', 'primary']);
     fireEvent.keyDown(chart, { key: 'ArrowRight' });
@@ -172,6 +176,12 @@ describe('« Revenus » — the answer, drawn', () => {
     );
     expect(window.location.search).toBe('?vue=prestations');
     expect(screen.getByText('Un rendez-vous à plusieurs prestations compte pour chacune.')).toBeInTheDocument();
+    // Back to the first tab — the default, never written.
+    fireEvent.click(within(tabs).getByRole('button', { name: 'Collaborateurs' }));
+    expect(within(tabs).getByRole('button', { name: 'Collaborateurs' })).toHaveAttribute('aria-pressed', 'true');
+    expect(window.location.search).toBe('');
+    fireEvent.click(within(tabs).getByRole('button', { name: 'Collaborateurs' }));
+    expect(window.location.search).toBe('');
   });
 
   it('a row’s change is heard once, as a sentence', async () => {
@@ -287,6 +297,37 @@ describe('« Revenus » — the period bar', () => {
     fireEvent.keyDown(document.body, { key: 'ArrowRight', shiftKey: true });
     fireEvent.keyDown(screen.getByLabelText('Comparer à'), { key: 'ArrowLeft' });
     expect(f.revenueAsked()).toHaveLength(3);
+  });
+
+  it('‹ › wait for the answer without being disabled — a keyboard user keeps focus', async () => {
+    const slow = held(analytics({ from: '2026-10-01', to: '2026-10-31', inProgress: false }));
+    stubRevenueFetch({ revenue: [ok(analytics()), slow.answer], ledger: ok(ledger([])) });
+    render(<RevenusClient />);
+    const next = await screen.findByRole('button', { name: 'Période suivante' });
+    const previous = screen.getByRole('button', { name: 'Période précédente' });
+    previous.focus();
+    fireEvent.click(previous);
+    // Waiting: announced as unavailable, never `disabled` (a disabled button
+    // drops focus to the page).
+    expect(previous).toHaveAttribute('aria-disabled', 'true');
+    expect(previous).not.toHaveAttribute('disabled');
+    expect(next).not.toHaveAttribute('disabled');
+    expect(document.activeElement).toBe(previous);
+    await slow.release();
+    await waitFor(() => expect(previous).toHaveAttribute('aria-disabled', 'false'));
+  });
+
+  it('an address in another encoding is asked once', async () => {
+    at('/pro/revenus?periode=annee&x=a%20b');
+    const f = stubRevenueFetch({
+      revenue: ok(analytics({ period: 'year', from: '2026-01-01', to: '2026-12-31', bucket: 'month' })),
+      ledger: ok(ledger([])),
+    });
+    render(<RevenusClient />);
+    await screen.findByRole('slider');
+    await new Promise((r) => setTimeout(r, 50));
+    expect(f.revenueAsked()).toHaveLength(1);
+    expect(window.location.search).toBe('?periode=annee');
   });
 
   it('a late answer of an older period is dropped', async () => {
@@ -503,7 +544,7 @@ describe('a detail (§4.8, §5.4)', () => {
     expect(screen.getByRole('link', { name: /Revenus$/ })).toHaveAttribute('href', '/pro/revenus');
     expect(screen.getByRole('link', { name: 'Voir tout (2)' })).toHaveAttribute(
       'href',
-      '/pro/revenus/rendez-vous?collaborateur=artist_awa&instant=2026-11-27T09%3A05%3A53.900Z&salon=p1',
+      '/pro/revenus/rendez-vous?collaborateur=artist_awa&instant=2026-11-27T09%3A05%3A53.900Z&depuis=collaborateur&salon=p1',
     );
   });
 
@@ -532,6 +573,15 @@ describe('a detail (§4.8, §5.4)', () => {
     );
     await screen.findByRole('group', { name: 'Répartition' });
     expect(screen.queryByRole('link', { name: /^Ouvrir le détail/ })).toBeNull();
+    // Its CSV names both rows: « Tresses » alone is another table.
+    Object.defineProperty(URL, 'createObjectURL', { value: () => 'blob:x', configurable: true });
+    Object.defineProperty(URL, 'revokeObjectURL', { value: () => undefined, configurable: true });
+    let filename = '';
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
+      filename = this.download;
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Exporter (CSV)' }));
+    expect(filename).toBe('revenus-awa-kone-tresses-canaux-2026-11-23_2026-11-29.csv');
   });
 
   it('a collaborateur who left keeps the name the server kept', async () => {

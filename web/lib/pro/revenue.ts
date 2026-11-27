@@ -247,6 +247,12 @@ const AXIS_OF = reverse(AXIS_SLUG);
 const SORT_OF = reverse(SORT_SLUG);
 const CHANNEL_OF = reverse(CHANNEL_SLUG);
 const STATUS_OF = reverse(STATUS_SLUG);
+const ORIGIN_SLUG: Record<RevenueAxis, string> = {
+  artist: 'collaborateur',
+  service: 'prestation',
+  channel: 'canal',
+};
+const ORIGIN_OF = reverse(ORIGIN_SLUG);
 
 /// A channel from its address word (`/pro/revenus/canaux/[canal]`).
 export function channelFromSlug(slug: string | null | undefined): RevenueChannel | null {
@@ -269,9 +275,11 @@ export type RevenueAddress = {
   artistId: string | null;
   serviceId: string | null;
   channel: RevenueChannel | null;
-  /// The ledger only.
+  /// The ledger only: its status, the figures' instant, and the detail it was
+  /// opened from (`depuis`) — the one its « ← » returns to.
   status: RevenueLedgerStatus;
   asOf: string | null;
+  origin: RevenueAxis | null;
   /// The salon a detail or a ledger belongs to.
   salon: string | null;
 };
@@ -289,6 +297,7 @@ const DEFAULT_ADDRESS: RevenueAddress = {
   channel: null,
   status: 'completed',
   asOf: null,
+  origin: null,
   salon: null,
 };
 
@@ -343,6 +352,7 @@ export function readRevenueAddress(
   a.status = STATUS_OF.get(p.get('statut') ?? '') ?? 'completed';
   const asOf = p.get('instant');
   a.asOf = asOf != null && !Number.isNaN(Date.parse(asOf)) ? asOf : null;
+  a.origin = ORIGIN_OF.get(p.get('depuis') ?? '') ?? null;
   const salon = p.get('salon');
   a.salon = isRevenueId(salon) ? salon : null;
   return a;
@@ -371,6 +381,7 @@ export function revenueSearch(a: Partial<RevenueAddress>): string {
   if (a.channel) p.set('canal', CHANNEL_SLUG[a.channel]);
   if (a.status && a.status !== 'completed') p.set('statut', STATUS_SLUG[a.status]);
   if (a.asOf) p.set('instant', a.asOf);
+  if (a.origin) p.set('depuis', ORIGIN_SLUG[a.origin]);
   if (a.salon) p.set('salon', a.salon);
   const s = p.toString();
   return s ? `?${s}` : '';
@@ -435,6 +446,8 @@ export function revenueLedgerHref(
   status: RevenueLedgerStatus,
   salon: string,
   asOf?: string | null,
+  /// The detail it is opened from (its path's axis); none from « Revenus ».
+  origin?: RevenueAxis | null,
 ): string {
   return `/pro/revenus/rendez-vous${revenueSearch({
     ...periodAddress(q),
@@ -443,6 +456,7 @@ export function revenueLedgerHref(
     channel: q.channel,
     status,
     asOf: asOf ?? null,
+    origin: origin ?? null,
     salon,
   })}`;
 }

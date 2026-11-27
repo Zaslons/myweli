@@ -13,6 +13,7 @@ import { type LoadFailure, loadFailure, loadFailureMessage } from '../../lib/api
 import { SALON_TZ, salonDayKey, salonToday } from '../../lib/time';
 import {
   NO_ARTIST,
+  REVENUE_AXES,
   REVENUE_LEDGER_STATUSES,
   type RevenueAxis,
   type RevenueLedgerRow,
@@ -68,6 +69,8 @@ export function RevenueLedgerClient() {
   const [query, setQuery] = useState<RevenueQuery | null>(null);
   const [status, setStatus] = useState<RevenueLedgerStatus>('completed');
   const [asOf, setAsOf] = useState<string | null>(null);
+  /// The detail this ledger was opened from (`depuis`).
+  const [origin, setOrigin] = useState<RevenueAxis | null>(null);
   const [ledger, setLedger] = useState<Ledger | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const seq = useRef(0);
@@ -168,6 +171,7 @@ export function RevenueLedgerClient() {
       setQuery(q);
       setStatus(addr.status);
       setAsOf(at);
+      setOrigin(addr.origin);
       void load(p.provider.id, q, addr.status, at);
     })();
     return () => {
@@ -185,12 +189,13 @@ export function RevenueLedgerClient() {
       channel: query.channel,
       status,
       asOf,
+      origin,
       salon: salonInAddress.current ? profile.provider.id : null,
     });
     if (search !== window.location.search) {
       window.history.replaceState(null, '', `${window.location.pathname}${search}`);
     }
-  }, [profile, query, status, asOf]);
+  }, [profile, query, status, asOf, origin]);
 
   function choose(s: RevenueLedgerStatus) {
     if (s === status || !profile || !query) return;
@@ -230,33 +235,39 @@ export function RevenueLedgerClient() {
 
   // ── Where these bookings come from ───────────────────────────────────────
 
-  /// The first filter's axis — a detail's own row, or a detail inside one.
+  const keyOf = (q: RevenueQuery, ax: RevenueAxis): string | null =>
+    ax === 'artist' ? q.artistId : ax === 'service' ? q.serviceId : q.channel;
+
+  /// The detail these bookings were opened from: the address says it
+  /// (`depuis`, the detail's own row) — inside a detail, the other filter is
+  /// its parent, so « the first filter » would open the mirror page (found by
+  /// the review: Awa → Tresses → « Voir tout » → « ← » landed on Awa's page
+  /// filtered by Tresses). Without it (a hand-typed address), the first filter.
   const filterAxis: RevenueAxis | null = query
-    ? query.artistId
-      ? 'artist'
-      : query.serviceId
-        ? 'service'
-        : query.channel
-          ? 'channel'
-          : null
+    ? origin && keyOf(query, origin) != null
+      ? origin
+      : (REVENUE_AXES.find((ax) => keyOf(query, ax) != null) ?? null)
     : null;
 
-  /// The filters, named from the live team and catalogue (the ledger's
-  /// answer has no label; no name ever rides in the address, §22).
+  /// A filter, named from the live team and catalogue (the ledger's answer
+  /// has no label; no name ever rides in the address, §22).
+  function nameOf(q: RevenueQuery, ax: RevenueAxis): string | null {
+    if (ax === 'artist' && q.artistId) {
+      return q.artistId === NO_ARTIST
+        ? NO_ARTIST_LABEL
+        : (profile?.provider.artists?.find((x) => x.id === q.artistId)?.name ?? FORMER_ARTIST_LABEL);
+    }
+    if (ax === 'service' && q.serviceId) {
+      return profile?.provider.services?.find((x) => x.id === q.serviceId)?.name ?? DELETED_SERVICE_LABEL;
+    }
+    if (ax === 'channel' && q.channel) return revenueChannelLabel(q.channel);
+    return null;
+  }
+
+  /// The filters' names, the page's own row first.
   function names(q: RevenueQuery): string[] {
-    const out: string[] = [];
-    if (q.artistId) {
-      out.push(
-        q.artistId === NO_ARTIST
-          ? NO_ARTIST_LABEL
-          : (profile?.provider.artists?.find((x) => x.id === q.artistId)?.name ?? FORMER_ARTIST_LABEL),
-      );
-    }
-    if (q.serviceId) {
-      out.push(profile?.provider.services?.find((x) => x.id === q.serviceId)?.name ?? DELETED_SERVICE_LABEL);
-    }
-    if (q.channel) out.push(revenueChannelLabel(q.channel));
-    return out;
+    const order = filterAxis ? [filterAxis, ...REVENUE_AXES.filter((ax) => ax !== filterAxis)] : REVENUE_AXES;
+    return order.map((ax) => nameOf(q, ax)).filter((n): n is string => n != null);
   }
 
   const tz = profile?.provider.timezone ?? SALON_TZ;
@@ -270,7 +281,7 @@ export function RevenueLedgerClient() {
     ? filterAxis
       ? revenueDetailHref(
           filterAxis,
-          filterAxis === 'artist' ? query.artistId : filterAxis === 'service' ? query.serviceId : query.channel,
+          keyOf(query, filterAxis),
           {
             ...query,
             ...(filterAxis === 'artist'
@@ -291,7 +302,7 @@ export function RevenueLedgerClient() {
         className="-ml-s inline-flex min-h-12 items-center rounded-control px-s text-bodyMedium text-textSecondary hover:bg-surfaceVariant"
       >
         <span aria-hidden="true">←&nbsp;</span>
-        {query && filterAxis ? names(query)[0] : 'Revenus'}
+        {query && filterAxis ? nameOf(query, filterAxis) : 'Revenus'}
       </Link>
       <h1 className="text-headlineSmall font-semibold text-textPrimary">Rendez-vous</h1>
       {subtitle ? <p className="mt-xs break-words text-bodyMedium text-textSecondary">{subtitle}</p> : null}
