@@ -69,7 +69,11 @@ export function ReviewList({
                 ))}
               </div>
             ) : null}
-            <div className="mt-xs flex items-center justify-between gap-m">
+            {/* Wraps, so an open « Signaler » form that cannot sit beside the
+                date takes a line of its own, at the right (`ml-auto` below),
+                rather than squeezing the date or widening the page
+                (docs/design/web-report-rows-doubled-text.md §3.2). */}
+            <div className="mt-xs flex flex-wrap items-center justify-between gap-x-m gap-y-xs">
               <p className="text-bodySmall text-textTertiary">
                 {formatDateFr(r.createdAt, tz ?? undefined)}
               </p>
@@ -120,7 +124,7 @@ function ReportAction({ reviewId, slug }: { reviewId: string; slug: string }) {
   }
 
   return (
-    <div className="text-right">
+    <div className="ml-auto text-right">
       {!open ? (
         <button
           type="button"
@@ -139,7 +143,9 @@ function ReportAction({ reviewId, slug }: { reviewId: string; slug: string }) {
             aria-label="Raison du signalement"
             className="min-h-12 w-full rounded-control border border-primary bg-secondary px-s py-xs text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
           />
-          <div className="mt-s flex justify-end gap-s">
+          {/* Wraps (WEB-SYSTEM §9 rule 1): two buttons wider than the row
+              go one under the other, at the right. */}
+          <div className="mt-s flex flex-wrap justify-end gap-s">
             <Button variant="secondary" onClick={() => setOpen(false)}>
               Annuler
             </Button>

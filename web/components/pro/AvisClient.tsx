@@ -126,7 +126,12 @@ export function AvisClient() {
                 {shownCount} avis
               </p>
             </div>
-            <dl className="min-w-56 flex-1">
+            {/* 14 rem beside the average, else a line of its own, where it may
+                shrink to the card: `min-w-56` was 448 px at a 32 px root, and
+                the page scrolled sideways (web-report-rows-doubled-text.md §3.3).
+                Not `flex-1`: its 0 % basis would never send the list to its
+                own line. */}
+            <dl className="w-56 min-w-0 grow">
               {stats.distribution.map((d) => (
                 <div key={d.rating} className="flex items-center gap-s py-xs">
                   <dt className="w-8 shrink-0 text-bodyMedium text-textSecondary">
@@ -289,7 +294,10 @@ function SalonReportAction({
             aria-label="Raison du signalement"
             className="min-h-12 w-full rounded-control border border-primary bg-secondary px-s py-xs text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
           />
-          <div className="mt-s flex justify-end gap-s">
+          {/* Wraps (WEB-SYSTEM §9 rule 1): a `justify-end` row that cannot
+              wrap runs out at its START, off the screen's left edge, which
+              no page can be scrolled to (docs/design/web-report-rows-doubled-text.md). */}
+          <div className="mt-s flex flex-wrap justify-end gap-s">
             <Button variant="secondary" onClick={() => setOpen(false)}>
               Annuler
             </Button>
