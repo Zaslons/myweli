@@ -321,6 +321,12 @@ void main() {
       // The twin: the same shape, truncated, with room for well over eight
       // characters on its one line. A gate that fired here would be counting
       // ellipses, not illegible ones.
+      //
+      // **Several words, on purpose.** The falsifier's address is one
+      // unbreakable piece, so « drawn on one line » says nothing there about
+      // words that COULD wrap. These could — « Institut de » fits 140dp —
+      // and the engine still draws one line, which is the rule the gate now
+      // measures by.
       await pumpAtWidth(
         tester,
         width: 360,
@@ -330,19 +336,19 @@ void main() {
             children: [
               Flexible(
                 child: Text(
-                  'aminata.kone@exemple.ci',
+                  'Institut de Beauté Cocody Riviera',
                   overflow: TextOverflow.ellipsis,
                   style: AppTextStyles.bodyLarge,
                 ),
               ),
-              // 140dp left: the address does not fit (it truncates — the
-              // guard checks) but a dozen characters and « … » do.
+              // 140dp left: the name does not fit (it truncates — the guard
+              // checks) but a dozen characters and « … » do.
               SizedBox(width: 220, child: Text('Collaborateur')),
             ],
           ),
         ),
       );
-      ellipsisWithoutMaxLines(tester, 'aminata.kone@exemple.ci');
+      ellipsisWithoutMaxLines(tester, 'Institut de Beauté Cocody Riviera');
       expectNoLegibilityCrush(tester);
     });
   });

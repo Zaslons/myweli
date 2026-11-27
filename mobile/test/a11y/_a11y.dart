@@ -653,6 +653,14 @@ void expectNoGluedTokenBreaks(WidgetTester tester, {required String context}) {
 /// characters is a defect, not a tight fit. An earlier design pass proposed 12
 /// without measuring; that would have reddened the review tile at 9.
 ///
+/// **Re-read on 2026-11-27, once an ellipsis with no `maxLines` was measured**
+/// (SYSTEM.md §21 row 100). The suite gained one legitimate site, the Pro
+/// appointment list's client name at 360 × 2×, at **9**. Off the suite, two
+/// sites land exactly **on 8**: the client card at 390 × 1× and a member's
+/// « Profil » at 390 × 2×. Both are below the floor at 360, so neither is a
+/// legitimate site sitting on the threshold. The 7 / 9 separation holds, and
+/// the number did not move.
+///
 /// Set to `0` to return to report-only mode when re-calibrating.
 const int kMinLegibleChars = 8;
 
@@ -674,7 +682,8 @@ bool _isFlexed(RenderObject o) {
   return false;
 }
 
-/// Does `prefix…` fit [p]'s real box — its width AND its `maxLines`?
+/// Does `prefix…` fit [p]'s real box — its width, its `maxLines` AND its
+/// ellipsis?
 ///
 /// **`maxLines` is load-bearing, and leaving it out was a bug this gate caught
 /// in itself.** The first version compared a single-line prefix width against
@@ -684,12 +693,29 @@ bool _isFlexed(RenderObject o) {
 /// characters across two lines while a one-line measure reported 7 and called
 /// it a crush. The red was a false positive, and the fix is to ask the question
 /// the way the framework answers it.
+///
+/// **So is the ellipsis, and leaving it out was the same bug the other way
+/// round** (2026-11-27, SYSTEM.md §21 row 100). `Text(overflow: ellipsis)` with
+/// no `maxLines` — the commonest truncation shape in `lib/` — is drawn on ONE
+/// line: with `maxLines` null and an ellipsis set, dart:ui drops every line
+/// after the first one that overflows (`ParagraphStyle`'s own contract). A
+/// painter handed the paragraph's `maxLines` (null) and no ellipsis let the
+/// prefix wrap onto as many lines as it liked, so every prefix « fit »: PR #905
+/// measured the Pro « Équipe » roster drawing « a… » in 28dp while report mode
+/// said all 30 characters showed. The painter now carries the paragraph's own
+/// ellipsis, so the engine applies its rule to the measurement exactly as it
+/// did to the drawing — rather than this file restating the rule as
+/// `maxLines ?? 1` and drifting from it if the engine's rule ever moves. The
+/// `maxLines` cases are unchanged: with a limit set, the ellipsis only
+/// shortens the last line, and a prefix that needs more lines than the limit
+/// exceeds it either way.
 bool _prefixFits(RenderParagraph p, String text, int n) {
   final painter = TextPainter(
     text: TextSpan(text: '${text.substring(0, n)}…', style: p.text.style),
     textDirection: TextDirection.ltr,
     textScaler: p.textScaler,
     maxLines: p.maxLines,
+    ellipsis: p.overflow == TextOverflow.ellipsis ? '…' : null,
   )..layout(maxWidth: p.size.width);
   final fits = !painter.didExceedMaxLines;
   painter.dispose();
@@ -716,11 +742,24 @@ bool _prefixFits(RenderParagraph p, String text, int n) {
 /// not "is this label narrow" but "did this label spend an ellipsis on a squeeze
 /// it did not choose".
 ///
-/// ⚠️ `didExceedMaxLines` is false whenever `maxLines` is null, and that is
-/// right here — a flexed paragraph with no `maxLines` wraps rather than
-/// truncates, and its crush belongs to [expectNoMidWordBreak]. It does mean a
-/// site like `client_list_screen.dart`'s name (ellipsis, no `maxLines`) is out
-/// of this sweep's reach. Said rather than assumed.
+/// ## No `maxLines`: it depends on the ellipsis
+///
+/// A paragraph with no `maxLines` and **no ellipsis** wraps rather than
+/// truncates, so `didExceedMaxLines` is false and the sweep skips it — its
+/// crush belongs to [expectNoMidWordBreak]. One **with an ellipsis** truncates:
+/// the engine draws it on one line, drops the rest, and reports
+/// `didExceedMaxLines` true, so it is a subject like any `maxLines: 1` label.
+///
+/// ⚠️ **This paragraph used to say the opposite**, « said rather than
+/// assumed », and it was neither: it claimed `didExceedMaxLines` is false
+/// whenever `maxLines` is null, and so that `client_list_screen.dart`'s name
+/// (ellipsis, no `maxLines`) was out of reach. Nobody had read the flag. The
+/// guard let that shape through all along. It was [_prefixFits] that measured
+/// it as if it wrapped and passed every one, until PR #905 read « a… » off the
+/// Pro « Équipe » roster while report mode said all 30 characters showed
+/// (2026-11-27, SYSTEM.md §21 row 100). `primitives_test.dart` now holds a
+/// falsifier for the shape, which checks the flag and the single line before
+/// it trusts the verdict.
 ///
 /// ## Applied as a SWEEP, unlike [expectNoMidWordBreak]
 ///
@@ -739,7 +778,12 @@ void expectNoLegibilityCrush(
   final crushed = <String>[];
   final report = <String>[];
 
-  for (final p in tester.allRenderObjects.whereType<RenderParagraph>()) {
+  // `.toSet()`, as in [_sweepGluedTokens], and for its reason: the walk
+  // reaches one paragraph through several elements (every `Text` printed
+  // three times, measured 2026-11-27), and both lists below are read as a
+  // count of labels.
+  for (final p
+      in tester.allRenderObjects.whereType<RenderParagraph>().toSet()) {
     if (!p.didExceedMaxLines) continue;
     if (!_isFlexed(p)) continue;
     final text = p.text.toPlainText();
