@@ -11,6 +11,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/theme/colors.dart';
+import 'package:myweli/core/utils/app_clock.dart';
 import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/appointment.dart';
@@ -534,6 +535,13 @@ void main() {
           'longitude': userLng,
           'timestamp': 0,
         },
+        // On Android, opening « Carte » shows the phone's recent position
+        // and starts no read (consumer-location.md §15, A6).
+        'getLastKnownPosition' => {
+          'latitude': userLat,
+          'longitude': userLng,
+          'timestamp': AppClock.now().millisecondsSinceEpoch,
+        },
         _ => null,
       };
     });
@@ -647,8 +655,8 @@ void main() {
       // flutter_map does not build a marker outside the view.)
       expect(markersAt(tester, excellence), 1);
       expect(markersAt(tester, divine), 1);
-      // The position arrived…
-      expect(asked, contains('getCurrentPosition'));
+      // The position arrived (on Android, the phone's recent one: A6)…
+      expect(asked, contains('getLastKnownPosition'));
       // …and the camera is still the salon's.
       expect(
         cameraOf(tester).center,
