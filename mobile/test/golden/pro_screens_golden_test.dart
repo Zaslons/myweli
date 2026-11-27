@@ -206,6 +206,26 @@ void main() {
       await expectGolden(tester, 'pro_team');
     });
 
+    // docs/design/app-team-email-seams.md §6: §13.3's contract point, where
+    // the roster drew one to four letters of an address (« a… ») beside its
+    // chip. Every address whole now, broken only at its seams, the chip
+    // under it — and the owner's « @salon- » / « excellence.test », broken at
+    // its hyphen, the engine's own legal break.
+    testWidgets('the team roster at 360 dp, 200 % text', (tester) async {
+      await _pumpPro(
+        tester,
+        const TeamScreen(),
+        extra: [
+          ChangeNotifierProvider(create: (_) => ProTeamProvider()),
+          ChangeNotifierProvider(create: (_) => ProArtistProvider()),
+          ChangeNotifierProvider(create: (_) => ProSubscriptionProvider()),
+        ],
+        size: const Size(360, 2200),
+        scale: 2,
+      );
+      await expectGolden(tester, 'pro_team_w360_x2');
+    });
+
     testWidgets('the deposit policy form', (tester) async {
       await _pumpPro(
         tester,
