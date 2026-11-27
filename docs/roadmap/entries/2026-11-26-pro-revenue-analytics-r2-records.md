@@ -1,4 +1,4 @@
-- 🟡 **Registres : R2 des analyses de revenus fusionné et en production (docs · 2026-11-26 — BACKLOG B17.2, décisions 237, 239, 240, 244, 247, 249).** Spec : [pro-revenue-analytics.md](../../design/pro-revenue-analytics.md) §20.
+- 🟢 **Registres : R2 des analyses de revenus fusionné et en production (docs · 2026-11-26 — BACKLOG B17.2, décisions 237, 239, 240, 244, 247, 249).** Spec : [pro-revenue-analytics.md](../../design/pro-revenue-analytics.md) §20.
   - **R2 :**
     - son entrée passe au vert, avec la fusion (`306a5d50`) et le déploiement (2026-11-26 à 19:40 UTC, révision `myweli-api-00062-f5c`) ;
     - le statut de la spec, son index, le BACKLOG (ligne 17 et B17.2) et la menace T85 le disent aussi ;
