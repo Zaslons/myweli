@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Module** | discovery (the salon page, `/provider/:id`), with `public-api` (`GET /providers/{id}/reviews`, A5-api) and `public-web` (`/{slug}`, A5w); the booking hub of both (a specialist chosen first, §2.4) |
-| **Status** | **Written 2026-11-27**, on the owner's « Yes, start A5 ». Read once by an independent reviewer told to refute it: no blocker, 18 findings, each re-read in the code, then taken in (§12). Seven questions for the owner (§11, decisions 277–283, open). No code before the answers. |
+| **Status** | **Written 2026-11-27**, on the owner's « Yes, start A5 ». Read once by an independent reviewer told to refute it: no blocker, 18 findings, each re-read in the code, then taken in (§12). **Approved 2026-11-27:** the owner answered the seven questions of §11 at once, « Approve as recommended » (decisions 277–283 in BACKLOG). Nothing built yet: A5-api, A5 and A5w, each on the owner's word. |
 | **Last updated** | 2026-11-27 |
 | **Audit** | [consumer-app-release-audit.md](consumer-app-release-audit.md) row **A5** (Track A, §7): gap **18** (« No staff section on the salon page; reviews capped at 5 », §2.2). Also §2.2's third « missing » line (a guest's « Signaler », §2.6 here) and §2.10's « the web has, the app lacks: the staff section » |
 | **BACKLOG** | B0.10 (the audit's Track A, decision 160) |
@@ -378,27 +378,32 @@ No migration. `ReviewPage` (app) mirrors `ProviderPage`. `ReviewSummary` (app, `
   - PRD FR-DISC-006's note;
   - BACKLOG B0.10's journal and decisions 277–283.
 
-## 11. Questions for the owner (decisions 277–283)
+## 11. Questions for the owner (decisions 277–283) — answered 2026-11-27, all seven as recommended
 
 **Q1. What does a tap on a team member do?** [decision 277]
 - *Recommended:* it opens the booking hub with them chosen (« Réserver »). It is one tap to book with the person you came for, and the hub and the website's funnel already take a chosen specialist (rebook uses it).
 - *Alternatives:* show the team without any action, as the website does today; or a sheet per person with their rating and « Réserver avec … ». The sheet adds a step, and its only new content would be what the row already shows.
+- → ✅ **Decision 277, as recommended** (2026-11-27).
 
 **Q2. In the hub, a specialist chosen first: dim the services they don't do?** [decision 278]
 - *Recommended:* yes, on both surfaces, with « Pas avec {nom} », by the rule that already fades the specialists, and a faded specialist says why. Arriving from the team row counts as « specialist first », so their earliest slot is proposed. When the specialist must still be dropped, the hub says so (§2.4).
 - *Alternative:* leave the hubs as they are. Ticking such a service then drops the person the client just chose, without a word, which « Réserver avec … » would make an everyday path.
+- → ✅ **Decision 278, as recommended** (2026-11-27).
 
 **Q3. Every review in the app: a screen of its own, with a button for more?** [decision 279]
 - *Recommended:* yes, `/provider/:id/avis`, 20 per page, « Afficher plus d’avis » (decision 231's reasons: the person decides what the next page costs, and it is reachable and testable), with « Réserver » at the bottom.
 - *Alternatives:* load more on scroll; or open the rest inside the salon page. The page then grows long and is built all at once on a low-end phone.
+- → ✅ **Decision 279, as recommended** (2026-11-27).
 
 **Q4. The rating split (the 5 → 1 bars) for clients: a small server change, A5-api?** [decision 280]
 - *Recommended:* yes. The server already computes it for Pro, and the change sends it on the public list and gives the order its tiebreak. It is one backend PR, deployed on the owner's word. Both clients work without it until then.
 - *Alternative:* no bars: the average and the count only.
+- → ✅ **Decision 280, as recommended** (2026-11-27).
 
 **Q5. A guest taps « Signaler »: sign in, then report?** [decision 281]
 - *Recommended:* yes. The sign-in opens over the page with its line, then the report dialog for that review, as the heart does since A3.
 - *Alternative:* open the sign-in only, and let them tap « Signaler » again.
+- → ✅ **Decision 281, as recommended** (2026-11-27).
 
 **Q6. The website's half, A5w?** [decision 282]
 - *Recommended:* yes, its own PR after A5:
@@ -407,10 +412,12 @@ No migration. `ReviewPage` (app) mirrors `ProviderPage`. `ReviewSummary` (app, `
   - « avec … » and « Réservation vérifiée » on each review;
   - the funnel's dimming.
 - *Alternative:* a page `/{slug}/avis`, like the app's screen.
+- → ✅ **Decision 282, as recommended** (2026-11-27).
 
 **Q7. The order, and who waits?** [decision 283]
 - *Recommended:* A5-api, then A5, then A5w. No client waits for A5-api's deploy, since the bars appear once it is there.
 - *Alternative:* A5 and A5w wait for A5-api in production, so the bars ship with the first build that has the screen.
+- → ✅ **Decision 283, as recommended** (2026-11-27).
 
 ## 12. Independent review (2026-11-27)
 

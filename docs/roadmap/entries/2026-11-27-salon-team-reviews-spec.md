@@ -15,5 +15,5 @@
     - deux auraient fait échouer un build tel qu’écrit : la lecture de la répartition sur le site, qui doit ne jamais bloquer la page, et les types du site à régénérer avec le contrat ;
     - l’app ne vérifie pas une spécialiste envoyée seule : l’identifiant d’une personne retirée du salon serait parti avec la réservation ;
     - l’app affiche des prestations désactivées, que le site et le serveur cachent : A5 les cache aussi.
-  - **Sept questions pour le propriétaire** (décisions 277 à 283), chacune avec une recommandation. Aucun code avant ses réponses.
-  - **Reste :** les réponses, puis la fusion de la spec, sur le mot du propriétaire ; ensuite A5-api, A5 et A5w, chacun dans sa PR.
+  - **Sept questions pour le propriétaire** (décisions 277 à 283), chacune avec une recommandation, **répondues le 2026-11-27 d’un coup : « Approve as recommended ».**
+  - **Reste :** la fusion de la spec, sur le mot du propriétaire ; ensuite A5-api, A5 et A5w, chacun dans sa PR.
