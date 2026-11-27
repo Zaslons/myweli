@@ -2,7 +2,8 @@
 
 | | |
 |---|---|
-| **Status** | Draft (2026-11-27): measured, for the owner's sign-off on §4. Nothing built |
+| **Status** | Approved (2026-11-27), not built yet |
+| **Approved** | by the owner, 2026-11-27, on §4: « Approve as recommended » (all three decisions as recommended) |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-11-27 |
 | **Register row** | [WEB-SYSTEM.md](WEB-SYSTEM.md) §15 row 41 (new) |
@@ -156,7 +157,7 @@ to its own line, where it may now shrink to the card's width, so the page
 stops scrolling sideways. No `basis-*`: `flexBasis` is fed by the closed
 spacing scale and has no `56` (`tailwind.config.ts`).
 
-## 4. Decisions
+## 4. Decisions (answered 2026-11-27: « Approve as recommended »)
 
 1. **Both button rows wrap** (§3.1). *Recommended*, the rule #906 applied to
    every dialog. *Alternative:* on `/pro/avis`, move the form out of the
