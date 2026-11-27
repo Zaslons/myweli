@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Approved (2026-11-27), not built |
+| **Status** | Built (2026-11-27, §8), PR #912, not merged |
 | **Approved** | by the owner, 2026-11-27, on §5: « Person, then chip » (§4.1 as a whole) and « Secondary » (§4.2), both as recommended |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-11-27 |
@@ -236,3 +236,59 @@ two places.
 - #905's §7 still holds: `expectNoLegibilityCrush` cannot see an ellipsis
   without `maxLines`; `expectNoMidWordBreak` cannot measure a hyphenated
   piece.
+- **Seen in the 200 % picture, outside this scope:** the « Mes salons » row
+  under the header cuts the salon's name with « … » (« Salon Excelle… »,
+  `maxLines: 1`). A13 says a salon's name may not break; this one is cut,
+  not broken, and no gate looks at it.
+
+## 8. As built (2026-11-27)
+
+Branch `fix/app-pro-profile-email-seams`, cut from #905's head
+(`e4903609`). The spec approved (`6ab0a1e2`), the tests red first
+(`728558f2`), the build (`c8de3dc4`), pro-android-signup.md's copy
+(`7bc1e8e0`), the goldens (`5ed6c5d3`).
+
+- **Red first, on the code before the change:** 11 tests, each for its own
+  reason:
+  - the nameless title cut the address (174 dp at 2× for
+    « adjoua.kouame.konan@hotmail.com », which needs 531; 217 dp at 1×,
+    which needs 268);
+  - the address drawn twice, at 1× and 2×;
+  - the chip beside the name, at 1× and 2×;
+  - the address heard twice;
+  - E3 broken mid-word at 2× (312 dp for an address of 387), begun on
+    « Compte : »'s line at 1×, and « Compte : » not drawn on its own;
+  - `pro_login_android_test`'s E3 check, which now finds « Compte : » and
+    the address as drawn.
+- **The tests loop their addresses**, each loop starting with one that
+  fails today: « awa@exemple.ci » fits at 1×, so a test for it alone would
+  have been green before the change.
+- **Green:**
+  - targeted: the two new files and `pro_login_android_test` (20 tests);
+    the Profil's, the sign-up's, `CodeSentTo`'s, `EmailSentence`'s and
+    « Équipe »'s (105);
+  - the full app suite on `5ed6c5d3`: 4,636 passed, 107 skipped (the goldens, off Linux); analyze 0; format clean.
+- **Goldens, drawn on Linux** (run 46066515146) and looked at:
+  - `pro_profile_member_w360_x2`: « adjoua.kouame » / « .konan » /
+    « @hotmail.com », drawn once, the chip under it;
+  - `pro_sign_up_carried_w360_x2`: « Compte : » in secondary, then
+    « awa.kone.nouvelle » / « @outlook.com » in ink.
+
+  The other 105 images are byte-identical (compared one by one).
+- **Mutations, on committed code** (each applied exactly once, the tree
+  clean before and after): **12, all red.** Every row below was read off
+  the run's list of failing tests; two were first written from reasoning and
+  were wrong (the ellipsis and the marks fail only at 2×).
+
+| Mutation | Red |
+|---|---|
+| Profil: the chip beside the title | the nameless gate at 2×; the chip-under checks, nameless and named, at 1× and 2×; what is heard (6 tests) |
+| Profil: the ellipsis back · the address without its marks | the nameless and named tests at 2× (at 1× every address fits its line) |
+| Profil: the marks heard | what a screen reader hears |
+| Profil: the address drawn twice | drawn once (1×, 2×), and what is heard |
+| Profil: the chip gone | the chip-under checks, nameless and named, at 1× and 2×; what is heard (5 tests) |
+| Profil: the chip between the name and the address (§5's alternative) | the named checks (1×, 2×), and what is heard |
+| Profil: the name ignored, the address always the title | the named checks, and what is heard |
+| E3: « Compte : {adresse} » inline again | the E3 gate (1×, 2×), the label check, `pro_login_android_test` |
+| E3: the label in ink · the address first · only the address heard | the label, colour and « heard » check |
+
