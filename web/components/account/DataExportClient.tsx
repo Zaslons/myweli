@@ -19,6 +19,7 @@ import {
 } from '../../lib/account/export';
 import { Button } from '../Button';
 import { Loading } from '../Loading';
+import { BreakableEmail } from '../BreakableEmail';
 
 /// « Mes données » (parity 11.2 — the app's data-export screen, web-adapted):
 /// profile + rendez-vous + favoris assembled client-side into one JSON,
@@ -157,9 +158,14 @@ export function DataExportClient() {
 
       <section className="mt-l rounded-xl border border-border bg-secondary p-l">
         <dl className="space-y-xs text-bodyMedium">
-          <div className="flex justify-between gap-m">
+          {/* The row wraps: when « Profil » and the address do not fit side
+              by side, the address goes under it, where it has the card's
+              width (web-email-seams.md §3). */}
+          <div className="flex flex-wrap justify-between gap-x-m">
             <dt className="text-textTertiary">Profil</dt>
-            <dd className="text-textPrimary">{me.email ?? me.phoneNumber}</dd>
+            <dd className="min-w-0 text-textPrimary">
+              {me.email != null ? <BreakableEmail address={me.email} /> : me.phoneNumber}
+            </dd>
           </div>
           <div className="flex justify-between gap-m">
             <dt className="text-textTertiary">Rendez-vous</dt>

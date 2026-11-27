@@ -32,6 +32,7 @@ import { CompteDangerSection } from './CompteDangerSection';
 import { LocalityPicker } from './LocalityPicker';
 import { PhoneField } from '../PhoneField';
 import { TeamRoleChip } from './TeamRoleChip';
+import { BreakableEmail } from '../BreakableEmail';
 
 // MapLibre is browser-only; the pin picker loads with the page (authed, not
 // an indexed surface — no CWV concern).
@@ -122,8 +123,8 @@ export function ProfilClient() {
         <h1 className="text-headlineSmall font-semibold text-textPrimary">Profil</h1>
         <Card as="section" className="mt-l space-y-s">
           {profile.account.email ? (
-            <p className="break-all text-bodyMedium text-textPrimary">
-              {profile.account.email}
+            <p className="text-bodyMedium text-textPrimary">
+              <BreakableEmail address={profile.account.email} />
             </p>
           ) : null}
           <TeamRoleChip role={membership.role} />

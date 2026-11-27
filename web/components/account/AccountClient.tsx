@@ -43,6 +43,7 @@ import { Tabs } from '../Tabs';
 import { Toast } from '../Toast';
 import { useToast } from '../../lib/useToast';
 import { announceFavorite, FAVORITE_REMOVED } from '../../lib/account/favorite-toast';
+import { BreakableEmail } from '../BreakableEmail';
 
 const PROVIDER_LABELS: Record<string, string> = {
   google: 'Connecté via Google',
@@ -390,7 +391,9 @@ export function AccountClient() {
               </p>
             )}
             {me?.email ? (
-              <p className="text-bodyMedium text-textTertiary">{me.email}</p>
+              <p className="text-bodyMedium text-textTertiary">
+                <BreakableEmail address={me.email} />
+              </p>
             ) : null}
             {me?.authProvider && PROVIDER_LABELS[me.authProvider] ? (
               <p className="text-bodySmall text-textTertiary">

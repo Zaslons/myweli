@@ -2,13 +2,13 @@
 
 | | |
 |---|---|
-| **Status** | Approved (2026-11-27), building |
+| **Status** | Built (2026-11-27), not merged |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-11-27 |
 | **Approved** | by the owner, 2026-11-27, on §4 and §5: « Approved, build it » · toasts « Drop the address » · store-linked pages « Unfrozen, include them » |
 | **Register row** | [WEB-SYSTEM.md](WEB-SYSTEM.md) §15 row 39 |
 | **Rule** | [WEB-SYSTEM.md](WEB-SYSTEM.md) §9 « An e-mail address breaks only at its seams » · the app's rule, [SYSTEM.md](SYSTEM.md) §13.3 (#895) |
-| **Governs** | `web/components/BreakableEmail.tsx` (new) and every place §2 lists |
+| **Governs** | `web/components/BreakableEmail.tsx` (new: `BreakableEmail`, `EmailLink`, `EmailSeams`) · every place §2 lists · `CodeSentTo` (its drawing) · `web/tests/email-seams.test.tsx` · the « every other place that draws an address » block of `web/tests/e2e/type-overflow.spec.ts` · `web/tests/e2e/_email.ts` |
 | **Skills checked** | `myweli-web-guardrails`, `myweli-dev-guardrails` |
 | **Builds on** | [web-code-sent-to.md](web-code-sent-to.md) (#898, the code step; not merged yet — this branch stacks on it) |
 
@@ -22,6 +22,9 @@ all under the rule: an address breaks only before its « @ » or before a « . �
 of its name part, and a sentence that names one gives it a line of its own.
 
 **In scope:** §2's twelve places. **Out of scope:** §7.
+
+Since this branch stacks on #898, `CodeSentTo` now draws through the shared
+`EmailSeams`; its shape and tests are unchanged.
 
 ## 2. Measured before building
 
@@ -111,9 +114,13 @@ whole wherever it fit before.
   envoyée. », « Invitation renvoyée. », « Accès révoqué. ». The row they speak
   of is on screen, updated; a pill too narrow for a line of its own cannot
   give an address one. (The alternative, §5.)
-- **The legal pages** (10, 11, 12): the same component inside the link, so
-  the seam moves before the « @ » and the link is named « support@myweli.com »
-  again. In the prose the address keeps its place rather than taking a line of
+- **The legal pages** (10, 11, 12): `EmailLink`, so the seam moves before the
+  « @ » and the link is named « support@myweli.com » again — by its
+  `aria-label`, its drawing hidden, and **no `sr-only` copy**: these pages are
+  public, and a second copy would put the address twice in the text search
+  engines and AI assistants read. (Found while writing the tests: a link
+  named by `aria-label` still gives a screen reader its pieces unless the
+  drawing inside it is hidden too — read off CDP.) In the prose the address keeps its place rather than taking a line of
   its own: it is short and fixed, never breaks at normal text, and a block in
   mid-paragraph would break the prose at every size. 11 and 12 are in (§5). 10 is not a store-linked page, but `Email`
   lives in `LegalPage.tsx`, which all five import; their HTML does not change.
@@ -133,20 +140,38 @@ exception and « a toast does not carry an address »; §15 row 39 closes.
 
 ## 6. Tests (red first, on the code before the change)
 
-- **Unit** (`web/tests/breakable-email.test.tsx`): the component (one text for
-  a screen reader, the drawing hidden, cut at exactly its seams, the fallback),
-  and each place rendered with a long address: it goes through the component;
-  a sentence is heard whole; the toasts' words.
-- **e2e** (`type-overflow.spec.ts`, a new block « every other address »): each
-  place × the two addresses (+ a piece wider than a line where the column is
-  narrow) × normal, Android 200 %, 32 px root, at 320×568, and 1024 for the
-  roster and the sidebar. The layout viewport keeps the screen's size; the
-  address's text stays inside the screen and its own box; its lines, exactly,
-  are its seams. A screen reader's name read off Chromium's tree for the
-  legal links.
-- **Mutations** on committed code: each place back to its old markup; the
-  copy or the hiding removed; a seam moved; `min-w-0` or a layout change
-  removed.
+- **Unit** (`web/tests/email-seams.test.tsx`, 29 tests): each place rendered
+  with a long address. What a screen reader is given holds the address once,
+  in ONE text node (or a link's `aria-label`); a sentence is heard whole,
+  period included; the drawing is cut at exactly its seams, with
+  `break-words` and never `break-all`; a sentence's address is a `block` in
+  ink, first (« Révoquer l'accès ») or last (« Alertes par e-mail »); the
+  flex items carry `min-w-0`; the roster's « Membre » takes 5 parts; the data
+  row wraps; the toasts' words; a phone number is left untouched. **Red
+  first**: 28 of 29 on the code before the change (the one green is the
+  phone number's, as it must be). Every « heard » check passed there, as it
+  must: before, the address was one text node.
+- **e2e** (`type-overflow.spec.ts`, « every other place that draws an
+  address », 45 cases): the roster, both dialogs and the toast; Profil and the
+  sidebar (as a member); « Alertes par e-mail »; `/mon-compte` and
+  `/mon-compte/donnees`; the three legal pages — × `aminata.kone@exemple.ci`,
+  `awa.kone.nouvelle@exemple.ci` and, where a column is narrow,
+  `ouattaraaminatakone@exemple.ci` (a piece wider than a line) × normal,
+  Android 200 %, 32 px root, at 320×568 and 1024. Each drawn address: the
+  mode applied (its drawn size); its lines spell it and break only at seams
+  (only inside the wide piece, never in its domain); at 200 % it did break
+  (the vacuity guard); its text stays in its box and on the screen; in a
+  sentence, no other character shares its lines. Chromium's accessibility tree
+  (CDP) holds no piece of it and names each link exactly it. The layout
+  viewport keeps the screen's size, except on `/mon-compte` in the Android
+  mode (§7). **Red first**: 32 of 45 on the code before the change; the 13
+  green are normal-text and 32 px-root cases where the address already
+  fitted, which the gate keeps holding.
+- **Existing tests moved with the shape**: `team.spec.ts` (the toasts' words,
+  the roster found as drawn), `roles.spec.ts` (`drawnEmail`, new in
+  `tests/e2e/_email.ts`), `pro-email-alerts.test.tsx` (the reordered
+  sentence), and four unit files that found an address with `findByText`
+  (now `ignore: '[aria-hidden="true"]'`: what a screen reader reads).
 
 ## 7. Not covered — follow-ups
 

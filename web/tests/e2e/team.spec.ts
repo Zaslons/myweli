@@ -61,9 +61,11 @@ test('Équipe: roster, invite, gates, resend & revoke (full arc)', async ({
     .getByRole('button', { name: 'Actions pour awa.manager@equipe.test' })
     .click();
   await page.getByRole('button', { name: 'Révoquer l’accès' }).click();
-  await expect(
-    page.getByText(/perdra immédiatement l’accès à Beauté Divine/),
-  ).toBeVisible();
+  // Heard from a hidden copy, drawn with the address on its own line
+  // (web-email-seams.md): the dialog holds the words either way.
+  await expect(page.getByRole('dialog')).toContainText(
+    'perdra immédiatement l’accès à Beauté Divine',
+  );
   await page.getByRole('button', { name: 'Révoquer', exact: true }).click();
   // The toast (« Accès révoqué. ») and the row's status (« Accès révoqué »).
   await expect(page.getByText('Accès révoqué.', { exact: true })).toBeVisible();

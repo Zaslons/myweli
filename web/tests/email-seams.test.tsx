@@ -473,7 +473,10 @@ function expectSupportLink(link: HTMLAnchorElement) {
   expect(link.getAttribute('href')).toBe('mailto:support@myweli.com');
   expect(link.getAttribute('aria-label'), 'the link takes its name from a drawing cut by <wbr>s').toBe(SUPPORT_ADDRESS);
   expect(link.textContent).toBe(SUPPORT_ADDRESS);
-  expectDrawnAtItsSeams(SUPPORT_ADDRESS, SUPPORT_PIECES, link);
+  const drawn = expectDrawnAtItsSeams(SUPPORT_ADDRESS, SUPPORT_PIECES, link);
+  // Hidden too: Chromium still gives a screen reader the pieces of a labelled
+  // link's drawing as text of their own (CDP, 2026-11-27).
+  expect(drawn.closest('[aria-hidden="true"]'), 'the link’s drawing reaches a screen reader').not.toBeNull();
 }
 
 describe('the support address — before its « @ », named whole', () => {
