@@ -2393,10 +2393,15 @@ test.describe('the « Signaler » forms at doubled text (web-report-rows-doubled
 ///   one-word salon name in the Android mode.
 
 /// Every control of the open dialog `name`, read in its panel: the panel is
-/// wholly on the screen; no control runs past the panel's content edge; each
-/// control, scrolled into view inside the panel, is wholly on the screen (a
-/// person can reach it). `scrolls`: the panel's content is taller than its
-/// box, so the scroll is what is under test (the vacuity guard).
+/// wholly on the screen; no control runs past the panel's content edge; no
+/// select or date/time field is squeezed narrower than its own drawing while
+/// the panel has the room (a row that does not wrap squeezes its `min-w-0`
+/// fields side by side instead of running past the panel: the mutation pass
+/// found the date and time of « Nouveau rendez-vous » cut that way, which the
+/// two checks before it could not see); each control, scrolled into view
+/// inside the panel, is wholly on the screen (a person can reach it).
+/// `scrolls`: the panel's content is taller than its box, so the scroll is
+/// what is under test (the vacuity guard).
 async function expectDialogUsable(page: Page, name: string, opts: { title: number; scrolls?: boolean }) {
   const dialog = page.getByRole('dialog', { name });
   await expect(dialog, `« ${name} » did not open`).toBeVisible();
@@ -2419,6 +2424,28 @@ async function expectDialogUsable(page: Page, name: string, opts: { title: numbe
         return b.left < content.left - 1 || b.right > content.right + 1;
       })
       .map((e) => `${label(e)} [${Math.round(e.getBoundingClientRect().left)}, ${Math.round(e.getBoundingClientRect().right)}]`);
+    // A native field draws one line and cannot wrap: narrower than its own
+    // drawing, it cuts it. Its natural width is read in place (the field
+    // sized to `max-content` for the read, then given back its style), so it
+    // keeps its fonts — and in the Android mode its text cluster's doubling.
+    const squeezed: string[] = [];
+    for (const e of panel.querySelectorAll<HTMLElement>('select, input[type="date"], input[type="time"], input[type="datetime-local"]')) {
+      const cs = getComputedStyle(e);
+      const box = e.getBoundingClientRect();
+      if (!box.width || cs.position === 'absolute' || cs.opacity === '0') continue;
+      const before = e.getAttribute('style');
+      e.style.setProperty('width', 'max-content', 'important');
+      e.style.setProperty('min-width', '0', 'important');
+      e.style.setProperty('max-width', 'none', 'important');
+      e.style.setProperty('flex', 'none', 'important');
+      const natural = e.getBoundingClientRect().width;
+      if (before === null) e.removeAttribute('style');
+      else e.setAttribute('style', before);
+      const room = content.right - content.left;
+      if (box.width < Math.min(natural, room) - 1) {
+        squeezed.push(`${label(e)}: ${Math.round(box.width)} px of its ${Math.round(natural)} (room ${Math.round(room)})`);
+      }
+    }
     const unreachable: string[] = [];
     for (const e of controls) {
       e.scrollIntoView({ block: 'nearest', inline: 'nearest' });
@@ -2434,6 +2461,7 @@ async function expectDialogUsable(page: Page, name: string, opts: { title: numbe
       title: parseFloat(getComputedStyle(panel.querySelector('h2')!).fontSize),
       scrollable: panel.scrollHeight > panel.clientHeight + 1,
       past,
+      squeezed,
       unreachable,
     };
   });
@@ -2444,6 +2472,7 @@ async function expectDialogUsable(page: Page, name: string, opts: { title: numbe
     `« ${name} »: the panel is not wholly on the screen: ${JSON.stringify(read)}`,
   ).toBe(true);
   expect(read.past, `« ${name} »: controls past the panel`).toEqual([]);
+  expect(read.squeezed, `« ${name} »: native fields squeezed narrower than their drawing`).toEqual([]);
   expect(read.unreachable, `« ${name} »: controls a person cannot bring on the screen`).toEqual([]);
   if (opts.scrolls) expect(read.scrollable, `« ${name} » fits its panel here, so its scroll is untested (vacuous)`).toBe(true);
 }
@@ -2567,7 +2596,7 @@ test.describe('the dialogs, the toast and /mon-compte at doubled text (web-dialo
 
         await page.goto('/pro/rendez-vous');
         await page.getByRole('button', { name: '+ Nouveau rendez-vous' }).click();
-        await expectDialogUsable(page, 'Nouveau rendez-vous', { title, scrolls: true });
+        await expectDialogUsable(page, 'Nouveau rendez-vous', { title, scrolls: android });
         await cancelDialog(page, 'Nouveau rendez-vous');
       });
 

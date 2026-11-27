@@ -197,6 +197,9 @@ doing the same things.
    alternatives: shorten the placeholder to « Choisir… » (fits; a long fiche
    name is still cut), or replace the select with a list of choices (the
    app's sheet has one; a redesign, not this fix). — **Accepted and declared.**
+   *After the sign-off, measured:* « Nouveau rendez-vous »'s date field is the
+   same case (its drawing 297 px at 32 px, the panel 238), so it is declared
+   with the select (WEB-SYSTEM §9) and reported to the owner with the PR.
 
 ## 6. Tests (red first, on the code before the change)
 
@@ -225,11 +228,49 @@ doing the same things.
     (« Vous avez rejoint {salon} ») with the invitation's salon name served as
     one long word; the pill whole on the screen and at least `m` from each
     edge, the word broken inside it in the Android mode (its vacuity guard),
-    whole on one line at normal text.
+    whole on one line at normal text. It signs in as a former member of its
+    own (`ancien.nomlong@equipe.test`, a third fixture in the stub): a sign-in
+    re-arms the fixture, and spec files run in parallel workers, so sharing
+    roles.spec's would race.
   - **Kept green, unchanged:** `site-look.spec.ts`'s 24 decision-100 tests
     (the favourite's moves) and `pro-upload.spec.ts`'s half-width pin.
-- **Mutations, on committed code**: each class above removed alone, each run
-  against the unit file and the e2e block, all red.
+- **Built, red first** (on the code before the change): unit **24 of 33 red**
+  (the 9 greens: the discovery guard, the dialogs whose rows already wrap or
+  have none, the toast's half width kept, `lang="fr"`); e2e **11 of 21 red**
+  with #902's account cases (the 10 greens: what already fitted at normal
+  text and the 32 px root). The new gate found « Nouveau rendez-vous »'s date
+  and time (§2.2); its unit check was watched red before its fix. Moved with
+  the shape: `toast.test.tsx` and `pro-upload-messages.test.tsx` find the
+  pill as the element that holds the words. Kept green: the 24 decision-100
+  scans of `site-look.spec.ts`, `pro-upload.spec.ts`'s half-width pin, and
+  the specs that drive these dialogs (team, roles, pro, focus, z-layers, axe,
+  tap targets, account, discovery, salon page: 427 cases, 9 of them on the
+  real config's ports, which they hardwire).
+- **Mutations, on committed code.** **30 at the unit level**, each alone,
+  each run against `dialogs-toast-doubled-text.test.tsx`, `toast.test.tsx`
+  and `pro-upload-messages.test.tsx`, **all red**: the panel without
+  `max-h-full`, without `overflow-y-auto`, without `overscroll-contain`, the
+  three inside `panelClassName`; each field row without `flex-wrap`, each
+  field without `min-w-0`, `flex-1` again; each of the six footers without
+  `flex-wrap`; « Nouveau rendez-vous »'s own 90vh box back; the toast without
+  its cap, its words bare, without `break-words`, without `min-w-0`, at full
+  width, `EDGE` not `m`, the cap at `s`; the account row without `flex-wrap`,
+  its link `shrink-0` again, its heading without `hyphens-auto`, without
+  `break-words`. **11 on the e2e block**, in three rebuilt trees grouped so
+  that no two land in the same test: the panel without its scroll; the toast
+  without its cap, its words without `break-words`, without `min-w-0`; the
+  account link `shrink-0` again, its row without `flex-wrap`, its heading
+  neither hyphenating nor breaking; the fiche select without `min-w-0`;
+  « Changer le rôle »'s and « Ajouter un client »'s footers without
+  `flex-wrap`; « Nouveau rendez-vous »'s date row without `flex-wrap`. **Ten
+  red; the last survived the gate as first written**: with `min-w-0` the two
+  fields squeeze side by side, cut, and nothing runs past the panel. The gate
+  now also holds that no select or date/time field is narrower than its own
+  drawing while the panel has the room (read in place, the field sized to
+  `max-content` for the read); against it that mutation is red in all three
+  modes, and the clean gate, #902's block with it, is 63 of 63 green. Reading
+  that check on the clean tree showed the date field cut at 200 % because the
+  panel is narrower than its drawing (§5, decision 4).
 
 ## 7. Not covered — follow-ups
 
