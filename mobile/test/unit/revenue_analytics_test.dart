@@ -497,6 +497,51 @@ void main() {
       }
     });
 
+    test('a booking under way is « Prévu », in the figures AND the ledger '
+        '(À clôturer goes by the END, §3.2)', () {
+      // Find a confirmed booking that starts after 10:00 on some day, then
+      // stand one minute after its start: it is under way.
+      RevenueLedgerRow? row;
+      DateTime? day;
+      for (var i = 0; i < 60 && row == null; i++) {
+        final d = DateTime.utc(2026, 3, 11).add(Duration(days: i));
+        final at = DateTime.utc(d.year, d.month, d.day, 10);
+        final upcoming = MockRevenueWorld.ledger(
+          salon,
+          RevenueQuery(period: RevenuePeriod.day, date: d),
+          RevenueLedgerStatus.upcoming,
+          1,
+          50,
+          at,
+          at,
+        ).data!;
+        row = upcoming.items
+            .where((r) => !r.appointmentDate.isBefore(at))
+            .firstOrNull;
+        day = d;
+      }
+      expect(row, isNotNull, reason: 'the mock world has such a booking');
+      final now = row!.appointmentDate.add(const Duration(minutes: 1));
+      final q = RevenueQuery(period: RevenuePeriod.day, date: day);
+      final f = MockRevenueWorld.analytics(salon, q, now).data!.groups.single;
+      int total(RevenueLedgerStatus s) =>
+          MockRevenueWorld.ledger(salon, q, s, 1, 50, now, now).data!.total;
+      expect(total(RevenueLedgerStatus.toClose), f.current.toCloseCount);
+      expect(total(RevenueLedgerStatus.upcoming), f.current.upcomingCount);
+      expect(
+        MockRevenueWorld.ledger(
+          salon,
+          q,
+          RevenueLedgerStatus.upcoming,
+          1,
+          50,
+          now,
+          now,
+        ).data!.items.map((r) => r.appointmentId),
+        contains(row.appointmentId),
+      );
+    });
+
     test('shares add up to 1; the filtered axis is empty', () {
       final a = MockRevenueWorld.analytics(
         salon,
