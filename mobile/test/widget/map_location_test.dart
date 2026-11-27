@@ -329,10 +329,24 @@ void main() {
         reason: 'zoom ${cam.zoom}: the circle runs off the screen',
       );
       expect(cam.zoom, lessThan(13.5));
-      // …and below the pill, which covers the top of the map.
-      final top = cam.latLngToScreenOffset(const LatLng(5.30 + dLat, -4.00));
-      final overlay = tester.getRect(find.byType(CommunePill));
-      expect(top.dy, greaterThan(overlay.bottom), reason: 'under the pill');
+    });
+
+    testWidgets('the circle stays below the pill, where the screen\'s height '
+        'decides the framing', (tester) async {
+      // A short, wide screen: on a tall phone the width decides, and the top
+      // inset could not matter (a mutation showed it).
+      phone
+        ..requests = [FakePhoneLocation.whileInUse]
+        ..accuracy = 3000;
+      await pumpMap(tester, size: const Size(800, 480));
+      await tap(tester, 'Activer');
+      const dLat = 3000 / 111320.0;
+      final map = tester.getTopLeft(find.byType(FlutterMap));
+      final top =
+          map +
+          camera(tester).latLngToScreenOffset(const LatLng(5.30 + dLat, -4.00));
+      final pill = tester.getRect(find.byType(CommunePill));
+      expect(top.dy, greaterThan(pill.bottom), reason: 'under the pill');
     });
 
     testWidgets('a little approximate (600 m): framed, never closer than a '
