@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Built (2026-11-27), not merged |
+| **Status** | Built (2026-11-27), mutation pass done, not merged |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-11-27 |
 | **Approved** | by the owner, 2026-11-27, on §4 and §5: « Approved, build it » · toasts « Drop the address » · store-linked pages « Unfrozen, include them » |
@@ -152,21 +152,46 @@ exception and « a toast does not carry an address »; §15 row 39 closes.
   phone number's, as it must be). Every « heard » check passed there, as it
   must: before, the address was one text node.
 - **e2e** (`type-overflow.spec.ts`, « every other place that draws an
-  address », 45 cases): the roster, both dialogs and the toast; Profil and the
+  address », 45 cases when written, 51 after the mutation pass): the roster, both dialogs and the toast; Profil and the
   sidebar (as a member); « Alertes par e-mail »; `/mon-compte` and
   `/mon-compte/donnees`; the three legal pages — × `aminata.kone@exemple.ci`,
-  `awa.kone.nouvelle@exemple.ci` and, where a column is narrow,
-  `ouattaraaminatakone@exemple.ci` (a piece wider than a line) × normal,
+  `awa.kone.nouvelle@exemple.ci` and, at 320, `ouattaraaminatakone@exemple.ci`
+  (a piece wider than a line) × normal,
   Android 200 %, 32 px root, at 320×568 and 1024. Each drawn address: the
   mode applied (its drawn size); its lines spell it and break only at seams
   (only inside the wide piece, never in its domain); at 200 % it did break
-  (the vacuity guard); its text stays in its box and on the screen; in a
+  (the vacuity guard); its text stays inside the tightest content edge of the
+  boxes it is laid out in (up to the first that scrolls sideways) and on the
+  screen; in a
   sentence, no other character shares its lines. Chromium's accessibility tree
   (CDP) holds no piece of it and names each link exactly it. The layout
   viewport keeps the screen's size, except on `/mon-compte` in the Android
   mode (§7). **Red first**: 32 of 45 on the code before the change; the 13
   green are normal-text and 32 px-root cases where the address already
   fitted, which the gate keeps holding.
+- **Mutations, on committed code.** **28 at the unit level**, each run against
+  `email-seams.test.tsx`, `code-sent-to.test.tsx` and `format.test.ts`, all
+  red: `BreakableEmail` drawn bare, its drawing not hidden, its copy gone,
+  without `break-words`; no `<wbr>`; `EmailLink` without its label, its
+  drawing not hidden, without `min-w-0`; the roster back to `break-all`,
+  without `min-w-0`, « Membre » back to 3 parts; « Révoquer l'accès » inline,
+  in the sentence's colour, without its copy; each of the three toasts with
+  its address; « Alertes par e-mail » with a drawn period, without `min-w-0`,
+  inline; the data row without `flex-wrap`, without `min-w-0`; the sidebar,
+  Profil, `/mon-compte` and « Changer le rôle » back to a plain address;
+  `/mentions-legales` back to its plain link; `emailSeams` cutting the
+  domain's dots. **12 on the e2e block**, each on a rebuilt tree, grouped so
+  that no two land in the same test. **Three survived the gate as first
+  written**: without `min-w-0` on the alerts column or on the data row's
+  value, and without `break-words` on Profil, the sidebar and `/mon-compte`
+  (only the roster went red). Two causes: the gate measured an address
+  against its own inline box, which grows with the text; and every piece of
+  the two everyday addresses fits those columns. It now measures against the
+  column and runs the wide piece on every page; all 12 red, the clean gate 51
+  of 51 green. **The corrected gate found a defect of its own**: on
+  `/mon-compte` the name-and-address column is a flex item without
+  `min-w-0`, so the wide piece ran to 306 px in a 287 px row — fixed, with a
+  unit check watched red first and a twelfth mutation that removes it.
 - **Existing tests moved with the shape**: `team.spec.ts` (the toasts' words,
   the roster found as drawn), `roles.spec.ts` (`drawnEmail`, new in
   `tests/e2e/_email.ts`), `pro-email-alerts.test.tsx` (the reordered
