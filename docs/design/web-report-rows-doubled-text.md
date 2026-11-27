@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Approved (2026-11-27), not built yet |
+| **Status** | Built (2026-11-27), mutation pass done, not merged (§8) |
 | **Approved** | by the owner, 2026-11-27, on §4: « Approve as recommended » (all three decisions as recommended) |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-11-27 |
@@ -104,7 +104,7 @@ is in their graph: an esbuild trace of the five pages, `app/layout.tsx` and
 `app/not-found.tsx` reaches 39 modules, `Button.tsx` among them, and neither
 `ReviewList`, `ProviderView` nor `AvisClient`.
 
-## 3. The shape (proposed)
+## 3. The shape
 
 **The fix is room, never a smaller font** (SYSTEM.md §13.3). DOM order, copy,
 focus order and every state stay as they are.
@@ -150,12 +150,16 @@ it keeps to the right, as « Signaler » sits today.
 
 ### 3.3 `/pro/avis`'s distribution list (decision 3)
 
-`min-w-56 flex-1` → `w-56 min-w-0 grow`. At a 16 px root it behaves as
-today: the list goes to its own line when less than 224 px is left beside
-the average, then fills the line. At a 32 px root its 448 px still sends it
-to its own line, where it may now shrink to the card's width, so the page
-stops scrolling sideways. No `basis-*`: `flexBasis` is fed by the closed
-spacing scale and has no `56` (`tailwind.config.ts`).
+`min-w-56 flex-1` → `w-56 grow`. At a 16 px root it behaves as today: the
+list goes to its own line when less than 224 px is left beside the average,
+then fills the line. At a 32 px root its 448 px still sends it to its own
+line, where it may now shrink to the card's width, so the page stops
+scrolling sideways. It shrinks with no `min-w-0`: a flex item's automatic
+minimum is the smaller of its specified width (14 rem) and its min-content
+(about 128 px at a 32 px root). The approved shape had `w-56 min-w-0 grow`;
+the mutation pass removed `min-w-0` and every check stayed green, so it is
+gone (§8). No `basis-*`: `flexBasis` is fed by the closed spacing scale and
+has no `56` (`tailwind.config.ts`).
 
 ## 4. Decisions (answered 2026-11-27: « Approve as recommended »)
 
@@ -178,7 +182,8 @@ spacing scale and has no `56` (`tailwind.config.ts`).
 - **Unit** (`web/tests/report-rows-doubled-text.test.tsx`): in both forms,
   opened, the button row carries `flex-wrap`; on the salon page the date's
   row carries `flex-wrap` and the report action `ml-auto`; on `/pro/avis` the
-  distribution list carries no `min-w-56` and carries `min-w-0` (decision 3).
+  distribution list carries `w-56` and `grow`, and neither `min-w-56` nor
+  `flex-1` (decision 3).
 - **e2e** (`type-overflow.spec.ts`, a new block « the « Signaler » forms at
   doubled text »), at 320×568 × the three modes × the two pages, each form
   opened from the keyboard, with the mode's vacuity guard read at the moment
@@ -187,7 +192,9 @@ spacing scale and has no `56` (`tailwind.config.ts`).
   - the layout viewport equals the screen, and the page does not scroll
     sideways;
   - each button wholly inside the form's content box and on the screen;
-  - on the salon page, the date on one line;
+  - on the salon page, the date on one line, and the form ending at its
+    card's content edge (it keeps to the right; added by the mutation pass,
+    §8);
   - « Annuler » pressed closes the form (it is reachable);
   - the generic checks (`overflowingText`, `overflowingFlexRows`,
     `verticalClipping`, `truncationLosses`);
@@ -199,7 +206,7 @@ spacing scale and has no `56` (`tailwind.config.ts`).
 - **Mutations, on committed code**, each alone: each of the two button rows
   without `flex-wrap`; the date's row without `flex-wrap`; the report action
   without `ml-auto`; the list's `min-w-56 flex-1` back; the list without
-  `min-w-0`. Unit and e2e.
+  `min-w-0`. Unit and e2e. Results: §8.
 
 ## 6. Rollout
 
@@ -217,6 +224,12 @@ pointer then names row 41, and A5w keeps both wraps.
 
 ## 7. Not covered
 
+- **The Pro sidebar's salon switcher at Android's 200 %**: « Beauté Divine »
+  is cut, 156 of 174 px, in its 240 px rail. Found by the new block's
+  page-wide truncation check; the site is declared (`ProSidebar.tsx`,
+  `// clip-ok:`, the full name in the button's accessible name and on
+  `/pro/profil`), so the block excuses it by its text on `/pro/avis` only.
+
 - Real phones: Chromium's mobile emulation only.
 - The salon page's other rows at doubled text beyond what its gate already
   holds; `/`, `/recherche`, the 404, the install banner and the store-linked
@@ -224,3 +237,47 @@ pointer then names row 41, and A5w keeps both wraps.
 - The Pro shell at a 32 px root on other `/pro` pages: only `/pro/clients`
   was looked at, as a control (its table scrolls in its own box, the
   declared exception).
+
+## 8. Built (2026-11-27)
+
+On `fix/web-report-rows-doubled-text`, from `main` (`b097e330`).
+
+- **Red first,** on the code before the change (`a8b8de58`): unit **5 of
+  5**, e2e **6 of 6**, each on a measured failure: the salon page's form
+  past its card's content edge (x 300 against 288) at normal text and the
+  32 px root, its layout viewport 428×760 in the Android mode; `/pro/avis`'s
+  « Annuler » outside its form (x 63, and −37 in the Android mode), the page
+  489 px wide at the 32 px root. One guard of mine was wrong on the first
+  run, not the code: the Android mode doubles the root's drawn size too, so
+  the root tells the other two modes apart only.
+- **On the fixed code, `/pro/avis` in the Android mode** still failed the
+  page-wide truncation check, on the sidebar's declared switcher (§7). Excused
+  by its text, in its own commit (`fbeaea1a`).
+- **Measured after** (§3 said « expected »), 320×568:
+
+  | | Normal | Android 200 % | 32 px root |
+  |---|---|---|---|
+  | Salon page, viewport | 320×568 | **320×568** (was 428×760) | 320×568 |
+  | Salon page, the form | x 64–288, under the date, at the right; buttons on one line | x 32–288; « Annuler » over « Signaler », at the right | as normal, boxes taller |
+  | Salon page, the date | 63 px, 1 line (was 3 in 28.5 px) | 121 px, 1 line | 63 px, 1 line |
+  | `/pro/avis`, the buttons | stacked, x 171–271, inside the panel (97–279) | stacked, x 120–271 | stacked, x 171–271, inside the panel (137–279) |
+  | `/pro/avis`, the document | 320 | 320 | **320** (was 489) |
+
+  `/pro/avis` at 360: stacked (x 211); at 375 and 390: one line, as before.
+  The salon page at 375 and 1280, and every closed row: as before.
+- **Mutations, on committed code** (`d1e54244`, then `10eba97c`), each
+  alone. **Unit: 8, all red** — each button row without `flex-wrap`, the
+  date's row without `flex-wrap`, the action without `ml-auto`, the list
+  `min-w-56 flex-1` again, `w-56 flex-1`, without `grow`, without `w-56`.
+  **e2e: 7, in five rebuilt trees** grouped so that no two land in the same
+  test. Red: the salon page's button row (the viewport, Android), `/pro/avis`'s
+  (« Annuler » outside its form, all three modes), the date's row (the date
+  squeezed, all three modes), the list `min-w-56 flex-1` again (the page
+  scrolls sideways, 32 px root), `w-56 min-w-0 flex-1` (a row of the list does
+  not fit, Android). **Two survived the block as first written.** Without
+  `ml-auto` nothing looked at which side the form sat on (a lone item in a
+  `justify-between` row goes to the left); the block now holds that the form
+  ends at its card's content edge, and against it that mutation is red at
+  normal text and the 32 px root (`aa7190c5`). Without `min-w-0` every unit
+  and e2e check stayed green, because the list shrinks without it (§3.3); the
+  class is removed (`10eba97c`) and the unit test no longer asks for it.
