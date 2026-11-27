@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Approved (2026-11-27), not built |
+| **Status** | Built (2026-11-27), mutation pass done, not merged |
 | **Approved** | by the owner, 2026-11-27, on §4 and §5: « Approve as recommended » (all four decisions as recommended) |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-11-27 |
@@ -11,6 +11,7 @@
 | **Governs** | `web/components/Modal.tsx` · `web/components/Toast.tsx` · `web/components/pro/ChangeRoleDialog.tsx` · `web/components/pro/InviteMemberDialog.tsx` · the « Révoquer l’accès » dialog in `web/components/pro/EquipeClient.tsx` · the « Confidentialité » section of `web/components/account/AccountClient.tsx` · `web/tailwind.config.ts` (`max-w-gutterBound`) |
 | **Skills checked** | `myweli-web-guardrails`, `myweli-dev-guardrails` |
 | **Builds on** | [web-email-seams.md](web-email-seams.md) (#902, not merged; this branch is stacked on it) §7, its first three follow-ups |
+| **Not changed by this** | the toast's half-screen width (decisions 91 and 100; decision 3 here) |
 
 ---
 
