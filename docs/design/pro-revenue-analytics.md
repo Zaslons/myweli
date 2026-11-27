@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Approved 2026-11-25** — the owner answered all thirteen questions of §17 at once, « Approve as recommended » (decisions 237–249). **R0w live 2026-11-25** (#866, `afd2de97`). **R1's production read done 2026-11-25** (§19). **R1 live 2026-11-26** (#872, migration **0052**, merged 2026-11-25 `3f3305a5`, deployed 2026-11-26 11:09 UTC, revision `myweli-api-00061-kwl`); the count after waits for real bookings, on the owner's word. **R2 live 2026-11-26** (#884, merged `306a5d50`, deployed 19:40 UTC, revision `myweli-api-00062-f5c`; as built: §20). **R3 merged 2026-11-27** (#893, `6b1ed6a9`; as built: §21); it reaches users with the next Pro store build. R4 next, on the owner's word. |
+| **Status** | **Approved 2026-11-25** — the owner answered all thirteen questions of §17 at once, « Approve as recommended » (decisions 237–249). **R0w live 2026-11-25** (#866, `afd2de97`). **R1's production read done 2026-11-25** (§19). **R1 live 2026-11-26** (#872, migration **0052**, merged 2026-11-25 `3f3305a5`, deployed 2026-11-26 11:09 UTC, revision `myweli-api-00061-kwl`); the count after waits for real bookings, on the owner's word. **R2 live 2026-11-26** (#884, merged `306a5d50`, deployed 19:40 UTC, revision `myweli-api-00062-f5c`; as built: §20). **R3 merged 2026-11-27** (#893, `6b1ed6a9`; as built: §21); it reaches users with the next Pro store build. **R4 built 2026-11-27** (PR #TBD, branch `feat/web-revenue-r4`; as built: §22); the website gets it with its merge, on the owner's word. |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-11-27 |
 | **PRD ref / phase** | FR-PRO-EARN-001 [V1] (« completed revenue by day/week/month ») + FR-PRO-DASH-001 [V1] (« no-show rate ») + the revenue half of **FR-PRO-OPS-004 [V3]** (« revenue, top services/staff, no-show analytics »), pulled forward on the owner's request of 2026-11-25 — Q1 |
@@ -1853,3 +1853,227 @@ clean. A no-op edit (the control) stayed green.
 | 22 | a body without `groups` read as none | « strict: a body without its parts throws », the API's unreadable |
 | 23 | the first load untitled | « the first load: the period titled at once … » |
 | 24 | a period bar on a refusal | « 403: « Réservé au propriétaire », no « Réessayer » » |
+
+## 22. R4 as built (2026-11-27)
+
+On the owner's « Oui, démarrer R4 » and « Oui, construire R4 » (2026-11-27),
+to the plan approved with them. PR #TBD, branch `feat/web-revenue-r4`, one
+PR (Q12). **Website only:** the two endpoints have been live since R2; no
+backend, contract or schema change. The website ships with its merge
+(Vercel).
+
+**Where it lives** (`web/`):
+- `lib/pro/revenue.ts` — the query, the address (§5.2), the calendar stepped
+  from the server's answer (§3.5), the words of a period; pure;
+- `lib/pro/revenue-wording.ts` — §3.3's labels, §3.6's deltas, §4.13's
+  counts, the ledger's words, the footnotes; pure, the app's twin;
+- `lib/pro/revenue-rows.ts` — « Trier par » and the CSV (Q10); pure;
+- `lib/pro/revenue-read.ts` — both answers read field for field, strictly;
+- `lib/pro/revenue-bff.ts` — the parameters the BFF forwards, and nothing
+  else;
+- `lib/time.ts` — `shiftDayKey`, `dayKeyOf`, `formatDayKey`: calendar dates
+  (a day, not an instant), in the seam;
+- `lib/api/pro.ts` — `getRevenueAnalytics`, `getRevenueLedger`;
+- `app/api/pro/revenue/route.ts`, `…/revenue/appointments/route.ts` — the
+  BFF;
+- `components/pro/revenue/` — `KpiGrid`, `DeltaBadge`, `ShareBar`,
+  `BarSeries` (+ `BarSeriesTable`), `PeriodBar`, `RangeDialog`,
+  `RevenueLedgerTable`, `RevenueAnalyticsView` (« Revenus » and every
+  detail);
+- `components/pro/RevenusClient.tsx`, `RevenueDetailClient.tsx`,
+  `RevenueLedgerClient.tsx`;
+- `app/pro/(dash)/revenus/` — `page`, `collaborateurs/[artistId]`,
+  `prestations/[serviceId]`, `canaux/[canal]`, `rendez-vous`; an id the
+  server would refuse, or an unknown channel, is a 404;
+- the Accueil's three « Revenus prévus » cards (aujourd'hui, cette semaine,
+  ce mois) are links to « Revenus » on Jour, Semaine and Mois;
+- `Icon`: `insights` and `lock` (Material, outlined).
+
+**Removed:** the old page (« Total réalisé », the four chips, « Tout » — Q8),
+`PERIODS` / `periodRange` and their test. `getEarnings` and
+`/api/pro/earnings` stay: « Exporter mes données » reads them.
+
+### 22.1 Precisions to §5 (nothing reversed)
+
+Items 1–6 were approved with the plan; the others were found while building
+or checking.
+
+1. **The address** speaks French without accents, as the agenda's
+   (`web-pro-agenda-url.md`): `periode` (jour · semaine · mois · annee ·
+   dates), `date`, `du`, `au`, `comparer` (precedente · annee · aucune),
+   `vue` (collaborateurs · prestations · canaux), `tri` (montant ·
+   rendez-vous · nom); in a detail or the ledger also `collaborateur`,
+   `prestation`, `canal` (application · site · salon · en-ligne), `statut`
+   (termines · a-venir · a-cloturer · absents · annules), `instant`, `salon`.
+   The defaults are never written, so a bare `/pro/revenus` stays « now ».
+   A change of period, tab or sort **replaces** the address (Back leaves the
+   page); a detail or the ledger is a link (Back returns as it was). « Sans
+   collaborateur attribué » is `none`, the server's own word.
+2. **No name in the address** (the app's `libelle` is an in-app route; a
+   web address ends in the browser's history). A detail is titled by its
+   kind until the answer names it; an active row's live name shows at once.
+3. **A detail inside a detail** (§5.4): the server names only its first
+   filter (collaborateur, then prestation, then canal). The other's name comes
+   from the salon's live team and catalogue; a removed one reads « Ancien
+   collaborateur » or « Prestation supprimée ».
+4. **The chart is one ARIA slider**, not an image: an image is not operable
+   (and jsx-a11y refuses a tab stop on one). ← → ↑ ↓ move, Début and Fin
+   jump, Échap returns to the period's total; a screen reader hears each bar
+   as the slider's value, so the line above the chart is not a live region
+   (it would be heard twice). The page's own ← → stand aside while the chart
+   has focus.
+5. **The chart is boxes in a row**, as the app's, not an SVG: crisp at any
+   zoom, its colours and radius tokens; the 2 px gaps are transparent
+   borders (no 2 px spacing token exists). Height `h-40`, 160 px.
+6. **A switch of salon** from a detail or the ledger returns to « Revenus »
+   of the new salon, on the same period; the ledger's rows carry `?salon=`,
+   as the app's.
+7. **The figures' columns** follow the web's breakpoints rather than the
+   app's measure: one per row under `sm`, two from `sm`, four from `xl`,
+   « Prévu » always a row of its own; the value in `titleLarge` (the web
+   Accueil's stat) and never broken inside an amount. Checked at 320 and 375
+   wide by `type-overflow.spec.ts`.
+8. **The CSV** exports the table on screen (tab, sort, currency) — beside
+   « Trier par », not in the period bar. Columns: Nom · Rendez-vous terminés
+   · Réalisé · Part (%) · Panier moyen · Réalisé sur la période comparée ·
+   Devise · Estimé. A cell that starts like a formula (`=`, `+`, `-`, `@`) is
+   neutralised by an apostrophe: names are typed by members. A detail's file
+   carries the row's name (« revenus-awa-kone-prestations-2026-11.csv »).
+9. **A row opens a detail only when the server can be asked about it**: an id
+   it accepts (§7.1), `none`, a known channel. Found on the local fixture,
+   whose service ids hold a space (« svc-Soin visage »); production ids are
+   `service_<µs>`.
+10. **An unreadable answer** is the error state (status 0, « Pas de
+    connexion. Réessayez. », as every pro read's unreadable 2xx), never a page
+    of zeros.
+11. **An address is rewritten on arrival only when it must be**, and `salon=`
+    only when it came with it: a rewrite is a navigation, and Next's route
+    announcer then read the page title out loud. Found by `axe.spec.ts` on a
+    bare `/pro/revenus/collaborateurs/a1`.
+12. **A row's change is heard once**: the badge is hidden from screen readers
+    and the sentence stands alone. Heard on the real server's answer (« stable,
+    stable par rapport à … »).
+13. **The comparison is kept for the browser tab's session**
+    (`sessionStorage`, never a name), as the app keeps it for the app's; the
+    address carries it when it is not « Période précédente ».
+14. **Calendar-date arithmetic lives in `lib/time.ts`.** The salon-time pins
+    (`time-pin.test.ts`) refused it in `lib/pro/revenue.ts`, as they should;
+    a date the server resolved is a day, not an instant, and the seam now says
+    so. The e2e stub's own days go through its clock seam (`stub-clock.test.ts`).
+15. **The R3 precisions hold here too**: a refusal shows no period bar; the
+    first load is titled at once from the salon's today by the device's clock
+    (the title only); the currency segments follow the server's order;
+    « estimé »'s footnote shows where « estimé » is printed; a salon with no
+    completed booking ever still sees the banner and « Prévu » above « Pas
+    encore de revenus »; a ledger link's `instant` older than 23 hours is
+    dropped; the latest five are a second, small request.
+
+### 22.2 Tests (§13.3)
+
+- `tests/pro-revenue.test.ts` — the address (round trip, defaults never
+  written, every malformed form → the current month, ids the server would
+  refuse), the calendar (‹ › by kind, ranges by their length, 2020, today +
+  366 from the answer, the anchor), the titles and the comparison's words,
+  a booking's time in the salon's zone (Libreville), §3.3's labels row by
+  row, §3.6's deltas (half away from zero, as the app), the counts, the
+  ledger line, « Trier par », the CSV (BOM, `;`, CRLF, integers, the share,
+  quoting, formulas, no client name, the names of the file), the BFF's
+  allowlist, and **the strict reading of the R2 server's own answers**
+  (`tests/revenue-r2/`, the files the app's tests read) — and their
+  mutilations refused.
+- `tests/pro-revenus.test.tsx` — every state of §4.11, the banner and its
+  « Voir », the latest five at the figures' instant, the chart's keys and its
+  fill, « Voir les données », the tabs and the sort in the address, the CSV
+  download, the period bar (provisional title, ‹ › and ← →, not from a list,
+  a late answer dropped, « Comparer à » kept for the session, an address read
+  on arrival, a malformed one), « Dates… » (the error tied to « Au »), two
+  currencies, 401, a detail, a detail inside a detail, a removed
+  collaborateur's kept name, another salon's detail, a bare arrival not
+  rewritten, a row's change heard once, a row with no askable key.
+- `tests/pro-revenus-ledger.test.tsx` — pages and « Afficher plus » at the
+  first page's instant, a row, the filters in the address, a stale instant
+  dropped, refusal, failure, a page cut, another salon, a bare arrival.
+- `tests/pro-revenus-wording.test.tsx` — on the R2 answers, every tab, a
+  detail and every ledger filter: no payment word, the one « encaiss » is
+  « n'encaisse rien ».
+- Updated: `pro-network-pages` (« Revenus » under a cut connection),
+  `pro-api-network` (the two wrappers), `pro-aujourdhui-roles` (the three
+  cards are links, the count cards are not).
+- e2e (the stub gains both endpoints, owner-only): `pro.spec.ts` — Revenus →
+  ← → → a collaborateur → « Voir tout » → a booking → Back, Back on the same
+  period (three runs green); `roles.spec.ts` — a Manager's deep link reads
+  « Réservé au propriétaire »; `axe.spec.ts` — « Revenus », a detail, the
+  ledger; `tap-targets.spec.ts` — « Répartition »'s tabs; `type-overflow.spec.ts`
+  — « Revenus » and the ledger at 375×812, 320×512, 320×256.
+
+### 22.3 On the real endpoints (2026-11-27)
+
+`main`'s backend (`dart_frog build`) on a throwaway local Postgres holding
+the demo salon with its three collaborateurs and the agenda the real weekly
+reset generates (the R3 fixture); the website built against it, in the
+built-in browser, signed in as the demo account with the local server's dev
+code:
+- the Accueil read « 100 000 FCFA · Revenus prévus ce mois »; its card opened
+  « Revenus »: « Novembre 2026 (en cours) », « Comparé à : 1er – 27 oct.
+  2026, même avancement », « 1 rendez-vous passé à clôturer », Réalisé
+  70 000 FCFA (+40 %), 7 terminés, taux d'absence 12,5 %, Prévu 20 000 FCFA —
+  the R3 simulator's figures on the same data;
+- hovering the chart chose a bar by its fill (« mar. 10 nov. · 10 000 FCFA ·
+  1 rendez-vous »);
+- « Voir » → the ledger on « À clôturer » → the booking → « Marquer comme
+  terminé » → Back, Back: no banner, Réalisé 80 000 FCFA, 8 terminés;
+  80 000 + 20 000 « Prévu » = the Accueil's 100 000 (§3.2's equality);
+- Adjoua K.'s detail (Prestations · Canaux), then « Tresses » inside it: both
+  filters accepted by the server, « Prestation · Adjoua K. », Back to her;
+- « Soin visage » (an id with a space, local only) had no link (item 9).
+
+The server and the site were stopped and the container removed after.
+
+### 22.4 Mutations watched red (on committed code)
+
+Each applied alone, its target tests run, the file restored and read back
+clean. A no-op edit (the control) stayed green.
+
+| # | Mutation | Red on |
+|---|---|---|
+| 1 | a default written in the address | « never writes a default », « a bare address is the current month » |
+| 2 | a range of 367 days accepted | « a range of 367 days falls back… », « « Dates… »: 366 days at most » |
+| 3 | ‹ on a month stays on it | « ‹ › by kind » |
+| 4 | › past today + 366 | « › stops at the salon's today + 366 days » |
+| 5 | another kind always anchored on `from` | the calendar's anchor, the page's « another kind keeps « now » » |
+| 6 | `Math.round`, not half away from zero | « half rounds away from zero, as the app » |
+| 7 | absences: up is good | « « Taux d'absence » in points; up is bad » |
+| 8 | a removed collaborateur read as active | the labels table, the CSV, « a collaborateur who left keeps the name » |
+| 9 | a formula left live in the CSV | « a name that starts like a formula stays text » |
+| 10 | CSV amounts with decimals | « opens in Excel: … integers … » |
+| 11 | a row at 0 sorted among the others by name | « Nom: French order …, a row at 0 still last » |
+| 12 | an unknown period read | « an answer with an unknown period is unreadable » |
+| 13 | a body without `groups` read as none | the strict reading, « an unreadable answer is an error, never zeros » |
+| 14 | a ledger without its instant read | « a ledger without its instant … is unreadable » |
+| 15 | the BFF forwards everything | « the BFF forwards §7's parameters and nothing else » |
+| 16 | the ledger sends `compare` | « the latest five: … at their instant » |
+| 17 | a late answer kept | « a late answer of an older period is dropped » |
+| 18 | the old figures under the new title | « another kind keeps « now »; the title changes before the answer » |
+| 19 | a 403 read as a failure | « refused (403): … nothing to retry » |
+| 20 | a period bar on a refusal | « refused (403): … no period bar » |
+| 21 | the chart's arrows step the period | « « Évolution » is one slider … the period stays » |
+| 22 | ← → from a list | « ‹ › …; ← → too — but not from a list or a field » |
+| 23 | the comparison not kept for the session | « « Comparer à » … kept for the session and in the address » |
+| 24 | the banner's « Voir » forgets the instant | « « À clôturer »: the banner, and « Voir » … » |
+| 25 | the latest five at another instant | « the latest five: … at their instant » |
+| 26 | a row linked whatever its key | « a row opens a detail only when the server can be asked about it » |
+| 27 | a detail inside a detail links deeper | « inside a detail: … no deeper » |
+| 28 | another salon's detail shown | « another salon's detail (after a switch) goes back to « Revenus » » |
+| 29 | a bare arrival rewritten (detail) | « arriving on a bare address does not rewrite it » |
+| 30 | the currency choice ignored | « two currencies: one at a time, never added » |
+| 31 | a row's change heard twice | « a row's change is heard once, as a sentence » |
+| 32 | the chosen bar not told by fill | « « Évolution » is one slider … » (the fill) |
+| 33 | « Au »'s error not shown | « « Dates… »: the error is under « Au », tied to it » |
+| 34 | a stale instant kept (ledger) | « « À clôturer » counts at the banner's instant — unless … 23 hours » |
+| 35 | « Afficher plus » at another instant | « pages of 20; « Afficher plus » asks the next at the same instant » |
+| 36 | another salon's ledger shown | « another salon's ledger goes back to « Revenus » » |
+| 37 | the ledger rewrites a bare arrival | « arriving on a bare address does not rewrite it » (ledger) |
+| 38 | the Accueil's day card not a link | « owner: each money card opens « Revenus » on its period » |
+| 39 | the footnote says « encaissé » | the footnote's unit test, the wording tests (overview, detail) |
+
+The harness asserted that each edit applied exactly once (a mutation that does not apply is no result), and that every file read back clean after.

@@ -759,7 +759,10 @@ every file the Espace pro renders through, `StatusChip` included —
 [web-account-bookings-truth.md](web-account-bookings-truth.md) §2.3, §8) ·
 `AppInstallBanner` · `OpenInAppButton` · `SalonTimeHint` · `LocalityPicker` ·
 `ProviderCard` · `TeamRoleChip` (a `Chip` caller since B6) · `JsonLd` ·
-`Lightbox` · `SiteChrome` / `Header`.
+`Lightbox` · `SiteChrome` / `Header` · the revenue analytics' `KpiGrid`,
+`DeltaBadge`, `ShareBar`, `BarSeries` (`components/pro/revenue/`, R4 — the
+web twins of SYSTEM §11.3's; the chart is **one** focusable ARIA slider,
+never a button per bar — [pro-revenue-analytics.md](pro-revenue-analytics.md) §22).
 
 To build (specified in [SYSTEM.md §11.3](SYSTEM.md#113-to-build-the-gaps-this-system-creates-work-for)
 where they have an app twin):
