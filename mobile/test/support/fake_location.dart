@@ -1,8 +1,10 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:myweli/core/location/location_access.dart';
+import 'package:myweli/core/utils/app_clock.dart';
 
 /// A phone's location, as geolocator's method channel answers it
 /// (`flutter.baseflow.com/geolocator`, the channel `GeolocatorPlatform`
@@ -25,8 +27,15 @@ class FakePhoneLocation {
   int check = denied;
 
   /// What each `requestPermission` answers, in turn; the last repeats. Each
-  /// request also becomes the next [check] (the phone remembers the answer).
+  /// answer becomes the next [check] as each platform reports it: on Android
+  /// a refusal for good still checks as `denied` — `checkPermission` never
+  /// says otherwise there (`PermissionManager.java:63-64`); on iOS it checks
+  /// as `deniedForever`.
   List<int> requests = [deniedForever];
+
+  /// How old the phone's last position is (`getLastKnownPosition`); `null`:
+  /// it has none.
+  Duration? lastKnownAge = const Duration(minutes: 1);
 
   /// Somewhere in Treichville, accurate to [accuracy] metres.
   double latitude = 5.30;
@@ -74,7 +83,8 @@ class FakePhoneLocation {
                   ? _request
                   : requests.length - 1];
         _request++;
-        check = answer;
+        final android = defaultTargetPlatform != TargetPlatform.iOS;
+        check = android && answer == deniedForever ? denied : answer;
         return answer;
       case 'getCurrentPosition':
         positionSettings = call.arguments as Map<Object?, Object?>?;
@@ -87,6 +97,15 @@ class FakePhoneLocation {
           'longitude': longitude,
           'accuracy': accuracy,
           'timestamp': 0,
+        };
+      case 'getLastKnownPosition':
+        final age = lastKnownAge;
+        if (age == null) return null;
+        return {
+          'latitude': latitude,
+          'longitude': longitude,
+          'accuracy': accuracy,
+          'timestamp': AppClock.now().subtract(age).millisecondsSinceEpoch,
         };
       case 'getLocationAccuracy':
         return accuracyStatus;

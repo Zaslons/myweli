@@ -54,6 +54,10 @@ enum _LocationBanner {
   failed,
 }
 
+/// Which Settings page the map opened: the app's own, or the phone's
+/// location page (§2.1). The return reads differently from each.
+enum _SettingsPage { app, location }
+
 class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
   // Abidjan-ish default center
   static const LatLng _defaultCenter = LatLng(5.336, -4.026);
@@ -81,6 +85,11 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
   /// to the foreground too, and must not start a second read (§2.4).
   bool _awaitingSettings = false;
   bool _leftForSettings = false;
+  _SettingsPage _settingsPage = _SettingsPage.app;
+
+  /// The pill and the lines under it: the camera keeps the circle below them
+  /// (§2.1).
+  final GlobalKey _overlayKey = GlobalKey();
 
   /// The salon `focusProviderId` resolved to. Its marker is drawn even when
   /// the list — page 1, filtered by the chosen commune — does not hold it,
@@ -210,7 +219,22 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
   /// « Me localiser » stays.
   Future<void> _onOpen() async {
     final access = LocationAccess.instance;
-    switch (await access.status()) {
+    final status = await access.status();
+    if (!mounted) return;
+    switch (status) {
+      case LocationStatus.allowed
+          when defaultTargetPlatform == TargetPlatform.android:
+        // On Android a read can open Google's « turn on location » dialog
+        // (§2.4): opening shows only a recent position the phone already
+        // has, and « Me localiser » reads a new one.
+        final recent = await access.recent();
+        if (!mounted || recent == null) return;
+        setState(() => _position = recent.position);
+        if (_focused == null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) _showPosition(recent.position, zoom: 13.5);
+          });
+        }
       case LocationStatus.allowed:
         await _read(ask: false, silent: true, recenter: _focused == null);
       case LocationStatus.undecided:
@@ -236,7 +260,7 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
     bool recenter = true,
     bool fromBanner = false,
   }) async {
-    if (_locating) return; // one read at a time (§2.4)
+    if (!mounted || _locating) return; // one read at a time (§2.4)
     setState(() => _locating = true);
     final outcome = await LocationAccess.instance.locate(
       accuracy: LocationAccuracy.medium,
@@ -260,6 +284,11 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
     if (fromBanner) _refocus();
   }
 
+  /// « Activer », « Autoriser », « Réessayer »: the camera moves to the
+  /// position, but not off a salon the person opened (§2.1).
+  void _readFromBanner() =>
+      unawaited(_read(ask: true, recenter: _focused == null, fromBanner: true));
+
   _LocationBanner? _bannerFor(LocationOutcome outcome) => switch (outcome) {
     Located() => null,
     LocationRefused() => _LocationBanner.refused,
@@ -277,6 +306,7 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
   Future<void> _openSettings({required bool location}) async {
     _awaitingSettings = true;
     _leftForSettings = false;
+    _settingsPage = location ? _SettingsPage.location : _SettingsPage.app;
     final access = LocationAccess.instance;
     final opened = location
         ? await access.openLocationSettings()
@@ -302,11 +332,27 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
       case LocationStatus.blocked:
         setState(() => _banner = _LocationBanner.blocked);
       case LocationStatus.undecided:
-        setState(() => _banner = _LocationBanner.refused);
+        setState(() => _banner = _undecidedAfterSettings());
       case LocationStatus.unknown:
         return;
     }
     _refocus();
+  }
+
+  /// Back from the Settings, the phone says « not decided »:
+  /// - from the location page, nobody refused anything: the ask;
+  /// - from the app's page on Android, « not decided » is all Android ever
+  ///   says without a request (`PermissionManager.java:63-64`), whether the
+  ///   person changed nothing or chose « Demander à chaque fois ». Nothing
+  ///   changed is the likelier: the blocked line stays, and « Me localiser »
+  ///   still asks (independent review, 2026-11-27);
+  /// - from the app's page on iOS, « Demander la prochaine fois »: the
+  ///   dialog can show again, so « Autoriser ».
+  _LocationBanner _undecidedAfterSettings() {
+    if (_settingsPage == _SettingsPage.location) return _LocationBanner.ask;
+    return defaultTargetPlatform == TargetPlatform.android
+        ? _LocationBanner.blocked
+        : _LocationBanner.refused;
   }
 
   /// « Plus tard » and « Fermer »: the banner goes, until the next tap. Only
@@ -346,13 +392,27 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
     final dLat = radius / metresPerDegree;
     final dLng =
         radius / (metresPerDegree * math.cos(pos.latitude * math.pi / 180));
+    // Below the pill and its lines, which cover the top of the map.
+    final overlay =
+        (_overlayKey.currentContext?.findRenderObject() as RenderBox?)
+            ?.size
+            .height ??
+        0;
     _mapController.fitCamera(
       CameraFit.bounds(
         bounds: LatLngBounds(
           LatLng(pos.latitude - dLat, pos.longitude - dLng),
           LatLng(pos.latitude + dLat, pos.longitude + dLng),
         ),
-        padding: const EdgeInsets.all(AppTheme.spacingM),
+        padding: EdgeInsets.fromLTRB(
+          AppTheme.spacingM,
+          AppTheme.spacingM + overlay + AppTheme.spacingS,
+          AppTheme.spacingM,
+          AppTheme.spacingM,
+        ),
+        // Never closer than a precise position would be: a circle of 600 m
+        // would otherwise fill the screen, more zoomed in than 20 m.
+        maxZoom: zoom,
       ),
     );
   }
@@ -652,10 +712,7 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
             'Plus tard',
             idle ? () => _dismissBanner(later: true) : null,
           ),
-          _BannerAction(
-            'Activer',
-            idle ? () => unawaited(_read(ask: true, fromBanner: true)) : null,
-          ),
+          _BannerAction('Activer', idle ? _readFromBanner : null),
         ],
         lastActionFocus: _bannerActionFocus,
       ),
@@ -666,10 +723,7 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
             'carte, ou autorisez-la.',
         actions: [
           close,
-          _BannerAction(
-            'Autoriser',
-            idle ? () => unawaited(_read(ask: true, fromBanner: true)) : null,
-          ),
+          _BannerAction('Autoriser', idle ? _readFromBanner : null),
         ],
         lastActionFocus: _bannerActionFocus,
       ),
@@ -722,10 +776,7 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
             'haut de la carte.',
         actions: [
           close,
-          _BannerAction(
-            'Réessayer',
-            idle ? () => unawaited(_read(ask: true, fromBanner: true)) : null,
-          ),
+          _BannerAction('Réessayer', idle ? _readFromBanner : null),
         ],
         lastActionFocus: _bannerActionFocus,
       ),
@@ -840,6 +891,7 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
             right: AppTheme.spacingM,
             top: AppTheme.spacingM,
             child: Column(
+              key: _overlayKey,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Consumer<ProviderProvider>(

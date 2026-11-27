@@ -16,10 +16,11 @@
 # (mobile/test/infra/android_location_permission_test.dart) cannot see a
 # plugin's manifest bring precise location back.
 #
-# Passes only when the badging declares ACCESS_COARSE_LOCATION and no line, of
-# any form, names ACCESS_FINE_LOCATION: `uses-permission`,
-# `uses-permission-sdk-23`, with or without `maxSdkVersion`, or an implied
-# feature's reason. Exit 1 = refused; exit 2 = nothing to judge.
+# Passes only when the badging declares ACCESS_COARSE_LOCATION and no line
+# names ACCESS_FINE_LOCATION in quotes, whatever its form: `uses-permission`,
+# `uses-permission-sdk-23`, with or without `maxSdkVersion`. (An implied
+# feature's reason names it without quotes, and only beside a permission line,
+# which is what is refused.) Exit 1 = refused; exit 2 = nothing to judge.
 set -euo pipefail
 
 usage='usage: verify_android_location.sh <app.apk> | --badging <file>'

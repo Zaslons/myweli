@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../utils/app_clock.dart';
 import '../utils/logger.dart';
 
 /// The phone's location, asked one way in the whole app.
@@ -45,6 +46,18 @@ class LocationAccess {
   /// (`FusedLocationClient.java:236-257`); the person's answer to the
   /// PERMISSION dialog is not timed.
   static const Duration bound = Duration(seconds: 30);
+
+  /// The permission dialog's own limit — generous, it is the person's
+  /// answer. It exists for the request that never answers: Android drops the
+  /// callback when the result comes back empty, « when the user cancels the
+  /// permission request » (`PermissionManager.java:148-153`), and with one
+  /// read app-wide, every location button would wait with it until the app
+  /// restarts (independent review, 2026-11-27).
+  static const Duration permissionBound = Duration(minutes: 2);
+
+  /// How old a cached position may be and still be shown on opening the map
+  /// ([recent]).
+  static const Duration recentAge = Duration(minutes: 15);
 
   /// `SharedPreferences`: the map's ask banner was answered (§4).
   static const String explainedKey = 'location_explained';
@@ -113,7 +126,9 @@ class LocationAccess {
       var permission = await _platform.checkPermission();
       if (permission == LocationPermission.denied) {
         if (!ask) return const LocationRefused();
-        permission = await _platform.requestPermission();
+        permission = await _platform.requestPermission().timeout(
+          permissionBound,
+        );
         if (permission == LocationPermission.denied) {
           // iOS answers `denied` to a request only when it cannot show its
           // dialog at all: a restricted phone. Android: refused, and the
@@ -152,6 +167,27 @@ class LocationAccess {
       // it in their words.
       AppLogger.warning('Location read failed: ${e.runtimeType}');
       return const LocationFailed();
+    }
+  }
+
+  /// The phone's last position, when it is no older than [maxAge] — with no
+  /// dialog of any kind and no read started. `null` otherwise, or on any
+  /// failure.
+  ///
+  /// It is the map's silent read on Android: a read there can open Google's
+  /// « turn on location » dialog when the phone's location settings do not
+  /// meet the request (`FusedLocationClient.java:236-257`), and opening
+  /// « Carte » never shows a dialog by itself (§2.1, decision 273). The last
+  /// position is `getLastLocation()`, which checks no setting.
+  Future<Located?> recent({Duration maxAge = recentAge}) async {
+    try {
+      final position = await _platform.getLastKnownPosition();
+      if (position == null) return null;
+      if (AppClock.now().difference(position.timestamp) > maxAge) return null;
+      return Located(position, approximate: await _approximate());
+    } catch (e) {
+      AppLogger.warning('Last position unreadable: ${e.runtimeType}');
+      return null;
     }
   }
 

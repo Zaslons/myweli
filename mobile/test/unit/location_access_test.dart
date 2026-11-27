@@ -282,6 +282,74 @@ void main() {
     });
   });
 
+  group('a permission request that never answers (review, 2026-11-27)', () {
+    testWidgets('fails after 2 minutes, and the next tap asks again', (
+      tester,
+    ) async {
+      // Android drops the callback when the result comes back empty
+      // (`PermissionManager.java:148-153`).
+      phone
+        ..holdRequest = Completer<int>()
+        ..install(tester);
+      LocationOutcome? outcome;
+      unawaited(
+        access
+            .locate(accuracy: LocationAccuracy.medium)
+            .then((o) => outcome = o),
+      );
+      await tester.pump(const Duration(seconds: 119));
+      expect(outcome, isNull, reason: 'the person may still be reading');
+      await tester.pump(const Duration(seconds: 2));
+      expect(outcome, isA<LocationFailed>());
+
+      phone
+        ..holdRequest = null
+        ..requests = [FakePhoneLocation.whileInUse];
+      expect(await run(tester), isA<Located>());
+      expect(phone.count('requestPermission'), 2);
+    });
+  });
+
+  group('recent(): the last position, with no dialog and no read', () {
+    testWidgets('a position younger than 15 minutes', (tester) async {
+      phone
+        ..lastKnownAge = const Duration(minutes: 14)
+        ..accuracyStatus = 0
+        ..install(tester);
+      final recent = await access.recent();
+      expect(recent?.position.latitude, 5.30);
+      expect(recent?.approximate, isTrue);
+      expect(phone.count('getCurrentPosition'), 0);
+      expect(phone.count('requestPermission'), 0);
+    });
+
+    for (final (label, age) in [
+      ('older than 15 minutes', const Duration(minutes: 16)),
+      ('none', null),
+    ]) {
+      testWidgets('$label → null', (tester) async {
+        phone
+          ..lastKnownAge = age
+          ..install(tester);
+        expect(await access.recent(), isNull);
+      });
+    }
+
+    testWidgets('a plugin error → null, no throw', (tester) async {
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        FakePhoneLocation.channel,
+        (call) async => throw PlatformException(code: 'PERMISSION_DENIED'),
+      );
+      addTearDown(
+        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          FakePhoneLocation.channel,
+          null,
+        ),
+      );
+      expect(await access.recent(), isNull);
+    });
+  });
+
   group('the explained flag records the tap (§4)', () {
     testWidgets('set by locate(), even when it is refused', (tester) async {
       phone

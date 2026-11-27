@@ -23,6 +23,7 @@ import 'package:myweli/services/mock/mock_auth_service.dart';
 import 'package:myweli/services/mock/mock_data.dart';
 import 'package:myweli/services/mock/mock_favorites_service.dart';
 import 'package:myweli/services/mock/mock_provider_service.dart';
+import 'package:myweli/widgets/common/commune_pill.dart';
 import 'package:provider/provider.dart' hide Provider;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -194,25 +195,54 @@ void main() {
       expect(phone.count('requestPermission'), 0);
     });
 
-    testWidgets('allowed: the dot, silently; no banner, no request', (
-      tester,
-    ) async {
+    testWidgets('allowed (Android): the phone\'s recent position, silently; '
+        'no banner, no request, and NO read (Google\'s dialog can open '
+        'inside one)', (tester) async {
       phone.check = FakePhoneLocation.whileInUse;
       await pumpMap(tester);
       expect(dot(), findsOneWidget);
       expect(text(_ask), findsNothing);
       expect(phone.count('requestPermission'), 0);
+      expect(phone.count('getCurrentPosition'), 0);
       expect(camera(tester).zoom, 13.5);
       expect(camera(tester).center.latitude, closeTo(5.30, 1e-6));
     });
 
-    testWidgets('allowed, but the read fails: nothing at all', (tester) async {
-      phone
-        ..check = FakePhoneLocation.whileInUse
-        ..positionError = 'LOCATION_UPDATE_FAILURE';
-      await pumpMap(tester);
-      expect(dot(), findsNothing);
-      expect(text(_failed), findsNothing);
+    for (final (label, age) in [
+      ('none', null),
+      ('older than 15 min', const Duration(minutes: 16)),
+    ]) {
+      testWidgets('allowed (Android), no recent position ($label): nothing, '
+          'and no read', (tester) async {
+        phone
+          ..check = FakePhoneLocation.whileInUse
+          ..lastKnownAge = age;
+        await pumpMap(tester);
+        expect(dot(), findsNothing);
+        expect(text(_failed), findsNothing);
+        expect(phone.count('getCurrentPosition'), 0);
+      });
+    }
+
+    testWidgets('allowed (iOS): a new read, silently; a failed one shows '
+        'nothing', (tester) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+      try {
+        phone
+          ..check = FakePhoneLocation.whileInUse
+          ..lastKnownAge = null;
+        await pumpMap(tester);
+        expect(dot(), findsOneWidget);
+        expect(phone.count('getCurrentPosition'), 1);
+
+        await tester.pumpWidget(const SizedBox());
+        phone.positionError = 'LOCATION_UPDATE_FAILURE';
+        await pumpMap(tester);
+        expect(dot(), findsNothing);
+        expect(text(_failed), findsNothing);
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
     });
 
     for (final (label, setup) in [
@@ -244,6 +274,22 @@ void main() {
   });
 
   group('« Activer » and its outcomes (§2.1)', () {
+    testWidgets('a salon opened: « Activer » shows the dot and leaves the '
+        'camera on the salon', (tester) async {
+      phone.requests = [FakePhoneLocation.whileInUse];
+      await pumpMap(tester, focus: const SalonId('plateau'));
+      // The salon's sheet is open; its scrim closes it.
+      await tester.tapAt(const Offset(195, 120));
+      await settle(tester);
+      await tap(tester, 'Activer');
+      expect(
+        tester.widget<MarkerLayer>(find.byType(MarkerLayer)).markers,
+        hasLength(2),
+        reason: 'the salon and the dot',
+      );
+      expect(camera(tester).center.latitude, closeTo(5.325, 1e-6));
+    });
+
     testWidgets('allowed: the dot, labelled, its circle, no banner; the flag '
         'set', (tester) async {
       phone.requests = [FakePhoneLocation.whileInUse];
@@ -283,6 +329,31 @@ void main() {
         reason: 'zoom ${cam.zoom}: the circle runs off the screen',
       );
       expect(cam.zoom, lessThan(13.5));
+      // …and below the pill, which covers the top of the map.
+      final top = cam.latLngToScreenOffset(const LatLng(5.30 + dLat, -4.00));
+      final overlay = tester.getRect(find.byType(CommunePill));
+      expect(top.dy, greaterThan(overlay.bottom), reason: 'under the pill');
+    });
+
+    testWidgets('a little approximate (600 m): framed, never closer than a '
+        'precise one', (tester) async {
+      phone
+        ..requests = [FakePhoneLocation.whileInUse]
+        ..accuracy = 600;
+      await pumpMap(tester);
+      await tap(tester, 'Activer');
+      final cam = camera(tester);
+      expect(cam.zoom, lessThanOrEqualTo(13.5));
+      const dLat = 600 / 111320.0;
+      expect(
+        cam.visibleBounds.containsBounds(
+          LatLngBounds(
+            const LatLng(5.30 - dLat, -4.00 - dLat),
+            const LatLng(5.30 + dLat, -4.00 + dLat),
+          ),
+        ),
+        isTrue,
+      );
     });
 
     testWidgets('refused (Android): its sentence; « Autoriser » asks again', (
@@ -437,6 +508,56 @@ void main() {
       expect(dot(), findsOneWidget);
       expect(text(_blocked), findsNothing);
       expect(phone.count('requestPermission'), 1);
+    });
+
+    testWidgets('Android, nothing changed there: still « bloquée », not '
+        '« refusée »', (tester) async {
+      phone.requests = [FakePhoneLocation.deniedForever];
+      await pumpMap(tester);
+      await tap(tester, 'Activer');
+      await tap(tester, 'Ouvrir les réglages');
+      await leaveAndReturn(tester);
+      expect(text(_blocked), findsOneWidget);
+      expect(text(_refused), findsNothing);
+      expect(phone.count('requestPermission'), 1);
+    });
+
+    testWidgets('iOS: nothing changed there stays « bloquée »; « Demander '
+        'la prochaine fois » offers « Autoriser »', (tester) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+      try {
+        phone.requests = [FakePhoneLocation.deniedForever];
+        await pumpMap(tester);
+        await tap(tester, 'Activer');
+        await tap(tester, 'Ouvrir les réglages');
+        await leaveAndReturn(tester);
+        expect(text(_blocked), findsOneWidget);
+
+        await tap(tester, 'Ouvrir les réglages');
+        phone.check = FakePhoneLocation.denied;
+        await leaveAndReturn(tester);
+        expect(text(_refused), findsOneWidget);
+        expect(find.widgetWithText(TextButton, 'Autoriser'), findsOneWidget);
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
+    });
+
+    testWidgets('location turned on at the location page, never asked: the '
+        'ask, not « refusée »', (tester) async {
+      SharedPreferences.setMockInitialValues({
+        LocationAccess.explainedKey: true,
+      });
+      phone.service = false;
+      await pumpMap(tester);
+      await tester.tap(find.byTooltip('Me localiser'));
+      await settle(tester);
+      await tap(tester, 'Ouvrir les réglages');
+      phone.service = true;
+      await leaveAndReturn(tester);
+      expect(text(_ask), findsOneWidget);
+      expect(text(_refused), findsNothing);
+      expect(phone.count('requestPermission'), 0);
     });
 
     testWidgets('location turned off there: the off banner', (tester) async {

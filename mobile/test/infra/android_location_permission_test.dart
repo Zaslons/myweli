@@ -43,7 +43,12 @@ void main() {
       RegExp(r'<uses-permission(?:-sdk-23)?\s[^>]*>', dotAll: true)
           .allMatches(manifest)
           .map((m) => m.group(0)!)
-          .where((e) => e.contains('android:name="$permission"'))
+          // Either quote: XML allows both.
+          .where(
+            (e) => RegExp(
+              'android:name=["\']${RegExp.escape(permission)}["\']',
+            ).hasMatch(e),
+          )
           .toList();
 
   test('the source sets were found (an empty read would pass the rest)', () {
