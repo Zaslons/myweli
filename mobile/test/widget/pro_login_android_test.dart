@@ -23,6 +23,7 @@ import 'package:myweli/widgets/provider/pro_salon_gate.dart';
 import 'package:myweli/widgets/team/revoked_access_banner.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../support/drawn_email.dart';
 import '../support/pro_sign_up.dart';
 import '../support/rejoin.dart';
 
@@ -180,7 +181,9 @@ void main() {
     final requests = mock.codeRequests;
 
     await openSignUp(tester);
-    expect(find.text('Compte : $email'), findsOneWidget);
+    // « Compte : », then the address on a line of its own (§13.3).
+    expect(find.text('Compte :'), findsOneWidget);
+    expect(drawnEmail(email), findsOneWidget);
     await fill(tester);
     await tapOn(tester, createButton());
     await settle(tester);
@@ -203,7 +206,7 @@ void main() {
     await tapOn(tester, createButton());
     await settle(tester);
 
-    expect(find.text('Compte : $email'), findsNothing);
+    expect(find.text('Compte :'), findsNothing);
     expect(find.text(email), findsOneWidget, reason: 'the address kept');
     expect(find.text('Continuer avec e-mail'), findsOneWidget);
     expect(
