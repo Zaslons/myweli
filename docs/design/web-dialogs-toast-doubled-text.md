@@ -2,7 +2,8 @@
 
 | | |
 |---|---|
-| **Status** | Draft (2026-11-27), measured, awaiting the owner's sign-off on §4 and §5 |
+| **Status** | Approved (2026-11-27), not built |
+| **Approved** | by the owner, 2026-11-27, on §4 and §5: « Approve as recommended » (all four decisions as recommended) |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-11-27 |
 | **Register row** | [WEB-SYSTEM.md](WEB-SYSTEM.md) §15 row 40 (new) |
@@ -171,25 +172,25 @@ a screen reader has it as the dialog's name).
 No copy changes. No behaviour changes: the same controls, in the same order,
 doing the same things.
 
-## 5. Decisions (for the owner)
+## 5. Decisions (answered 2026-11-27: « Approve as recommended »)
 
-1. **The shape in §4, as a whole.** *Recommended: approve.*
+1. **The shape in §4, as a whole.** *Recommended: approve.* — **Approved.**
 2. **The three other dialog footers** (« Ajouter un client », « Nouveau
    rendez-vous », « Modifier le numéro »): the same one-class fix, measured off
    the screen (two of three opened). *Recommended: include them; the
-   alternative leaves them as a follow-up.*
+   alternative leaves them as a follow-up.* — **Included.**
 3. **The toast's width.** *Recommended: keep it at half the screen*, as
    decisions 91 and 100 were accepted on, and only cap it and break a too-long
    word (§4). The alternative, a pill as wide as the screen less its gutters,
    would cut the 10-line message to about half, but it changes the « Carte »
    moves the owner accepted with decision 100, which would have to be
    re-measured (on Linux CI too) and put to the owner again — a piece of its
-   own.
+   own. — **Kept at half the screen.**
 4. **The native select at 200 %.** *Recommended: accept it and declare it* in
    §9 (the picker shows the options whole; the app does the same). The
    alternatives: shorten the placeholder to « Choisir… » (fits; a long fiche
    name is still cut), or replace the select with a list of choices (the
-   app's sheet has one; a redesign, not this fix).
+   app's sheet has one; a redesign, not this fix). — **Accepted and declared.**
 
 ## 6. Tests (red first, on the code before the change)
 
