@@ -58,19 +58,27 @@ calls). **R5** = web parity, **R6** = multi-salons.
   (« Invitez votre équipe » — « Chaque membre a son propre accès. Les collaborateurs
   ne voient que leur propre planning. » CTA « Inviter un membre ») · list.
 - **Header**: seats « {used} / {cap} places » + fine progress bar (offer state).
-- **Rows**: initials avatar · email · role chip (Propriétaire or, Manager plein,
-  Réception/Collaborateur contour) · staff → « Employé : {artistName} » · pending →
+- **Rows** (no initials avatar since 2026-11-27: it left the address too little
+  room at 200 %): email, whole, broken only at its seams (SYSTEM.md
+  §13.3) · under it the role chip (Propriétaire or, Manager plein,
+  Réception/Collaborateur contour) — beside the address it cut it at every size
+  ([app-team-email-seams.md](app-team-email-seams.md)) · staff → « Employé : {artistName} » · pending →
   badge « Invitation envoyée » + « Expire le {date} » ; expirée → badge « Expirée »
   (rouge). Owner row pinned first, inert.
 - **Invite (bottom sheet, 3 étapes)**: e-mail (validé, minuscule) → rôle (3 cartes,
   résumés en français clair) → si Collaborateur : « Associer à un employé » (picker
-  des fiches + « + Créer une fiche » inline, nom seul). Succès → snackbar
-  « Invitation envoyée à {email} ». `offer_required`/`seat_limit` → message + CTA
+  des fiches + « + Créer une fiche » inline, nom seul). The role step says « Quel
+  rôle pour » with the address on a line of its own, its « ? » heard and not
+  drawn. Succès → snackbar « Invitation envoyée. » (the roster names who,
+  [app-team-email-seams.md](app-team-email-seams.md) §4). `offer_required`/`seat_limit` → message + CTA
   vers `/pro/subscription`.
-- **Actions (sheet on row tap)**: « Changer le rôle » · « Renvoyer l'invitation
-  ({n} restants) » (pending seulement) · « Révoquer l'accès » → confirmation
-  destructive « {email} perdra immédiatement l'accès à {salon}. Son compte MyWeli
-  n'est pas supprimé. »
+- **Actions (sheet on row tap)**, headed by the address (whole, the chip under
+  it): « Changer le rôle » · « Renvoyer l'invitation ({n} restants) » (pending
+  seulement) · « Révoquer l'accès » → confirmation destructive « {email} perdra
+  immédiatement l'accès à {salon}. Son compte MyWeli n'est pas supprimé. », drawn
+  with the address on a line of its own, first, and heard as that one sentence.
+  Snackbars: « Rôle mis à jour. », « Invitation renvoyée. », « Accès révoqué. »
+  ([app-team-email-seams.md](app-team-email-seams.md) §4, the website's words).
 
 ### 2.2 Invitee — the login bridge (critical path)
 

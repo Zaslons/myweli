@@ -374,10 +374,22 @@ Iterable<String> unbreakableTokens(String text) => text
 /// matches the no-break spaces, so « 180 000 » (grouped with U+202F) was
 /// measured as « 180 » and « 000 » and a number broken in half passed
 /// (docs/design/amounts-that-fit.md §1.2).
-void expectNoMidWordBreak(WidgetTester tester, String text, String at) {
+///
+/// [within] narrows the check to the renderings under one subtree — a sheet,
+/// a dialog — when the same string is also drawn behind it, and is being
+/// asked about on its own (docs/design/app-team-email-seams.md §6).
+void expectNoMidWordBreak(
+  WidgetTester tester,
+  String text,
+  String at, {
+  Finder? within,
+}) {
+  final rendered = within == null
+      ? find.text(text)
+      : find.descendant(of: within, matching: find.text(text));
   final paragraphs = tester
       .renderObjectList<RenderParagraph>(
-        find.descendant(of: find.text(text), matching: find.byType(RichText)),
+        find.descendant(of: rendered, matching: find.byType(RichText)),
       )
       .toList();
   expect(
@@ -452,16 +464,28 @@ const String _kZeroWidthSpace = '\u200B';
 /// screen reader hears, not to the line a user reads the address from.
 ///
 /// Found by what the user sees, not by widget: every painted paragraph whose
-/// text, its U+200B removed, holds [address].
+/// text, its U+200B removed, holds [address] — or, given [within], every such
+/// paragraph under that subtree: the address on a sheet or in a dialog, while
+/// the row it was opened from is drawn behind it and is asked about on its
+/// own (docs/design/app-team-email-seams.md §6).
 void expectEmailAddressOnItsOwnLine(
   WidgetTester tester,
   String address,
-  String at,
-) {
+  String at, {
+  Finder? within,
+}) {
+  final scope = within == null
+      ? null
+      : tester
+            .renderObjectList<RenderParagraph>(
+              find.descendant(of: within, matching: find.byType(RichText)),
+            )
+            .toSet();
   final drawn = [
     for (final p
         in tester.allRenderObjects.whereType<RenderParagraph>().toSet())
-      if (p.hasSize &&
+      if ((scope == null || scope.contains(p)) &&
+          p.hasSize &&
           _isPainted(p) &&
           p.text
               .toPlainText()
@@ -478,7 +502,7 @@ void expectEmailAddressOnItsOwnLine(
   final atSign = address.lastIndexOf('@');
   for (final p in drawn) {
     final raw = p.text.toPlainText();
-    expectNoMidWordBreak(tester, raw, at);
+    expectNoMidWordBreak(tester, raw, at, within: within);
 
     // The drawn characters, U+200B left out, each with its line's top.
     final visible = [
