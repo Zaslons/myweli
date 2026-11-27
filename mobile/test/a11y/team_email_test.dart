@@ -170,6 +170,7 @@ void main() {
 
       testWidgets('the actions sheet names its member whole, on a line of '
           'its own', (tester) async {
+        final handle = tester.ensureSemantics();
         await openTeam(tester, scale: scale);
         for (final address in [long, staff]) {
           await openSheet(tester, address);
@@ -181,9 +182,12 @@ void main() {
             'the sheet, $at',
             within: find.byType(BottomSheet),
           );
+          // A screen reader hears the heading's address without its marks.
+          expectNoMarkHeard();
           Navigator.of(tester.element(find.text('Changer le rôle'))).pop();
           await settleMocks(tester);
         }
+        handle.dispose();
       });
 
       testWidgets('« Révoquer l’accès ? » gives the address the first line', (
