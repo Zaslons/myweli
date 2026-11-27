@@ -122,5 +122,27 @@ void main() {
       expect(r.error, 'Veuillez vous reconnecter.');
       expect(r.code, 'unauthorized');
     });
+
+    // Cloudflare's rate limit on `/auth/`, `/admin/auth/` and `/me/email/`
+    // answers before the app, in text (infra/cloudflare/96-api-front-door.sh;
+    // read back 2026-11-26: « error code: 1015 »). B16.3b's review.
+    test(
+      'the edge\'s 429, not JSON → `rate_limited`, the service\'s words',
+      () {
+        final r = errorFromResponse<int>(
+          res(429, 'error code: 1015'),
+          messageFor: (c) => c == 'rate_limited' ? 'Trop de tentatives.' : null,
+        );
+        expect(r.code, 'rate_limited');
+        expect(r.error, 'Trop de tentatives.');
+      },
+    );
+
+    test('a 429 WITH a code keeps it (`otp_resend_limit`)', () {
+      final r = errorFromResponse<int>(
+        res(429, '{"error":"otp_resend_limit"}'),
+      );
+      expect(r.code, 'otp_resend_limit');
+    });
   });
 }

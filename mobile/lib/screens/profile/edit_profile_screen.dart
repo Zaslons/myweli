@@ -12,6 +12,7 @@ import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
 import '../../core/utils/phone_numbering.dart';
 import '../../core/utils/validators.dart';
+import '../../models/user.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/common/app_button.dart';
 import '../../widgets/common/app_snack_bar.dart';
@@ -35,7 +36,6 @@ class _EditProfileScreenState extends State<EditProfileScreen>
   // is the form's reading order — `firstErroredKey` walks it for the focus move.
   late final _errors = FieldErrors({
     'name': Validators.name,
-    'email': Validators.optionalEmail,
     // Optional, as it always was here — A7's first pass made it required by
     // accident, which would have blocked a consumer with no number on file
     // from saving an unrelated edit.
@@ -43,16 +43,10 @@ class _EditProfileScreenState extends State<EditProfileScreen>
   });
 
   final _nameFocus = FocusNode();
-  final _emailFocus = FocusNode();
   final _phoneFocus = FocusNode();
-  late final _focusNodes = {
-    'name': _nameFocus,
-    'email': _emailFocus,
-    'phone': _phoneFocus,
-  };
+  late final _focusNodes = {'name': _nameFocus, 'phone': _phoneFocus};
 
   final _nameController = TextEditingController();
-  final _emailController = TextEditingController();
   // Contact phone (auth overhaul: unverified contact data, not the login),
   // normalized: '' once cleared — which `PATCH /me` reads as « clear it ».
   // The field used to emit `+225` for a cleared number, so it could not be
@@ -70,7 +64,6 @@ class _EditProfileScreenState extends State<EditProfileScreen>
     _prefilled = true;
     _filledFor++;
     _nameController.text = user.name ?? '';
-    _emailController.text = user.email ?? '';
     _phone = PhoneNumbering.normalize(user.phoneNumber ?? '');
   }
 
@@ -93,9 +86,7 @@ class _EditProfileScreenState extends State<EditProfileScreen>
   @override
   void dispose() {
     _nameController.dispose();
-    _emailController.dispose();
     _nameFocus.dispose();
-    _emailFocus.dispose();
     _phoneFocus.dispose();
     super.dispose();
   }
@@ -129,7 +120,6 @@ class _EditProfileScreenState extends State<EditProfileScreen>
     // §14 rule 5: the button was never disabled, so pressing it has to answer.
     final ok = _errors.validate({
       'name': _nameController.text,
-      'email': _emailController.text,
       'phone': _phone,
     });
     setState(() {});
@@ -139,9 +129,11 @@ class _EditProfileScreenState extends State<EditProfileScreen>
     }
 
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    // No address: it changes only by a code, on its own screen (B16.3,
+    // decision 261) — `PATCH /me` refuses any other address than the stored
+    // one, and this screen used to send its field's text on every save.
     final success = await authProvider.updateUser(
       name: _nameController.text.trim(),
-      email: _emailController.text.trim(),
       phone: _phone,
     );
 
@@ -276,16 +268,7 @@ class _EditProfileScreenState extends State<EditProfileScreen>
                       setState(() => _errors.revalidate('name', v)),
                 ),
                 const SizedBox(height: AppTheme.spacingM),
-                AppTextField(
-                  label: 'Email',
-                  hint: 'email@exemple.com (optionnel)',
-                  controller: _emailController,
-                  focusNode: _emailFocus,
-                  errorText: _errors['email'],
-                  onChanged: (v) =>
-                      setState(() => _errors.revalidate('email', v)),
-                  keyboardType: TextInputType.emailAddress,
-                ),
+                _EmailRow(user: user),
                 const SizedBox(height: AppTheme.spacingM),
                 Text(
                   'Téléphone',
@@ -326,6 +309,97 @@ class _EditProfileScreenState extends State<EditProfileScreen>
           );
         },
       ),
+    );
+  }
+}
+
+/// The account's address, read-only here (B16.3 — account-email-change.md
+/// §5.4): it signs the account in, so it changes only by a code, on « Changer
+/// d’adresse e-mail ». « Modifier » is read with the row — one node, « Adresse
+/// e-mail, awa@exemple.ci, Modifier » — so a screen reader never hears a bare
+/// « Modifier » without what it modifies.
+class _EmailRow extends StatelessWidget {
+  const _EmailRow({required this.user});
+
+  final User user;
+
+  @override
+  Widget build(BuildContext context) {
+    final email = user.email;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // One control, read as one: « Adresse e-mail, awa@exemple.ci,
+        // Modifier ». The label sits ABOVE, full width, and « Modifier » goes
+        // under the address only when the two cannot share a line: at 200 %
+        // on 360 dp, beside it, the label broke inside « e-mail » and the
+        // address on three lines (SYSTEM.md §13.3 — the control beside a
+        // value moves first; seen in the first golden).
+        MergeSemantics(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Adresse e-mail',
+                style: AppTextStyles.labelMedium.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: AppTheme.spacingXS),
+              Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Text(
+                    email ?? 'Aucune adresse',
+                    style: AppTextStyles.bodyLarge.copyWith(
+                      color: email == null
+                          ? AppColors.textSecondary
+                          : AppColors.textPrimary,
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () => context.push('/profile/edit/email'),
+                    child: const Text('Modifier'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        if (email != null && user.emailVerified) ...[
+          const SizedBox(height: AppTheme.spacingXS),
+          Text(
+            'Vous pouvez aussi vous connecter avec un code envoyé à cette '
+            'adresse.',
+            style: AppTextStyles.bodySmall.copyWith(
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ],
+        // Typed into an older build's profile, never proven: it signs nobody
+        // in (decision 260) until a code proves it — « Vérifier ».
+        if (email != null && !user.emailVerified)
+          MergeSemantics(
+            child: Wrap(
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: AppTheme.spacingS,
+              children: [
+                Text(
+                  'Non vérifiée',
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: AppColors.textTertiary,
+                  ),
+                ),
+                TextButton(
+                  onPressed: () =>
+                      context.push('/profile/edit/email?verifier=1'),
+                  child: const Text('Vérifier'),
+                ),
+              ],
+            ),
+          ),
+      ],
     );
   }
 }
