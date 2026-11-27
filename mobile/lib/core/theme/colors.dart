@@ -98,6 +98,12 @@ class AppColors {
   static const Color info = Color(0xFF1A1A2E); // 15.91:1
   static const Color infoLight = Color(0xFF2D3561); // 10.92:1
 
+  /// The map's accuracy circle around « Votre position »: [info] at 15 %.
+  /// ⚠️ NOT a foreground — a fill under the dot that says how approximate the
+  /// position is; the dot itself carries the meaning (consumer-location.md
+  /// §2.1, SYSTEM.md §3.4).
+  static const Color locationAccuracy = Color(0x261A1A2E);
+
   // ---- Accents (SYSTEM.md §3.5) ----------------------------------------------
   // MEANING NEVER RIDES ON HUE. A gold star at 1.62:1 is invisible to a
   // low-vision user and meaningless to a colour-blind one — so it is never *the*

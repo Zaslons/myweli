@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Module** | discovery (mobile, both flavours: the client map, the shared commune picker, MyWeli Pro's « Utiliser ma position »; the Android manifests) |
-| **Status** | **Approved 2026-11-27.** Written on the owner's « Yes, start A6 »; the owner answered the five questions of §11 at once, « Approve as recommended »: decisions 272–276 in BACKLOG, Pro's half included (#890). Read once by an independent reviewer told to refute it: 12 findings, checked, then taken in (§14). Nothing built. Next, each on the owner's word: the merge of this spec, then the one app PR (§9). |
+| **Status** | **Approved 2026-11-27.** Written on the owner's « Yes, start A6 »; the owner answered the five questions of §11 at once, « Approve as recommended »: decisions 272–276 in BACKLOG, Pro's half included (#890). Read once by an independent reviewer told to refute it: 12 findings, checked, then taken in (§14). The spec merged as `3a2cb1d7` (#890). **Built 2026-11-27** on the owner's « Yes, build A6 », branch `feat/a6-location`, one app PR (#896, §15): not merged. It reaches people with the next client build and MyWeli Pro's next build; the device rows of §8.4 wait for them. |
 | **Last updated** | 2026-11-27 |
 | **Audit** | [consumer-app-release-audit.md](consumer-app-release-audit.md) row **A6** (Track A, §7): gap **13** (`ACCESS_FINE_LOCATION` in the client manifest) and the first half of gap **22** (the map asks with no explanation; « Activer » is dead after a refusal). Gap 22's other half, the commune, was A4's ([consumer-search.md](consumer-search.md) §2.8). Not to be confused with the earlier « A6 » of [mobile-a6-feedback.md](mobile-a6-feedback.md), whose comments in `commune_picker_sheet.dart` say « A6 ». |
 | **BACKLOG** | B0.10 (the audit's Track A). Track C, the consumer builds, waits for A1, A2, A3 and this. |
@@ -539,15 +539,15 @@ result.
 
 ## 12. Definition of done
 
-- [ ] `flutter analyze` 0 · format clean · the full app suite green (sequential).
-- [ ] Every outcome of §2.1–§2.3 rendered and tested; the four states and the
+- [x] `flutter analyze` 0 · format clean · the full app suite green (sequential) (§15).
+- [x] Every outcome of §2.1–§2.3 rendered and tested; the four states and the
       permission-denied state on the map (SYSTEM §12).
-- [ ] Tokens only (the new colour added to SYSTEM first); 48 dp targets; 200 %
+- [x] Tokens only (the new colour added to SYSTEM first); 48 dp targets; 200 %
       at 360 dp; live regions and focus where §2.5 says.
-- [ ] The source pin and the APK read in CI, each watched red; §8.5's mutations
-      listed in the commit message.
-- [ ] Goldens authored on Linux, every changed PNG opened.
-- [ ] §10's docs updated in the same PR; this spec's status line.
+- [x] The source pin and the APK read in CI, each watched red; §8.5's mutations
+      listed in the commit message (§15).
+- [x] Goldens authored on Linux, every changed PNG opened.
+- [x] §10's docs updated in the same PR; this spec's status line.
 - [ ] Feature branch, PR, CI green; merged on the owner's word.
 
 ## 13. Seen in passing (not A6)
@@ -587,3 +587,136 @@ a request; iOS's first refusal being final; iOS asking « while using »; the
 approximate-only dialog with COARSE alone; the merged Pro manifest; no client
 coordinate sent; the distances between commune centres; the flutter_map camera;
 every other line citation.
+
+## 15. As built (2026-11-27)
+
+Built on the owner's « Yes, build A6 », branch `feat/a6-location` from `main`
+`3a2cb1d7`, one app PR (§9). The files:
+- `lib/core/location/location_access.dart`, the shared flow (§5);
+- `map_screen.dart`, `commune_picker_sheet.dart` and
+  `pro_salon_profile_screen.dart` call it;
+- `InlineFeedback` gains `action`, and `AppColors.locationAccuracy` is new
+  (SYSTEM §3.4, §11.1, §12);
+- `android/app/src/pro/AndroidManifest.xml` is new;
+- the CI step, `tool/verify_android_location.sh`;
+- on the web, the token mirror: `web/scripts/dart-tokens.mjs` now reads a
+  translucent `Color(0xAARRGGBB)` as `#RRGGBBAA`, and `web/styles/tokens.ts`
+  carries `locationAccuracy` (no web class uses it yet).
+
+**Found by CI on the PR:** the web's token mirror gate refused the new token
+by name: its parser read only opaque colours, and every `AppColors` token must
+reach the web. Six mutations of the fix (the token removed, opaque or another
+alpha, the parser opaque-only or dropping the alpha, the Dart token opaque)
+each turned the gate or the contrast ledger red. **Merging this PR deploys
+`myweli.com`,** with no visible change.
+
+**Read on the built artifacts (2026-11-27, aapt2 2.20, arm64 release APKs
+built on this Mac):**
+- the client APK from `main` declared `ACCESS_FINE_LOCATION` and
+  `ACCESS_COARSE_LOCATION`, gap 13 on the binary itself;
+- the client APK with A6 declares `ACCESS_COARSE_LOCATION` alone;
+- MyWeli Pro's APK with A6 declares both.
+
+The verifier refuses the first badging and Pro's (exit 1) and accepts the
+second; its fixture test uses those lines.
+
+**Where the build departs from the text above, and why:**
+- **`locate({accuracy, ask})`.** `ask: false` never opens the dialog and
+  never sets the flag. It is the map's silent read on opening and after the
+  Settings. §4's « every `locate()` » is every `locate()` that may ask, every
+  tap. A permission withdrawn between the `status()` and the read cannot open
+  the dialog by itself.
+- **The outcomes' names:** `Located`, `LocationRefused`, `LocationBlocked`,
+  `LocationRestricted`, `LocationOff`, `LocationFailed` (§5's short names,
+  prefixed).
+- **Opening « Carte » on Android shows only a recent position** (§15.1 #6):
+  the phone's last position from `getLastLocation()`, if it is under 15
+  minutes old (`LocationAccess.recent`), and no read. A read there can open
+  Google's « turn on location » dialog. iOS keeps the silent read of §2.1.
+- **Back from the Settings, « not decided » depends on the page** (§15.1 #3,
+  #4):
+  - from the phone's location page, it is the ask;
+  - from the app's page, it is « bloquée » on Android, where nothing else can
+    be read, and « refusée » with « Autoriser » on iOS (« Demander la
+    prochaine fois »).
+- **The permission request gives up after 2 minutes** (§15.1 #5); the 30 s
+  bound is the read's.
+- **The framing never zooms closer than a precise position** (13.5, or 14
+  for « Me localiser »), and keeps the circle below the pill (§15.1 #7).
+- **The 30 s bound is the plugin's own `timeLimit`.** A `.timeout` around the
+  call would leave Android's native request running; the plugin's limit
+  cancels it (`cancelGetCurrentPosition`, `geolocator_android.dart:128-136`).
+- **« Me localiser » is not disabled while a read runs.** It shows the loader
+  and its tap does nothing, so it keeps the focus it holds (§2.5); a disabled
+  button drops it. The banner's actions are disabled, as §2.1 says.
+- **« Me localiser » always moves the camera to the position,** even with a
+  salon opened: the person asked for it. The banner's actions do not move it
+  off an opened salon (§15.1 #2).
+- **The return from the Settings counts only once the app has left**
+  (`hidden` or `paused`), then a `resumed`. A resume without a departure is
+  not a return.
+- **Back from the Settings, `unknown`** leaves the banner as it was.
+- **The picker clears its last sentence** when « Près de moi » is tapped
+  again, so the new outcome is announced.
+- **An unreadable accuracy status** is not called approximate: Pro's line
+  says nothing rather than something wrong.
+
+**Seen while building:**
+- **Under an opened salon's sheet, the dot is hidden from screen readers.**
+  Its scrim blocks the map's semantics, as for every pin.
+- **flutter_map does not build off-screen markers.** The dot off the camera
+  is in the layer, not in the tree.
+- **A test that answers nothing on the plugin's channel never sees `status()`
+  return** on the fake clock. The engine answers on the real one: the unit
+  test reads it in `runAsync`. The map then shows nothing, as it should
+  (`carto_basemap_layer_test`).
+
+**Known limits** (§15.1 #8, #10, #11):
+- on Android 11+, dismissing the first dialog reads as « bloquée »;
+- while a banner's read runs, the keyboard focus leaves its button, and comes
+  back when the read ends;
+- a read that joins one already running keeps that one's accuracy;
+- refusing Google's own dialog reads « La localisation du téléphone est
+  désactivée », as §2.4 says, though the phone's location may be on.
+
+**Not verified:**
+- every device row of §8.4 (with the first client build, Track C, and Pro's
+  next build);
+- the radius a real approximate position reports, and so the circle's size;
+- a phone without Google Play services.
+
+### 15.1 The build's independent review (2026-11-27)
+
+One reader, told to refute the build, read the code against this spec and the
+plugins' source. It ran nothing. It made 11 findings. Each was checked in the
+code or the plugin before anything changed.
+
+| # | Finding | Taken? |
+|---|---|---|
+| 1 | The goldens were not in the commit it read | they were in the tree, from `goldens.yml`; committed |
+| 2 | « Activer », « Autoriser » and « Réessayer » moved the camera off a salon the person opened, against §2.1 and this section's own claim | yes: they recentre only with no salon opened; a test |
+| 3 | Android: back from the app's Settings with nothing changed, « bloquée » became « refusée », then « bloquée » again on « Autoriser ». Android's `checkPermission` never says « refused for good » (`PermissionManager.java:63-64`), so §2.1's return table could not hold there. The test's fake phone answered like iOS | yes: on Android, « not decided » after the app's page keeps « bloquée »; the fake answers like each platform. **The price:** a person who chose « Demander à chaque fois » there also sees « bloquée »; « Me localiser » still asks |
+| 4 | Back from the phone's location page, a person who never refused anything read « Localisation refusée » | yes: from the location page, « not decided » is the ask |
+| 5 | A permission request that never answers held every location button in the app until it restarted: Android drops the callback on an empty result (`PermissionManager.java:148-153`), and the 30 s bound covered only the read | yes: the request itself gives up after 2 minutes (`permissionBound`), and the next tap asks again |
+| 6 | The silent read on opening could open Google's « turn on location » dialog (`FusedLocationClient.java:236-257`), on every opening for a phone whose settings do not meet the request. « Medium » could add phones to that list | yes, on Android: opening shows only the phone's last position, from `getLastLocation()` (no setting checked, no dialog), if it is under 15 minutes old. Otherwise nothing, and « Me localiser » reads a new one. iOS keeps its silent read: no such dialog there. **The price:** on Android, a dot on opening only when the phone located itself recently |
+| 7 | Framing zoomed IN for circles of 500 m to 2.4 km (600 m gave about 15.5), and the pill covered the circle's top | yes: never closer than the zoom a precise position gets, and the circle below the pill and its lines; tests at 600 m and 3 km |
+| 8 | Android 11+: dismissing the first dialog (Back, or a tap outside) answers « refused for good » (no rationale left, `PermissionManager.java:183-186`), so « bloquée » shows while the next tap would show the dialog again | **no, noted:** the plugin cannot tell them apart; a timing guess would be fragile. « Ouvrir les réglages » still works, and so does « Me localiser » |
+| 9 | `setState` after leaving the map, if the opening's status read was still pending | yes: `mounted` checked after it, and at the read's start |
+| 10 | A banner action disabled while its read runs drops the keyboard focus it held | **no, noted:** focus comes back to the way out, or to « Me localiser », when the read ends (§2.5) |
+| 11 | A read that joins one already running keeps that one's accuracy (Pro: « Près de moi » at medium, then « Utiliser ma position ») | **no, noted:** it takes closing the picker mid-read and tapping within the same seconds; the pin can still be placed by touch |
+
+Minor, taken: the verifier's comment claimed to catch an implied feature's
+reason, which its quoted match cannot; it now says what it matches. The
+source pin reads either XML quote.
+
+What the reader tried to refute and could not:
+- the single read's bookkeeping;
+- iOS's mapping, restricted included;
+- the Android plugin's handling of approximate-only and of « Approximative »
+  in Pro;
+- the return-from-Settings gate (the permission dialog makes the app inactive
+  only; the Settings app makes it hidden and paused);
+- the 30 s bound cancelling the native read;
+- the copy of the picker and of Pro;
+- the manifests' merge;
+- the verifier and its CI step.

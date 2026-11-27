@@ -971,6 +971,12 @@ connus :
   aussi citer l'étape obligatoire « Votre numéro de téléphone » : tout numéro
   valide, de n'importe quel pays ; 10 chiffres après +225 ; aucun SMS envoyé,
   `MESSAGING_PROVIDER=disabled`.
+- **La localisation précise : aucune déclaration pour le client.** Depuis A6
+  (2026-11-27, [consumer-location.md](consumer-location.md), décision 272),
+  l'app client ne déclare que la position approximative
+  (`ACCESS_COARSE_LOCATION`). C'est lu dans l'APK client à chaque PR par
+  `tool/verify_android_location.sh`. Une AAB client construite avant A6
+  demanderait la déclaration : à relire sur le binaire soumis.
 - **La Sécurité des données** suit les mêmes corrections que le §4 :
   - les plantages ont la finalité « Analyses » ;
   - « ID utilisateur » est à ajouter ;

@@ -1,13 +1,18 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:myweli/widgets/common/brand_loader.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/location/location_access.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
 import '../../models/locality.dart';
 import '../../providers/locality_provider.dart';
+import 'app_snack_bar.dart';
 import 'inline_feedback.dart';
 
 /// Result of the commune picker. `commune == null` means "all communes".
@@ -58,6 +63,11 @@ class _CommunePickerSheetState extends State<_CommunePickerSheet> {
   /// under the scrim.
   String? _error;
 
+  /// The way out beside [_error], when there is one: « Ouvrir les réglages »
+  /// after a refusal for good, or with location off on Android
+  /// (consumer-location.md §2.2).
+  SnackAction? _errorAction;
+
   @override
   void initState() {
     super.initState();
@@ -77,46 +87,86 @@ class _CommunePickerSheetState extends State<_CommunePickerSheet> {
     Navigator.of(context).pop(CommuneChoice(area?.name, areaId: area?.id));
   }
 
+  /// « Près de moi »: the shared flow (consumer-location.md §2.2, §5). The
+  /// system dialog follows the person's own tap, so it needs no explanation
+  /// first; « medium » is enough to find a commune (decision 275), and the
+  /// read gives up after [LocationAccess.bound].
   Future<void> _useNearMe() async {
-    setState(() => _locating = true);
-    try {
-      final enabled = await Geolocator.isLocationServiceEnabled();
-      if (!enabled) {
-        _showError('Activez la localisation pour utiliser « Près de moi »');
-        return;
-      }
-      var permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-      }
-      if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever) {
-        _showError('Autorisez la localisation pour utiliser « Près de moi »');
-        return;
-      }
-      final pos = await Geolocator.getCurrentPosition();
-      if (!mounted) return;
-      final nearest = context.read<LocalityProvider>().nearestArea(
-        pos.latitude,
-        pos.longitude,
-      );
-      if (nearest != null) {
-        _pick(nearest);
-      } else {
-        _showError('Commune introuvable');
-      }
-    } catch (_) {
-      _showError('Localisation indisponible');
-    } finally {
-      if (mounted) setState(() => _locating = false);
+    setState(() {
+      _locating = true;
+      _error = null;
+      _errorAction = null;
+    });
+    final outcome = await LocationAccess.instance.locate(
+      accuracy: LocationAccuracy.medium,
+    );
+    if (!mounted) return;
+    setState(() => _locating = false);
+    final ios = defaultTargetPlatform == TargetPlatform.iOS;
+    switch (outcome) {
+      case Located(:final position):
+        final nearest = context.read<LocalityProvider>().nearestArea(
+          position.latitude,
+          position.longitude,
+        );
+        if (nearest != null) {
+          _pick(nearest);
+        } else {
+          // `nearestArea` has no distance limit: it finds nothing only when
+          // the communes are not loaded, or carry no coordinates.
+          _showError('Liste des communes indisponible. Réessayez.');
+        }
+      case LocationRefused():
+        _showError(
+          'Localisation refusée. Choisissez votre commune dans la liste.',
+        );
+      case LocationBlocked():
+        _showError(
+          'Localisation bloquée. Autorisez-la dans les réglages du téléphone, '
+          'ou choisissez votre commune dans la liste.',
+          action: SnackAction(
+            label: 'Ouvrir les réglages',
+            onPressed: () =>
+                unawaited(LocationAccess.instance.openAppSettings()),
+          ),
+        );
+      case LocationRestricted():
+        _showError(
+          'La localisation est limitée sur ce téléphone. Choisissez votre '
+          'commune dans la liste.',
+        );
+      case LocationOff() when ios:
+        _showError(
+          'Le service de localisation est désactivé (Réglages › '
+          'Confidentialité et sécurité). Choisissez votre commune dans la '
+          'liste.',
+        );
+      case LocationOff():
+        _showError(
+          'La localisation du téléphone est désactivée. Activez-la dans les '
+          'réglages, ou choisissez votre commune dans la liste.',
+          action: SnackAction(
+            label: 'Ouvrir les réglages',
+            onPressed: () =>
+                unawaited(LocationAccess.instance.openLocationSettings()),
+          ),
+        );
+      case LocationFailed():
+        _showError(
+          'Position introuvable. Réessayez, ou choisissez votre commune dans '
+          'la liste.',
+        );
     }
   }
 
-  void _showError(String message) {
+  void _showError(String message, {SnackAction? action}) {
     if (!mounted) return;
     // A6: this sheet IS a modal — a snackbar raised here is pruned from the
     // semantics tree and painted under the scrim. The message renders inside.
-    setState(() => _error = message);
+    setState(() {
+      _error = message;
+      _errorAction = action;
+    });
   }
 
   @override
@@ -155,7 +205,7 @@ class _CommunePickerSheetState extends State<_CommunePickerSheet> {
                 padding: const EdgeInsets.symmetric(
                   horizontal: AppTheme.spacingM,
                 ),
-                child: InlineFeedback(_error),
+                child: InlineFeedback(_error, action: _errorAction),
               ),
               Center(
                 child: Container(

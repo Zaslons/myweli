@@ -48,6 +48,11 @@ export const colors = {
   warningLight: '#FFB800',
   info: '#1A1A2E',
   infoLight: '#2D3561', // legible-as-text (7.55:1) — the info tint's darker step
+  // A6 (consumer-location.md §2.1, SYSTEM §3.4): the map's accuracy circle
+  // under « Votre position » — `info` at 15 %, a FILL, never a foreground.
+  // Mirrored because every AppColors token is; the web's map draws no
+  // position's accuracy yet.
+  locationAccuracy: '#1A1A2E26',
   // Accents. `gold` (3.10:1 on surfaceVariant, the worst) is gold-as-STATE. `starRating` (1.62:1) is the fill
   // of a rating-star glyph and nothing else — currently unused on web, which
   // renders `★` in ink/neutral (an amber-star parity pass would revive it).

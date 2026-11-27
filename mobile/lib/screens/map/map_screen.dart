@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
@@ -8,6 +10,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:myweli/widgets/common/brand_loader.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/location/location_access.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
@@ -39,7 +42,23 @@ class MapScreen extends StatefulWidget {
   State<MapScreen> createState() => _MapScreenState();
 }
 
-class _MapScreenState extends State<MapScreen> {
+/// The location line over the map (consumer-location.md §2.1): the ask
+/// before any dialog, then what came of a tap.
+enum _LocationBanner {
+  ask,
+  refused,
+  blocked,
+  restricted,
+  offAndroid,
+  offIos,
+  failed,
+}
+
+/// Which Settings page the map opened: the app's own, or the phone's
+/// location page (§2.1). The return reads differently from each.
+enum _SettingsPage { app, location }
+
+class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
   // Abidjan-ish default center
   static const LatLng _defaultCenter = LatLng(5.336, -4.026);
   static const double _defaultZoom = 11.5;
@@ -48,7 +67,29 @@ class _MapScreenState extends State<MapScreen> {
 
   Position? _position;
   bool _locating = false;
-  String? _locationError;
+
+  /// The location line under the pill; null: nothing to say. The map never
+  /// opens the system dialog by itself: it asks first, once, and the dialog
+  /// follows a tap (consumer-location.md §2.1, decision 273).
+  _LocationBanner? _banner;
+
+  /// « Me localiser », where focus goes when the banner holding it goes away;
+  /// and the banner's last action — the way out — when a new banner replaces
+  /// it (§2.5, SYSTEM.md §13.5).
+  final FocusNode _locateFocus = FocusNode(debugLabel: 'Me localiser');
+  final FocusNode _bannerActionFocus = FocusNode(debugLabel: 'location banner');
+
+  /// The way back from the Settings the MAP opened (§2.1): set by « Ouvrir les
+  /// réglages », then [_leftForSettings] once the app actually left. Only that
+  /// return reads again. The system dialog's own closing brings the app back
+  /// to the foreground too, and must not start a second read (§2.4).
+  bool _awaitingSettings = false;
+  bool _leftForSettings = false;
+  _SettingsPage _settingsPage = _SettingsPage.app;
+
+  /// The pill and the lines under it: the camera keeps the circle below them
+  /// (§2.1).
+  final GlobalKey _overlayKey = GlobalKey();
 
   /// The salon `focusProviderId` resolved to. Its marker is drawn even when
   /// the list — page 1, filtered by the chosen commune — does not hold it,
@@ -70,6 +111,7 @@ class _MapScreenState extends State<MapScreen> {
     _providers = Provider.of<ProviderProvider>(context, listen: false);
     _askedCommune = _providers.selectedCommune;
     _providers.addListener(_onProviders);
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final providerProvider = _providers;
       // The markers, and their hearts when signed in — STARTED, not awaited
@@ -99,14 +141,32 @@ class _MapScreenState extends State<MapScreen> {
         if (!mounted) return;
       }
 
-      await _initLocation(recenter: _focused == null);
+      await _onOpen();
     });
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _providers.removeListener(_onProviders);
+    _locateFocus.dispose();
+    _bannerActionFocus.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (!_awaitingSettings) return;
+    switch (state) {
+      case AppLifecycleState.hidden || AppLifecycleState.paused:
+        _leftForSettings = true;
+      case AppLifecycleState.resumed when _leftForSettings:
+        _awaitingSettings = false;
+        _leftForSettings = false;
+        unawaited(_backFromSettings());
+      default:
+        break;
+    }
   }
 
   void _onProviders() {
@@ -153,69 +213,212 @@ class _MapScreenState extends State<MapScreen> {
     });
   }
 
-  /// Ask for the user's position and draw it. [recenter]: move the camera
-  /// there when it arrives — not when a salon was centred, whose sheet the
-  /// user is reading (salon-location-map.md §2.3). « Me localiser » and
-  /// « Activer » call this bare, and recenter.
-  Future<void> _initLocation({bool recenter = true}) async {
+  /// Opening « Carte » (§2.1): what the phone already allows, read with no
+  /// dialog. Allowed: the position, silently. Not decided and never
+  /// explained on this phone: the ask banner. Anything else: nothing —
+  /// « Me localiser » stays.
+  Future<void> _onOpen() async {
+    final access = LocationAccess.instance;
+    final status = await access.status();
+    if (!mounted) return;
+    switch (status) {
+      case LocationStatus.allowed
+          when defaultTargetPlatform == TargetPlatform.android:
+        // On Android a read can open Google's « turn on location » dialog
+        // (§2.4): opening shows only a recent position the phone already
+        // has, and « Me localiser » reads a new one.
+        final recent = await access.recent();
+        if (!mounted || recent == null) return;
+        setState(() => _position = recent.position);
+        if (_focused == null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) _showPosition(recent.position, zoom: 13.5);
+          });
+        }
+      case LocationStatus.allowed:
+        await _read(ask: false, silent: true, recenter: _focused == null);
+      case LocationStatus.undecided:
+        final explained = await access.explained();
+        if (!mounted || explained) return;
+        setState(() => _banner = _LocationBanner.ask);
+      case LocationStatus.blocked ||
+          LocationStatus.off ||
+          LocationStatus.unknown:
+        break;
+    }
+  }
+
+  /// The shared flow (§5) and its outcome on the map. [ask]: `false` never
+  /// opens the dialog (the silent read). [silent]: a failure shows nothing.
+  /// [recenter]: move the camera to the position — not when a salon was
+  /// opened, whose sheet the person is reading (salon-location-map.md §2.3).
+  /// [fromBanner]: the tap came from the banner, whose button may go away,
+  /// so focus moves (§2.5).
+  Future<void> _read({
+    required bool ask,
+    bool silent = false,
+    bool recenter = true,
+    bool fromBanner = false,
+  }) async {
+    if (!mounted || _locating) return; // one read at a time (§2.4)
+    setState(() => _locating = true);
+    final outcome = await LocationAccess.instance.locate(
+      accuracy: LocationAccuracy.medium,
+      ask: ask,
+    );
+    if (!mounted) return;
     setState(() {
-      _locating = true;
-      _locationError = null;
+      _locating = false;
+      if (outcome is Located) {
+        _position = outcome.position;
+        _banner = null;
+      } else if (!silent) {
+        _banner = _bannerFor(outcome);
+      }
     });
-
-    try {
-      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) {
-        setState(() {
-          _position = null;
-          _locationError = 'Localisation désactivée';
-        });
-        return;
-      }
-
-      var permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-      }
-
-      if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever) {
-        setState(() {
-          _position = null;
-          _locationError = 'Autorisez la localisation pour vous centrer';
-        });
-        return;
-      }
-
-      final pos = await Geolocator.getCurrentPosition();
-      setState(() {
-        _position = pos;
-      });
-      if (!recenter) return;
-
-      // Center map on the user after we have a position (clean first experience)
+    if (outcome case Located(:final position) when recenter) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        _mapController.move(LatLng(pos.latitude, pos.longitude), 13.5);
-      });
-    } catch (e) {
-      setState(() {
-        // The plugin's own text is English (a timeout, a service turned off
-        // mid-request): the map says it in its words (§8).
-        _locationError = 'Position introuvable. Réessayez.';
-      });
-    } finally {
-      setState(() {
-        _locating = false;
+        if (mounted) _showPosition(position, zoom: 13.5);
       });
     }
+    if (fromBanner) _refocus();
+  }
+
+  /// « Activer », « Autoriser », « Réessayer »: the camera moves to the
+  /// position, but not off a salon the person opened (§2.1).
+  void _readFromBanner() =>
+      unawaited(_read(ask: true, recenter: _focused == null, fromBanner: true));
+
+  _LocationBanner? _bannerFor(LocationOutcome outcome) => switch (outcome) {
+    Located() => null,
+    LocationRefused() => _LocationBanner.refused,
+    LocationBlocked() => _LocationBanner.blocked,
+    LocationRestricted() => _LocationBanner.restricted,
+    LocationOff() =>
+      defaultTargetPlatform == TargetPlatform.iOS
+          ? _LocationBanner.offIos
+          : _LocationBanner.offAndroid,
+    LocationFailed() => _LocationBanner.failed,
+  };
+
+  /// « Ouvrir les réglages »: the app's page, or the phone's location page
+  /// when location is off (Android). The map then waits for its own return.
+  Future<void> _openSettings({required bool location}) async {
+    _awaitingSettings = true;
+    _leftForSettings = false;
+    _settingsPage = location ? _SettingsPage.location : _SettingsPage.app;
+    final access = LocationAccess.instance;
+    final opened = location
+        ? await access.openLocationSettings()
+        : await access.openAppSettings();
+    if (!opened) _awaitingSettings = false;
+  }
+
+  /// Back from the Settings the map opened (§2.1): what the phone allows now,
+  /// with no dialog, and the banner rebuilt from it.
+  Future<void> _backFromSettings() async {
+    final status = await LocationAccess.instance.status();
+    if (!mounted) return;
+    switch (status) {
+      case LocationStatus.allowed:
+        await _read(ask: false, recenter: _focused == null, fromBanner: true);
+        return;
+      case LocationStatus.off:
+        setState(
+          () => _banner = defaultTargetPlatform == TargetPlatform.iOS
+              ? _LocationBanner.offIos
+              : _LocationBanner.offAndroid,
+        );
+      case LocationStatus.blocked:
+        setState(() => _banner = _LocationBanner.blocked);
+      case LocationStatus.undecided:
+        setState(() => _banner = _undecidedAfterSettings());
+      case LocationStatus.unknown:
+        return;
+    }
+    _refocus();
+  }
+
+  /// Back from the Settings, the phone says « not decided »:
+  /// - from the location page, nobody refused anything: the ask;
+  /// - from the app's page on Android, « not decided » is all Android ever
+  ///   says without a request (`PermissionManager.java:63-64`), whether the
+  ///   person changed nothing or chose « Demander à chaque fois ». Nothing
+  ///   changed is the likelier: the blocked line stays, and « Me localiser »
+  ///   still asks (independent review, 2026-11-27);
+  /// - from the app's page on iOS, « Demander la prochaine fois »: the
+  ///   dialog can show again, so « Autoriser ».
+  _LocationBanner _undecidedAfterSettings() {
+    if (_settingsPage == _SettingsPage.location) return _LocationBanner.ask;
+    return defaultTargetPlatform == TargetPlatform.android
+        ? _LocationBanner.blocked
+        : _LocationBanner.refused;
+  }
+
+  /// « Plus tard » and « Fermer »: the banner goes, until the next tap. Only
+  /// « Plus tard » answers the ask for good (§4).
+  void _dismissBanner({bool later = false}) {
+    if (later) unawaited(LocationAccess.instance.markExplained());
+    setState(() => _banner = null);
+    _refocus();
+  }
+
+  /// The focused button went away (§2.5): to « Me localiser » when the banner
+  /// is gone, to the new banner's way out when one replaced it.
+  void _refocus() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      (_banner == null ? _locateFocus : _bannerActionFocus).requestFocus();
+    });
   }
 
   void _centerOnUser() {
     final pos = _position;
     if (pos == null) return;
-    _mapController.move(LatLng(pos.latitude, pos.longitude), 14);
+    _showPosition(pos, zoom: 14);
   }
+
+  /// The camera on the position. An approximate one (over 500 m) is framed
+  /// whole, circle and all, rather than zoomed into a street it cannot claim
+  /// (§2.1, decision 275).
+  void _showPosition(Position pos, {required double zoom}) {
+    final centre = LatLng(pos.latitude, pos.longitude);
+    final radius = pos.accuracy;
+    if (radius <= _framedAccuracy) {
+      _mapController.move(centre, zoom);
+      return;
+    }
+    const metresPerDegree = 111320.0;
+    final dLat = radius / metresPerDegree;
+    final dLng =
+        radius / (metresPerDegree * math.cos(pos.latitude * math.pi / 180));
+    // Below the pill and its lines, which cover the top of the map.
+    final overlay =
+        (_overlayKey.currentContext?.findRenderObject() as RenderBox?)
+            ?.size
+            .height ??
+        0;
+    _mapController.fitCamera(
+      CameraFit.bounds(
+        bounds: LatLngBounds(
+          LatLng(pos.latitude - dLat, pos.longitude - dLng),
+          LatLng(pos.latitude + dLat, pos.longitude + dLng),
+        ),
+        padding: EdgeInsets.fromLTRB(
+          AppTheme.spacingM,
+          AppTheme.spacingM + overlay + AppTheme.spacingS,
+          AppTheme.spacingM,
+          AppTheme.spacingM,
+        ),
+        // Never closer than a precise position would be: a circle of 600 m
+        // would otherwise fill the screen, more zoomed in than 20 m.
+        maxZoom: zoom,
+      ),
+    );
+  }
+
+  /// Above this accuracy radius, in metres, the camera frames the circle.
+  static const double _framedAccuracy = 500;
 
   void _openProviderSheet(models.Provider p) {
     final parentContext =
@@ -452,14 +655,135 @@ class _MapScreenState extends State<MapScreen> {
       point: LatLng(pos.latitude, pos.longitude),
       width: 22,
       height: 22,
-      child: Container(
-        decoration: BoxDecoration(
-          color: AppColors.info,
-          shape: BoxShape.circle,
-          border: Border.all(color: Colors.white, width: 3),
-          boxShadow: AppTheme.elevation2,
+      // §2.5: the dot says what it is; it was a bare circle.
+      child: Semantics(
+        label: 'Votre position',
+        container: true,
+        child: Container(
+          decoration: BoxDecoration(
+            color: AppColors.info,
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white, width: 3),
+            boxShadow: AppTheme.elevation2,
+          ),
         ),
       ),
+    );
+  }
+
+  /// How approximate the position is (§2.1): a radius in metres, under the
+  /// dot. Decoration — the dot carries the meaning and the label.
+  CircleLayer? _buildAccuracyCircle() {
+    final pos = _position;
+    if (pos == null || pos.accuracy <= 0) return null;
+    return CircleLayer(
+      circles: [
+        CircleMarker(
+          point: LatLng(pos.latitude, pos.longitude),
+          radius: pos.accuracy,
+          useRadiusInMeter: true,
+          color: AppColors.locationAccuracy,
+        ),
+      ],
+    );
+  }
+
+  /// The location line (§2.1): the ask, then what came of a tap. A live
+  /// region, like the map's other lines: it is what the person waits to hear.
+  /// While a read runs, its actions are disabled — one read at a time.
+  Widget? _locationBanner() {
+    final banner = _banner;
+    if (banner == null) return null;
+    final idle = !_locating;
+    final close = _BannerAction('Fermer', idle ? () => _dismissBanner() : null);
+    final settings = _BannerAction(
+      'Ouvrir les réglages',
+      idle ? () => unawaited(_openSettings(location: false)) : null,
+    );
+    final Widget child = switch (banner) {
+      _LocationBanner.ask => _MapBanner(
+        icon: Icons.my_location,
+        title: 'Voir les salons autour de vous ?',
+        text:
+            'Autorisez la localisation pour centrer la carte sur votre '
+            'position.',
+        actions: [
+          _BannerAction(
+            'Plus tard',
+            idle ? () => _dismissBanner(later: true) : null,
+          ),
+          _BannerAction('Activer', idle ? _readFromBanner : null),
+        ],
+        lastActionFocus: _bannerActionFocus,
+      ),
+      _LocationBanner.refused => _MapBanner(
+        icon: Icons.location_disabled,
+        text:
+            'Localisation refusée. Choisissez une commune en haut de la '
+            'carte, ou autorisez-la.',
+        actions: [
+          close,
+          _BannerAction('Autoriser', idle ? _readFromBanner : null),
+        ],
+        lastActionFocus: _bannerActionFocus,
+      ),
+      _LocationBanner.blocked => _MapBanner(
+        icon: Icons.location_disabled,
+        text:
+            'Localisation bloquée. Autorisez-la dans les réglages du '
+            'téléphone pour centrer la carte sur vous.',
+        actions: [close, settings],
+        lastActionFocus: _bannerActionFocus,
+      ),
+      _LocationBanner.restricted => _MapBanner(
+        icon: Icons.location_disabled,
+        text:
+            'La localisation est limitée sur ce téléphone, par Temps d’écran '
+            'ou un profil installé. Choisissez une commune en haut de la '
+            'carte.',
+        actions: [close],
+        lastActionFocus: _bannerActionFocus,
+      ),
+      _LocationBanner.offAndroid => _MapBanner(
+        icon: Icons.location_off_outlined,
+        text:
+            'La localisation du téléphone est désactivée. Activez-la dans '
+            'les réglages, ou choisissez une commune.',
+        actions: [
+          close,
+          _BannerAction(
+            'Ouvrir les réglages',
+            idle ? () => unawaited(_openSettings(location: true)) : null,
+          ),
+        ],
+        lastActionFocus: _bannerActionFocus,
+      ),
+      // An app can open only its own page on iOS, which cannot turn the
+      // service on: the sentence gives the path.
+      _LocationBanner.offIos => _MapBanner(
+        icon: Icons.location_off_outlined,
+        text:
+            'Le service de localisation est désactivé. Activez-le dans '
+            'Réglages › Confidentialité et sécurité › Service de '
+            'localisation.',
+        actions: [close],
+        lastActionFocus: _bannerActionFocus,
+      ),
+      _LocationBanner.failed => _MapBanner(
+        icon: Icons.error_outline,
+        text:
+            'Position introuvable. Réessayez, ou choisissez une commune en '
+            'haut de la carte.',
+        actions: [
+          close,
+          _BannerAction('Réessayer', idle ? _readFromBanner : null),
+        ],
+        lastActionFocus: _bannerActionFocus,
+      ),
+    };
+    return Padding(
+      padding: const EdgeInsets.only(top: AppTheme.spacingS),
+      child: Semantics(liveRegion: true, container: true, child: child),
     );
   }
 
@@ -476,8 +800,7 @@ class _MapScreenState extends State<MapScreen> {
       child = _MapBanner(
         icon: Icons.error_outline,
         text: 'Impossible d’afficher les salons.',
-        action: 'Réessayer',
-        onAction: provider.loadMapSalons,
+        actions: [_BannerAction('Réessayer', provider.loadMapSalons)],
       );
     } else if (salons == null) {
       return null;
@@ -489,8 +812,12 @@ class _MapScreenState extends State<MapScreen> {
           ? _MapBanner(
               icon: Icons.location_off_outlined,
               text: 'Aucun salon à $commune',
-              action: 'Toutes les communes',
-              onAction: () => provider.setCommune(null),
+              actions: [
+                _BannerAction(
+                  'Toutes les communes',
+                  () => provider.setCommune(null),
+                ),
+              ],
             )
           : const _MapBanner(
               icon: Icons.location_off_outlined,
@@ -525,6 +852,7 @@ class _MapScreenState extends State<MapScreen> {
   Widget build(BuildContext context) {
     final providerMarkers = _buildProviderMarkers(context);
     final userMarker = _buildUserMarker();
+    final accuracyCircle = _buildAccuracyCircle();
 
     final markers = <Marker>[...providerMarkers, ?userMarker];
 
@@ -546,6 +874,7 @@ class _MapScreenState extends State<MapScreen> {
               // The keyed CARTO light basemap + its required attribution
               // (docs/design/map-basemap-key.md).
               const CartoBasemapLayer(),
+              ?accuracyCircle,
               MarkerLayer(markers: markers),
               // Bottom-left: « Me localiser » owns the bottom-right corner and
               // hid the « i » the data licence requires (seen on the simulator,
@@ -556,12 +885,13 @@ class _MapScreenState extends State<MapScreen> {
             ],
           ),
           // Top: the commune the map shows, its salons' state, then the
-          // location banner (consumer-search.md §2.8; A6 rewrites the last).
+          // location line (consumer-search.md §2.8, consumer-location.md §2.1).
           Positioned(
             left: AppTheme.spacingM,
             right: AppTheme.spacingM,
             top: AppTheme.spacingM,
             child: Column(
+              key: _overlayKey,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Consumer<ProviderProvider>(
@@ -576,17 +906,7 @@ class _MapScreenState extends State<MapScreen> {
                     ],
                   ),
                 ),
-                if (_locationError != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: AppTheme.spacingS),
-                    child: _MapBanner(
-                      icon: Icons.info_outline,
-                      text: _locationError!,
-                      action: 'Activer',
-                      onAction: _initLocation,
-                      actionInline: true,
-                    ),
-                  ),
+                ?_locationBanner(),
               ],
             ),
           ),
@@ -599,9 +919,13 @@ class _MapScreenState extends State<MapScreen> {
                 FloatingActionButton(
                   heroTag: 'center_me',
                   tooltip: 'Me localiser',
+                  focusNode: _locateFocus,
+                  // While a read runs it shows the loader and ignores taps
+                  // (`_read` returns): disabled, it would drop the focus it
+                  // holds (§2.5). Explicit, it always moves the camera.
                   onPressed: (_position != null)
                       ? _centerOnUser
-                      : _initLocation,
+                      : () => unawaited(_read(ask: true)),
                   backgroundColor: AppColors.primary,
                   foregroundColor: AppColors.secondary,
                   child: _locating
@@ -626,39 +950,68 @@ class _MapScreenState extends State<MapScreen> {
   }
 }
 
-/// A line over the map: the location banner's look (`secondary` surface,
-/// `radiusLarge`, elevation 2), an icon, a sentence that wraps, and its one
-/// action when it has one.
+/// An action on a [_MapBanner]: a verb, and what it does — `null` while it
+/// cannot (a location read running).
+class _BannerAction {
+  const _BannerAction(this.label, this.onPressed);
+
+  final String label;
+  final VoidCallback? onPressed;
+}
+
+/// A line over the map: the `secondary` surface, `radiusLarge`, elevation 2,
+/// an icon, a sentence that wraps — [title] first, in bold, when it has one —
+/// and its actions under the sentence, at the end. « Toutes les communes »
+/// beside « Aucun salon à Cocody » overflowed the line at 390dp; the location
+/// lines carry two actions, which wrap to two lines at 200 % (§2.4).
 ///
-/// [actionInline]: the action at the end of the line — the location banner's
-/// « Activer », kept as it was (A6 rewrites it). Otherwise the action sits
-/// under the sentence, at the end: « Toutes les communes » beside « Aucun
-/// salon à Cocody » overflowed the line at 390dp.
+/// [lastActionFocus]: the last action's focus node, where focus lands when
+/// this line replaces another (consumer-location.md §2.5).
 class _MapBanner extends StatelessWidget {
   const _MapBanner({
     required this.icon,
     required this.text,
-    this.action,
-    this.onAction,
-    this.actionInline = false,
+    this.title,
+    this.actions = const [],
+    this.lastActionFocus,
   });
 
   final IconData icon;
   final String text;
-  final String? action;
-  final VoidCallback? onAction;
-  final bool actionInline;
+  final String? title;
+  final List<_BannerAction> actions;
+  final FocusNode? lastActionFocus;
 
   @override
   Widget build(BuildContext context) {
-    final label = action;
-    final button = label != null && onAction != null
-        ? TextButton(onPressed: onAction, child: Text(label))
-        : null;
-    final sentence = Text(
-      text,
-      style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
+    final style = AppTextStyles.bodySmall.copyWith(
+      color: AppColors.textSecondary,
     );
+    final heading = title;
+    final sentence = heading == null
+        ? Text(text, style: style)
+        : Text.rich(
+            TextSpan(
+              children: [
+                TextSpan(
+                  text: '$heading ',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                TextSpan(text: text),
+              ],
+            ),
+            style: style,
+          );
+    final buttons = [
+      for (var i = 0; i < actions.length; i++)
+        TextButton(
+          focusNode: i == actions.length - 1 ? lastActionFocus : null,
+          onPressed: actions[i].onPressed,
+          // At 360 dp and 200 %, « Ouvrir les réglages » cannot fit on one
+          // line: its lines end where « Fermer » ends (seen in the golden).
+          child: Text(actions[i].label, textAlign: TextAlign.end),
+        ),
+    ];
     return Material(
       elevation: 2,
       borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
@@ -670,17 +1023,24 @@ class _MapBanner extends StatelessWidget {
             Icon(icon, color: AppColors.textSecondary),
             const SizedBox(width: AppTheme.spacingS),
             Expanded(
-              child: button == null || actionInline
+              child: buttons.isEmpty
                   ? sentence
                   : Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         sentence,
-                        Align(alignment: Alignment.centerRight, child: button),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: buttons.length == 1
+                              ? buttons.single
+                              : Wrap(
+                                  alignment: WrapAlignment.end,
+                                  children: buttons,
+                                ),
+                        ),
                       ],
                     ),
             ),
-            if (button != null && actionInline) button,
           ],
         ),
       ),

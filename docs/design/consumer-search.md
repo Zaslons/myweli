@@ -159,7 +159,7 @@ The same five as the Pro editor, the server and the website, with « Tous » fir
 - **Loading:** a small « Chargement des salons… » pill under the commune pill. The map itself shows at once.
 - **Error:** a banner « Impossible d’afficher les salons. » with « Réessayer ». The map stays usable.
 - **Empty:** « Aucun salon à Cocody » with « Toutes les communes »; with no commune, « Aucun salon sur la carte pour l’instant ». **Not shown while a focused salon is on the map** (opened from a salon page, `focusProviderId`): its pin may be in another commune, and the map is then not empty.
-- **The location banner** (`_locationError`, `map_screen.dart:465-498`) stays as it is and sits below these. A6 rewrites it.
+- **The location banner** (`_locationError`, `map_screen.dart:465-498`) stays as it is and sits below these. A6 rewrites it. *(2026-11-27: rewritten by A6, [consumer-location.md](consumer-location.md) §2.1: the location line asks first and offers the way out after a refusal; it is no longer an inline action.)*
 
 ### 2.9 All states (the list)
 

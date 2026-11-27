@@ -109,6 +109,15 @@ describe('white-on-fill (buttons, status chips)', () => {
   }
 });
 
+describe('the accuracy circle (A6) — `info`, translucent: a fill, never a foreground', () => {
+  it('locationAccuracy is info with an alpha below 50 %', () => {
+    const fill = colors.locationAccuracy;
+    expect(fill).toMatch(/^#[0-9A-F]{8}$/);
+    expect(fill.slice(0, 7)).toBe(colors.info);
+    expect(parseInt(fill.slice(7), 16)).toBeLessThan(0x80);
+  });
+});
+
 describe('the negative pins — deliberately BELOW the floor, decoration/tints only', () => {
   it('warningLight is a TINT, never a foreground (the mobile pin, mirrored)', () => {
     // Mobile's design_contrast_test asserts the same: #FFB800 works only as a
@@ -154,6 +163,7 @@ describe('every colour is asserted (B3 — the completeness gate)', () => {
     'surfaceVariant', // a surface — IN the surfaces record since the review
     'divider', // decorative by design — the ordering test places it
     'border', // container hairline — the ordering test places it
+    'locationAccuracy', // a translucent fill — the « info, translucent » test places it
   ];
   it('no colors key escapes this file (a STATIC ledger — filter/order-proof)', () => {
     const covered = new Set<string>([

@@ -64,6 +64,12 @@ export function tokenCandidates(stripped) {
 
 /** `static const Color name = Color(0xFFRRGGBB);` → { name: '#RRGGBB' }
  *
+ *  A translucent token, `Color(0xAARRGGBB)` with AA below FF, crosses as
+ *  `#RRGGBBAA` — CSS's own order, alpha last. The first was
+ *  `locationAccuracy` (A6, the map's accuracy circle: `info` at 15 %); before
+ *  it, the candidate self-check refused it by name, which is the point of
+ *  that check.
+ *
  *  **The argument list may be split across lines, and that is not cosmetic.**
  *  Dart's formatter picks its style from the package's LANGUAGE VERSION: below
  *  3.7 it wraps after the `=`, at 3.7+ (the tall style) it breaks inside the
@@ -83,9 +89,11 @@ export function parseColors(src) {
   const stripped = stripDartComments(src);
   const parsed = {};
   for (const m of stripped.matchAll(
-    /static const Color (\w+) =\s*Color\(\s*0xFF([0-9A-Fa-f]{6}),?\s*\);/g,
+    /static const Color (\w+) =\s*Color\(\s*0x([0-9A-Fa-f]{2})([0-9A-Fa-f]{6}),?\s*\);/g,
   )) {
-    parsed[m[1]] = `#${m[2].toUpperCase()}`;
+    const alpha = m[2].toUpperCase();
+    const rgb = m[3].toUpperCase();
+    parsed[m[1]] = alpha === 'FF' ? `#${rgb}` : `#${rgb}${alpha}`;
   }
   return { parsed, candidates: tokenCandidates(stripped) };
 }

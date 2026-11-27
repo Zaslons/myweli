@@ -17,6 +17,7 @@ import 'package:myweli/services/mock/mock_data.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../support/fake_location.dart';
 import '../support/frozen_clock.dart';
 import '../support/golden.dart';
 
@@ -41,7 +42,11 @@ void main() {
 
   tearDownAll(AppClock.restore);
 
-  setUp(() => freezeClock(kFixedNow));
+  setUp(() {
+    freezeClock(kFixedNow);
+    // The location goldens ask, or record the ask: each starts unasked.
+    SharedPreferences.setMockInitialValues({});
+  });
 
   /// [count] more salons in `MockData` for this picture — around Abidjan,
   /// each with a pin — and out again after it.
@@ -65,23 +70,31 @@ void main() {
     }
   }
 
+  /// [phone]: the phone's location for the map (consumer-location.md);
+  /// without it, location is off and the map says nothing about it.
   Future<void> pump(
     WidgetTester tester,
     Widget screen, {
     required Size size,
     required double scale,
+    FakePhoneLocation? phone,
   }) async {
     goldenSurface(tester, size: size, scale: scale);
-    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-      geolocator,
-      (call) async => call.method == 'isLocationServiceEnabled' ? false : null,
-    );
-    addTearDown(
-      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+    if (phone != null) {
+      phone.install(tester);
+    } else {
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
         geolocator,
-        null,
-      ),
-    );
+        (call) async =>
+            call.method == 'isLocationServiceEnabled' ? false : null,
+      );
+      addTearDown(
+        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          geolocator,
+          null,
+        ),
+      );
+    }
     late final AuthProvider auth;
     await tester.runAsync(() async {
       auth = AuthProvider();
@@ -208,6 +221,60 @@ void main() {
         // time lets `flutter_map` open its tile cache — `path_provider`,
         // which a test does not have.
         await expectGolden(tester, 'consumer_map_commune${at.tag}');
+      });
+
+      // consumer-location.md §8.2 (A6): the map asks before any dialog,
+      // says when location is blocked, and draws how approximate it is.
+      testWidgets('the map asks first, with no dialog${at.tag}', (
+        tester,
+      ) async {
+        final phone = FakePhoneLocation();
+        await pump(
+          tester,
+          const MapScreen(),
+          size: at.size,
+          scale: at.scale,
+          phone: phone,
+        );
+        await settleMocks(tester, rounds: 3);
+        expect(find.text('Activer'), findsOneWidget);
+        expect(phone.count('requestPermission'), 0);
+        await expectGolden(tester, 'consumer_map_location_ask${at.tag}');
+      });
+
+      testWidgets('the map, location blocked${at.tag}', (tester) async {
+        final phone = FakePhoneLocation()
+          ..requests = [FakePhoneLocation.deniedForever];
+        await pump(
+          tester,
+          const MapScreen(),
+          size: at.size,
+          scale: at.scale,
+          phone: phone,
+        );
+        await settleMocks(tester, rounds: 3);
+        await tester.tap(find.text('Activer'));
+        await settleMocks(tester, rounds: 3);
+        expect(find.text('Ouvrir les réglages'), findsOneWidget);
+        await expectGolden(tester, 'consumer_map_location_blocked${at.tag}');
+      });
+
+      testWidgets('the map, an approximate position and its circle${at.tag}', (
+        tester,
+      ) async {
+        final phone = FakePhoneLocation()
+          ..check = FakePhoneLocation.whileInUse
+          ..accuracy = 1500;
+        await pump(
+          tester,
+          const MapScreen(),
+          size: at.size,
+          scale: at.scale,
+          phone: phone,
+        );
+        await settleMocks(tester, rounds: 3);
+        expect(find.bySemanticsLabel('Votre position'), findsOneWidget);
+        await expectGolden(tester, 'consumer_map_location_dot${at.tag}');
       });
     }
   }, skip: kGoldensSkip);
