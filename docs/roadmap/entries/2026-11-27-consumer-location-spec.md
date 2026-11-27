@@ -1,0 +1,20 @@
+- 🟡 **MyWeli (client) et MyWeli Pro, A6 : la localisation — la spec, avant tout code (documentation · app · 2026-11-27 — BACKLOG B0.10, décision 160, piste A ; écart 13 et première moitié du 22 de l’audit ; FR-DISC-005, FR-DISC-002).** Branche `docs/consumer-location-spec`, depuis `main` `343a1f4d`. Spec : [consumer-location.md](../../design/consumer-location.md). Documentation seule : aucun code, aucun build, aucune console.
+  - **Pourquoi :**
+    - les deux apps partagent un manifeste Android qui demande la position précise ; l’app client n’en a pas besoin, et Google exige à partir du 2027-01-27 une déclaration qui justifie pourquoi l’approximative ne suffit pas ;
+    - la carte ouvre la fenêtre de localisation du système dès qu’on l’ouvre, sans un mot d’explication ;
+    - après un refus définitif, « Activer » ne fait plus rien, et « Près de moi » comme « Utiliser ma position » (Pro) ne mènent jamais aux réglages.
+  - **Ce que la spec prévoit, chaque « aujourd’hui » relu dans le code avec son fichier et sa ligne :**
+    - la position précise quitte le manifeste commun pour un manifeste propre à MyWeli Pro ; l’app client demande une position approximative sur Android ;
+    - la carte explique d’abord, une seule fois, avec « Plus tard » et « Activer », et n’ouvre plus la fenêtre du système d’elle-même ;
+    - après un refus, chaque endroit dit ce qui s’est passé et offre la sortie qui marche : redemander quand le téléphone le peut encore, « Ouvrir les réglages » quand seuls eux le peuvent, la page de localisation du téléphone quand elle est coupée ; au retour des réglages, la carte se recentre sans redemander ;
+    - un seul parcours partagé à la place des trois copies d’aujourd’hui, une seule lecture à la fois, en précision « moyenne », jamais plus de 30 secondes ; la carte dessine la précision de la position et cadre le cercle ; Pro dit quand la position de l’épingle est approximative ;
+    - des gardes : les manifestes dans le code, les permissions de l’APK client lues en CI, chaque issue en test.
+  - **Lu dans le code des greffons, et non supposé :** sur Android, « jamais demandé » et « refusé pour de bon » répondent la même chose tant qu’on ne redemande pas ; sur iOS, le premier refus est définitif. La spec en tient compte.
+  - **Relue par un lecteur indépendant, chargé de la réfuter :** 12 constats, chacun vérifié dans le code des greffons, puis intégré (§14). Les plus importants :
+    - sur un iPhone où la localisation est limitée (Temps d’écran), « Autoriser » aurait tourné en rond : la spec y répond par une phrase sans bouton de nouvel essai ;
+    - deux lectures à la fois bloquent le greffon (sur Android, la première attend pour toujours) : une seule lecture, et le retour des réglages n’en lance une que si la carte les a ouverts ;
+    - le drapeau « expliqué » ne pouvait pas être construit tel qu’écrit : il enregistre maintenant le toucher de la personne ;
+    - une phrase était fausse (« Aucune commune trouvée près de vous ») : la commune la plus proche n’a pas de limite de distance.
+  - **Vu en passant, hors A6 :** la carte de l’épingle, dans Pro, ne suit pas « Utiliser ma position » (lu dans le code, non vu sur un téléphone).
+  - **Cinq questions pour le propriétaire** (décisions 272 à 276), chacune avec une recommandation.
+  - **Reste :** les réponses, puis la fusion de la spec, puis la construction, chacune sur le mot du propriétaire.
