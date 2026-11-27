@@ -1,0 +1,9 @@
+- 🟡 **Serveur, A5-api : la liste publique des avis porte la répartition des notes du salon, et son ordre ne bouge plus (serveur · 2026-11-27 — BACKLOG B0.10, décision 280 ; écart 18 de l’audit ; FR-DISC-006).** Branche `feat/a5-api-review-summary`, depuis `main` `b097e330`. Spec : [salon-team-and-reviews.md](../../design/salon-team-and-reviews.md) §3 et §14.
+  - **Pourquoi :** l’écran « Avis » de l’app (A5) et du site (A5w) dessine la note, le nombre et les barres 5 → 1 du salon entier ; la liste publique ne les envoyait pas, seule celle du salon lui-même (Pro). Et deux avis du même instant n’avaient pas d’ordre : en passant d’une page à l’autre, on pouvait en voir un deux fois et ne jamais voir l’autre.
+  - **Ce qui change :**
+    - `GET /providers/{id}/reviews` envoie `summary` à chaque page, le même que `GET /me/provider/reviews` : la moyenne à une décimale, le nombre et la répartition, sur les avis visibles seulement ; lu après la barrière de la décision C, donc un salon caché répond 404 sans rien compter ;
+    - les deux lectures publiques trient par date, puis par identifiant, dans Postgres comme dans le jumeau en mémoire ; les dix avis intégrés à la fiche du salon sont la page 1 de dix ;
+    - le contrat et les types du site (`web/lib/api/schema.ts`) suivent, dans la même PR.
+  - **Vérifié :** les tests du serveur, la suite complète, et le fichier des tests Postgres sur un PostgreSQL 16 jetable (la version de production), migrations comprises ; 8 mutations, chacune vue en rouge sur le code commité.
+  - **Rien ne change pour les clients aujourd’hui :** aucune app ni le site ne lisent encore cette liste ; l’app (A5) et le site (A5w) s’en serviront, et fonctionnent sans elle (sans barres) tant qu’elle n’est pas en production.
+  - **Reste :** la fusion, puis le déploiement en production, chacun sur le mot du propriétaire.

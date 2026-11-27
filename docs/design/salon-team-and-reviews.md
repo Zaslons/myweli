@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Module** | discovery (the salon page, `/provider/:id`), with `public-api` (`GET /providers/{id}/reviews`, A5-api) and `public-web` (`/{slug}`, A5w); the booking hub of both (a specialist chosen first, §2.4) |
-| **Status** | **Written 2026-11-27**, on the owner's « Yes, start A5 ». Read once by an independent reviewer told to refute it: no blocker, 18 findings, each re-read in the code, then taken in (§12). **Approved 2026-11-27:** the owner answered the seven questions of §11 at once, « Approve as recommended » (decisions 277–283 in BACKLOG). Nothing built yet: A5-api, A5 and A5w, each on the owner's word. |
+| **Status** | **Written 2026-11-27**, on the owner's « Yes, start A5 ». Read once by an independent reviewer told to refute it: no blocker, 18 findings, each re-read in the code, then taken in (§12). **Approved 2026-11-27:** the owner answered the seven questions of §11 at once, « Approve as recommended » (decisions 277–283 in BACKLOG). The spec merged as `5f4902aa` (#903). **A5-api built 2026-11-27** on the owner's « Yes, build A5-api » (§14); not merged. A5 and A5w next, each on the owner's word. |
 | **Last updated** | 2026-11-27 |
 | **Audit** | [consumer-app-release-audit.md](consumer-app-release-audit.md) row **A5** (Track A, §7): gap **18** (« No staff section on the salon page; reviews capped at 5 », §2.2). Also §2.2's third « missing » line (a guest's « Signaler », §2.6 here) and §2.10's « the web has, the app lacks: the staff section » |
 | **BACKLOG** | B0.10 (the audit's Track A, decision 160) |
@@ -454,3 +454,49 @@ A reviewer told to refute the spec read it against the code. **No blocker; 18 fi
 - **The public review carries `userId`** (`openapi.yaml`, `Review`), an opaque id. It is not shown, but lets someone link one reviewer's reviews across salons. Part of the same decision.
 - **Review dates:** the app formats them on the phone's clock (`review_tile.dart`, `formatDateShort`), the website in the salon's (`ReviewList.tsx`, `tz`). They differ only across midnight between time zones.
 - **Pro's « Avis »** reads its first 50 reviews and stops (`reviews_screen.dart`).
+- **The two review twins keep different ids on a resubmit** (read while building A5-api). Postgres keeps the stored id (`ON CONFLICT (appointment_id) DO UPDATE` leaves `id` alone, `postgres_reviews_repository.dart`); the in-memory twin removes the row and stores the new one with its new id (`reviews_repository.dart`, `upsertByAppointment`). Only the order of two reviews of one instant could tell them apart.
+
+## 14. As built — A5-api (2026-11-27)
+
+Branch `feat/a5-api-review-summary`, from `main` `b097e330`, on the owner's « Yes, build A5-api » (decision 280). The code commit is `d498bb85`.
+
+**What changed:**
+- **`GET /providers/{id}/reviews` sends `summary` on every page** (`routes/providers/[id]/reviews/index.dart`). It is `ReviewsService.summary`, unchanged, the one `GET /me/provider/reviews` sends. It is read after `isPublicSalon`, so a hidden or unknown salon still answers the same 404 with no count in it.
+- **Both public reads end on the id:**
+  - Postgres: `ORDER BY created_at DESC, id DESC` in `listForProvider` and `recentForProvider` (`db/postgres_reviews_repository.dart`);
+  - the in-memory twin: the same order in `_forProvider` (`reviews_repository.dart`).
+  - The salon read's embedded ten are therefore page 1 at `pageSize=10`, which A5w relies on (§2.7).
+  - Pro's own list reads the same `listForProvider`, so it gains the same stable order.
+- **Contract:** `summary` is required on the public 200, `ReviewSummary`'s description names both routes, and the route's description states the order. `web/lib/api/schema.ts` is regenerated in the same commit (§3).
+- **Threat model:** row T14 says the public read now carries the summary, derived from what it already discloses and read after the T51 gate (BACKEND.md §7).
+
+**Tests:**
+- `reviews_test.dart`:
+  - the public list's summary at 45 reviews over pages of 20 (page 1 and page 3 both count 45, average 4.3, the split), a hidden review counting nowhere, zeros with no review;
+  - a hidden salon's 404 carrying no `summary`;
+  - the in-memory order with five reviews of one instant inserted out of id order, read in pages of 2.
+- `db/postgres_repositories_test.dart`: the same order on the real schema.
+- `contract/salon_reviews_summary_contract_test.dart`: both routes require a `ReviewSummary`.
+
+**Mutations, each watched red on the committed code:**
+1. The route sends no `summary`.
+2. The summary counts the page.
+3. The in-memory order without the id.
+4. Postgres `listForProvider` without the id.
+5. Postgres `recentForProvider` without the id.
+6. The contract no longer requires `summary` on the public list.
+7. The summary read before the gate, so a hidden salon's 404 carries a count.
+8. A stale `web/lib/api/schema.ts`. CI's step (`gen:api`, then `git diff --exit-code`) answers 1 on it, and 0 on the committed file.
+
+**Checks:**
+- `dart format` clean and `dart analyze --fatal-infos --fatal-warnings`: no issue.
+- The full backend suite: 2,972 passed, 13 skipped.
+- The DB-gated tests (`test/db/`): 510 passed, against a throwaway PostgreSQL 16 container (production's major) on port 5544, migrations run from empty. The container was stopped after.
+
+**What clients see today:** nothing. No app and no page reads this list yet. A5 (the app) and A5w (the website) will, and both work without `summary` until it is deployed (§9).
+
+**Rollout:**
+- the merge, on the owner's word;
+- then the production backend deploy (`workflow_dispatch` with the image tag), on the owner's word;
+- then read back on `api.myweli.com`: the public salon's list carries `summary`, and its `count` equals `total`; a hidden or unknown id still 404s with no `summary`. The order itself cannot be seen there unless two reviews share an instant.
+
