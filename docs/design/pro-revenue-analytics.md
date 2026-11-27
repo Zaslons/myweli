@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Approved 2026-11-25** — the owner answered all thirteen questions of §17 at once, « Approve as recommended » (decisions 237–249). **R0w live 2026-11-25** (#866, `afd2de97`). **R1's production read done 2026-11-25** (§19). **R1 live 2026-11-26** (#872, migration **0052**, merged 2026-11-25 `3f3305a5`, deployed 2026-11-26 11:09 UTC, revision `myweli-api-00061-kwl`); the count after waits for real bookings, on the owner's word. **R2 live 2026-11-26** (#884, merged `306a5d50`, deployed 19:40 UTC, revision `myweli-api-00062-f5c`; as built: §20). **R3 merged 2026-11-27** (#893, `6b1ed6a9`; as built: §21); it reaches users with the next Pro store build. **R4 built 2026-11-27** (PR #900, branch `feat/web-revenue-r4`; as built: §22); the website gets it with its merge, on the owner's word. |
+| **Status** | **Approved 2026-11-25** — the owner answered all thirteen questions of §17 at once, « Approve as recommended » (decisions 237–249). **R0w live 2026-11-25** (#866, `afd2de97`). **R1's production read done 2026-11-25** (§19). **R1 live 2026-11-26** (#872, migration **0052**, merged 2026-11-25 `3f3305a5`, deployed 2026-11-26 11:09 UTC, revision `myweli-api-00061-kwl`); the count after waits for real bookings, on the owner's word. **R2 live 2026-11-26** (#884, merged `306a5d50`, deployed 19:40 UTC, revision `myweli-api-00062-f5c`; as built: §20). **R3 merged 2026-11-27** (#893, `6b1ed6a9`; as built: §21); it reaches users with the next Pro store build. **R4 live 2026-11-27** (#900, merged `cee647eb` at 18:41 UTC on the owner's word, on myweli.com the same evening; as built: §22, read back: §22.5). Every slice of §14 is merged; still owed: the read after the 2026-11-30 demo reset, the count after R1, and the Pro store build that carries R3. |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-11-27 |
 | **PRD ref / phase** | FR-PRO-EARN-001 [V1] (« completed revenue by day/week/month ») + FR-PRO-DASH-001 [V1] (« no-show rate ») + the revenue half of **FR-PRO-OPS-004 [V3]** (« revenue, top services/staff, no-show analytics »), pulled forward on the owner's request of 2026-11-25 — Q1 |
@@ -1858,7 +1858,9 @@ clean. A no-op edit (the control) stayed green.
 
 On the owner's « Oui, démarrer R4 » and « Oui, construire R4 » (2026-11-27),
 to the plan approved with them. PR #900, branch `feat/web-revenue-r4`, one
-PR (Q12). **Website only:** the two endpoints have been live since R2; no
+PR (Q12). **Merged 2026-11-27** (`cee647eb`, on the owner's « Oui,
+fusionner »; main's tree = the tested head's, main's CI green, Vercel
+production live; read back: §22.5). **Website only:** the two endpoints have been live since R2; no
 backend, contract or schema change. The website ships with its merge
 (Vercel).
 
@@ -2112,3 +2114,29 @@ clean. A no-op edit (the control) stayed green.
 | 47 | a ledger sentence says « encaissement » | « the ledger, on each filter — its rows, then each empty sentence » |
 
 The harness asserted that each edit applied exactly once (a mutation that does not apply is no result), and that every file read back clean after.
+
+### 22.5 Merged, and read back on myweli.com (2026-11-27)
+
+- **The merge:** squash, pinned to the tested head `3f2ce36b`
+  (`--match-head-commit`), at 18:41 UTC → `cee647eb`. `main` had not moved
+  since the rebase on #899, so main's tree is the head's tree
+  (`e7a4bbde`). Main's CI run is green (10 of 10 jobs) and the Vercel
+  production deployment succeeded.
+- **The control, taken before the deployment landed:** on myweli.com,
+  `/api/pro/revenue`, `/api/pro/revenue/appointments`,
+  `/pro/revenus/rendez-vous` and `/pro/revenus/collaborateurs/none` each
+  answered **404**.
+- **After:** the two BFF routes answer **400** without `providerId` and
+  **401** `not_authenticated` with one and no session; the ledger, a
+  collaborateur's detail (`none`) and a canal's (`en-ligne`) answer 200
+  (`/pro/revenus`, opened in the browser, sent the anonymous visitor on to
+  `/pro/connexion`); an
+  id the server would refuse (`bad.id`) is still **404**. The live
+  JavaScript carries « Exporter (CSV) », « Réservé au propriétaire », the
+  session key `myweli.pro.revenus.comparer` and the footnote's « n’encaisse
+  rien ».
+- **Not read:** the page signed in. The built-in browser had no pro
+  session; it stopped at `/pro/connexion`. The owner can open
+  `/pro/revenus` on their own account.
+- **The production monitor's** last run before the merge (15:50 UTC) was
+  green; it checks the public pages, not this one.
