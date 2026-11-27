@@ -3,9 +3,9 @@
 | | |
 |---|---|
 | **Module** | identity & auth (a cross-cutting foundation, [MODULES.md](../MODULES.md)): the consumer `users` store (`AuthRepository`, both twins), `PATCH /me`, two new routes under `/me/email`, the `User` DTO, the error reporter, and the consumer app's profile edit |
-| **Status** | **Approved 2026-11-26.** Written on the owner's « Yes, spec B16.3 »; the owner answered the six questions of §11 at once, « Approve as recommended »: decisions 260–265 in BACKLOG, batch 16 (#879). Read once by an independent reviewer told to refute it against the code: 20 findings, each re-read in the code, then folded in (§13). **B16.3a (the backend) built 2026-11-26** on the owner's « Yes, build B16.3a » (§8.4), **merged** as `dabcbda4` (#886); **read before the deploy** (decision 263, §9.1): no account holds an unproven address, no Sentry report carries one; **deployed** 2026-11-26 (`myweli-api-00063-clx`, image `dabcbda`) and read back; the Cloudflare edge rule carries `/me/email/` since the same night; **read after** the same night (§9 step 4): the same counts, no unproven address, no Sentry issue since the deploy. Next, on the owner's word: B16.3b (the app). |
+| **Status** | **Approved 2026-11-26.** Written on the owner's « Yes, spec B16.3 »; the owner answered the six questions of §11 at once, « Approve as recommended »: decisions 260–265 in BACKLOG, batch 16 (#879). Read once by an independent reviewer told to refute it against the code: 20 findings, each re-read in the code, then folded in (§13). **B16.3a (the backend) built 2026-11-26** on the owner's « Yes, build B16.3a » (§8.4), **merged** as `dabcbda4` (#886); **read before the deploy** (decision 263, §9.1): no account holds an unproven address, no Sentry report carries one; **deployed** 2026-11-26 (`myweli-api-00063-clx`, image `dabcbda`) and read back; the Cloudflare edge rule carries `/me/email/` since the same night; **read after** the same night (§9 step 4): the same counts, no unproven address, no Sentry issue since the deploy. **B16.3b (the app) built 2026-11-27** on the owner's « Yes, build B16.3b » (§8.5): red first, green, read once by an independent reviewer, 39 mutations red. Its merge on the owner's word; it reaches people with the next consumer app build. |
 | **Owner** | the project owner: the answers, then each build, merge, read and deploy, each on the owner's word |
-| **Last updated** | 2026-11-26 |
+| **Last updated** | 2026-11-27 |
 | **PRD ref / phase** | FR-AUTH-004 (profile: name, optional e-mail, photo) · threat model T32, T33, T34 · V1 |
 | **ROADMAP entry** | [2026-11-26-account-email-change-spec.md](../roadmap/entries/2026-11-26-account-email-change-spec.md) |
 | **Skills checked** | myweli-dev-guardrails · myweli-backend-guardrails · myweli-verification-guardrails · [BACKEND.md](../BACKEND.md) §3, §5 (decision 223), §7 (T32, T33, T34) · [SYSTEM.md](SYSTEM.md) §14 (forms), §15 |
@@ -383,6 +383,56 @@ Branch `feat/b16-3a-email-proven` from `main` (`2b8dd96b`). The tests red first 
   - **Decision 265 counts a Google or Apple link as another way in even while `AUTH_METHODS` disables that provider** (the review). Production enables both (`google,apple,email`, `infra/gcp/service.yaml`); the day one is switched off, its linked accounts change their address without the second code.
   - The phone path keeps `_checkOtpIn` (dormant, one route).
 
+### 8.5 As built (B16.3b, the app, 2026-11-27)
+
+Branch `feat/b16-3b-email-change-app` from `main` (`7f08c725`). The tests red first (`98c73cda`), then the build (`8abb2e68`, `54087019`), a vacuous assertion replaced (`b96cd7c7`), the row's layout after the first picture (`ba1a9f40`), the independent review's fixes (`43fd24d1`), the goldens (`c70a2e3a`).
+
+- **Red first,** on today's code, through the real `ApiAuthService` over a fake HTTP client (`edit_profile_email_row_test.dart`, `user_email_verified_test.dart`), **10 red**, each for its reason: Save's `PATCH /me` body was `['name', 'email', 'phone']` (an edited address met `409 email_change_requires_code` as the generic sentence); no « Adresse e-mail » row, no « Non vérifiée », no « Aucune adresse », no « Modifier » or « Vérifier »; `User` dropped `emailVerified` (`null` four times). One of them first counted every `TextField` (the phone field holds one) and was corrected to count `AppTextField` before the build: it was red on the old code for that reason too.
+- **The code:**
+  - `User.emailVerified`; `EmailChangeRequest` (`expiresInSeconds`, `currentCodeSent`, the dev codes);
+  - `AuthServiceInterface.requestEmailChange` / `confirmEmailChange`; **`updateUser` loses `email`** in the interface, the API service, the mock and the provider, as the backend's did — no screen can send a changed address;
+  - the API service: the two routes through the refreshing client, the answered `User` adopted and merged into the stored session, and words for `email_taken` (`kEmailTakenMessage`), `email_unchanged`, `email_change_requires_code`, the four `current_otp_*`, `rate_limited`;
+  - the mock answers as the server: one code per address shared with the sign-in, `email_unchanged`, the new code checked first, `email_taken` with the code left for its owner, decision 265's second code, the take from an unproven holder — and its sign-ins find only a proven address, a Google or Apple account by its link first;
+  - `AuthProvider`: the two steps, an answer for an account no longer signed in dropped, the request in hand reset with the account;
+  - « Modifier le profil »: the row (§5.4), Save with `name` and `phone` only;
+  - `EmailChangeScreen` (`/profile/edit/email`, `?verifier=1` for « Vérifier »): §5.4's two steps and every state;
+  - `sign_in_refusal.dart`: `currentCodeFieldFault`, `changeEmailFieldFault`; `AppTextField.autofillHints`;
+  - `errorFromResponse`: a 429 with no JSON — Cloudflare's own limit on `/auth/`, `/admin/auth/` and `/me/email/` (« error code: 1015 », §9.1) — reads as `rate_limited`.
+- **Where the build departs from §5.4, and why:**
+  - **The title is « Adresse e-mail »**, not « Changer d’adresse e-mail »: `a15_titles_test` found it does not fit a pushed bar at 360 dp × 2× (SYSTEM.md §13.3). The row that opens it says the same words.
+  - **The row's label sits above, full width; « Modifier » goes under the address when the two cannot share a line.** Seen in the first Linux golden: beside « Modifier » the label broke inside « e-mail » and the address on three lines (§13.3: the control beside a value moves first). Gated by `expectNoMidWordBreak` with the real font. An address wider than the whole line at 200 % — « awa.kone@exemple.ci » measures 328 px of 312 — breaks at its punctuation: no layout has more to give.
+  - **« Vous ne pourrez plus vous connecter par code avec votre ancienne adresse. » shows only when the current address is proven** (§5.4 said « always »): with no address, or an unproven one, no old address signs anyone in, and the line would be false.
+  - **« Vérifier » sends the code at once** (« straight to its code »); a refusal leaves the address step with its fault. **Its success says « Adresse e-mail vérifiée. »**: the address did not change.
+  - **Two code fields carry two names**, « Code de la nouvelle adresse » and « Code de l’adresse actuelle »; one field keeps the sign-in's « Code à 6 chiffres ». At 200 % the two names end in Flutter's declared ellipsis (a mobile opt-out, §13.3); the sentence above each field names it in full, and a screen reader hears the whole name.
+  - **The button that spins is the request's** (« Recevoir un code », « Confirmer » or « Renvoyer le code »); all are disabled while one runs.
+  - **429 words:** at the request, `otp_resend_limit` and `rate_limited` say §5.4's « Trop de demandes de code. Réessayez plus tard. »; at the verify, `rate_limited` says « Trop de tentatives. Réessayez plus tard. » — which the sign-in screens now say too, where they said the generic sentence.
+  - **New sentences** (for the owner's review in the PR): `email_change_requires_code` « Changez votre adresse e-mail avec « Modifier » : un code vous sera envoyé. » (an older build only); `current_otp_none` « Aucun code actif pour votre adresse actuelle. Demandez un nouveau code. », `current_otp_expired` « Le code de votre adresse actuelle a expiré. Demandez un nouveau code. », `current_otp_locked` « Trop de tentatives pour le code de votre adresse actuelle. Demandez un nouveau code. », `current_otp_invalid` « Code de votre adresse actuelle incorrect. » — each said in the form only when the second field is not on screen; under it, the sign-in's words.
+  - **`emailVerified` absent reads as « proven » when an address is there.** Only a session stored by an earlier build lacks the field (the server sends it on every `User` since B16.3a); every address in production was proven at both of §9.1's reads, and no route writes an unproven one since. Read as unproven, the row would say « Non vérifiée » to everyone who updates. Pinned both ways. A rollback to an image before B16.3a would read every address as proven.
+  - **The implied back arrow stays** on the code step (`canPop: false`): Flutter still draws it and it calls `maybePop`, which the screen turns into the address step. A first reading took a failed `pageBack()` for its absence; `pageBack` looks for an English « Back » tooltip, and a probe measured the arrow there.
+- **Green:** the red-first file; `email_change_screen_test` (26 runs: every state of §5.4, focus on the first fault, the second code, « taken » and its way on, back, the cooldown, « Vérifier », a sign-in or a sign-out over the screen, 48 px on both steps, 200 % text, the merged nodes); the real route (2); the API service (17); the mock (12); the provider (8); the model (4); `api_errors` (the edge's 429); the three goldens (Linux). The full app suite on the reviewed code (`43fd24d1`): 4,411 passed, 92 skipped (the goldens, off Linux); analyze 0; format clean. Its first full run had one red, the title gate doing its job (above).
+- **Mutations, on committed code, each with its failure text** (`b163b_mut.py`, each applied exactly once, the tree clean after). **39, every one red; none survives.** Two re-aimed after the review moved their lines (a non-applying mutation is no result), and one (the « ancienne adresse » line always shown) first went red in one test only: the « Vérifier » test asserted the line's absence on the code step, where it never shows, and an unproven address now checks it on the address step.
+
+| Mutation | Red |
+|---|---|
+| `'email': ''` back in `PATCH /me`'s body | the API body · Save sends no address |
+| `fromJson` ignores the field · absent reads unproven · `toJson` drops it | the model |
+| the proven line always · no « Non vérifiée » block · « Vérifier » without `?verifier=1` · the row not merged | the row, its semantics, « Vérifier » |
+| « Modifier » back beside the address | `expectNoMidWordBreak`: 174 px of 185 |
+| the old-address line always · the second code ignored · « taken » without its way on · « Choisir » keeping the address · the current code's fault under the new code · the 429s generic · back on the code step pops · back while a request runs · no cooldown · no auto-send · « vérifiée » never said | each its screen test |
+| the screen's account guard · its signed-out back · a resend's fault on a field off screen · a `current_` fault with no second field | each its screen test |
+| the route ignores `?verifier` | the real route |
+| the provider's account guard · the request kept across accounts | the provider |
+| `currentCode` always sent · no session merge · `email_taken` generic · the edge's 429 generic | the API service · `api_errors` |
+| the mock consumes on « taken » · finds an unproven holder · no link first · decision 265 skipped, or by sign-up | the mock (and the screen's two-code tests) |
+| no `current_` field fault · `email_unchanged` not the field's · no autofill hint | each its screen test |
+
+- **Read once by an independent reviewer, told to refute it against the spec and the server, at `54087019`:** nothing blocking; every answer of both routes and of `PATCH /me` found placed and worded. Fixed (`43fd24d1`): the mock found Google and Apple accounts by address only, and its decision 265 asked by sign-up, not by link; Cloudflare's own 429 said the generic sentence; the resend read the field, not the address the code went to; signed out on the code step, back first went to a hidden step; and tests for each guard it found unexercised. Already fixed by then: the vacuous « Vérifier » assertion (`b96cd7c7`). Recorded, not changed: below.
+- **Looked at the pictures** (`consumer_edit_profile_email_w360_x2`, `consumer_email_change_address_w360_x2`, `consumer_email_change_codes_w360_x2`, Linux, 360 dp × 2×): the first run showed the row's broken label (fixed) and caught the floating label mid-animation (the test now lets it finish). Only these three images moved; the other 89 are byte-identical.
+- **Not done here, for the record:**
+  - **« Vérifier » sends a code each time the screen opens**, as the sign-in does: opened often within a code's five minutes, the address's resend budget answers « Trop de demandes de code » while a valid code sits in the inbox.
+  - **At 200 %, the code step's sentence breaks a long address inside a word** (« awa.kon / e.nouvelle@exemple. / ci »), as the sign-in's identical sentence does: the address follows « à » on a line already started. §12.
+  - The website's e-mail editing (C10) stays out of scope; when built, it uses §3's routes.
+
 ---
 
 ## 9. Rollout & scope discipline
@@ -486,6 +536,7 @@ Numbered from **260**, after batch 18's 255–259.
 - **A PATCH that fails after the avatar's promotion leaves the photo unreferenced** (§2.2). This build moves the e-mail refusal before the promotion; the route's one other late failure is `not_found`, an account deleted under the request. Not decided here.
 - **The phone's twin of the trap.** `verifyOtp` finds an account by `phone_number` whatever `phone_verified` says (`postgres_auth_repository.dart:392-405`, `auth_repository.dart:565-571`), and `PATCH /me` writes the phone unproven. Only `AUTH_METHODS` holds it shut (phone sign-in is dormant, T34). **A condition for ever turning phone sign-in back on:** the same rule as §5.1, for the phone.
 - **`PATCH /me` with a provider's token** answers `404 not_found` (pros are not in `users`). Harmless; the new routes answer `403`.
+- **At 200 %, « Entrez le code reçu par e-mail à {adresse}. » breaks a long address inside a word**, on the sign-in and on the change's code step alike (B16.3b's golden): the address starts on a line already begun. An address on a line of its own would keep the short ones whole. Both screens, one change; not decided here.
 
 ---
 
@@ -515,3 +566,5 @@ Numbered from **260**, after batch 18's 255–259.
 - 2026-11-26, answered: « Approve as recommended », all six (decisions 260–265, batch 16 in the BACKLOG). B16.3 is a P1, built in two PRs, the backend first; each build, merge, read and deploy on the owner's word.
 - 2026-11-26 — **B16.3a built** (§8.4), on the owner's « Yes, build B16.3a »: red first on both twins, green.
 - 2026-11-26 — **B16.3a read once by an independent reviewer, told to refute it against the code.** No rule broken, no twin difference, no enumeration. Found, each re-read in the code and fixed: the take's filter is a real guard (a concurrent proof), and §8.4's first draft said otherwise; a deadlock between a change and a code sign-in; a raced insert answering 500; the scrubber's pattern cut short by the detail; a 429 after a code had gone out; seven missing route and contract tests; two comments. Then 36 mutations, every one red.
+- 2026-11-27 — **B16.3b built** (§8.5), on the owner's « Yes, build B16.3b »: red first (10), green; the title shortened and the row laid out again after the gate and the first picture; 39 mutations red.
+- 2026-11-27 — **B16.3b read once by an independent reviewer, told to refute it against the spec and the server.** Nothing blocking. Fixed: the mock's link-first sign-in and its decision 265 by link, the edge's 429, the resend's address, the signed-out back, and tests for every guard found unexercised; one vacuous assertion was already replaced.
