@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| **Status** | Approved (2026-11-27), not built yet |
-| **Approved** | by the owner, 2026-11-27, on §5: « Approve as recommended » (the shape in §4 as a whole; the snackbars drop the address) |
+| **Status** | Approved (2026-11-27); built; one question re-opened by the first picture and answered the same day (§3, §5.3) |
+| **Approved** | by the owner, 2026-11-27, on §5: « Approve as recommended » (the shape in §4 as a whole; the snackbars drop the address); then §5.3, re-opened by the first picture: « Drop it everywhere » (the roster's initial avatar) |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-11-27 |
 | **Module / phase** | `access` (team) · V1 |
@@ -76,6 +76,28 @@ Dropping the row's initial avatar would give the title 248 dp, but measured,
 that does not hold this piece either (≈ 285 dp at 2×). It would only join
 « aminata » / « .kone ». The avatar stays.
 
+**⚠️ Corrected after the first Linux picture (2026-11-27, `pro_team_w360_x2`,
+run 46056862693).** The paragraph above measured a NAME piece and missed the
+DOMAIN. The picture showed the seed addresses broken inside their domain:
+« retard » / « @myweli.tes » / « t ». A domain is one piece (§13.3 never breaks
+it at its « . »), and at 2× several common ones are wider than the roster's
+192 dp (Roboto, measured):
+
+| Domain | 1× | 1.5× | 2× |
+|---|---|---|---|
+| `@hotmail.com` · `@outlook.com` | 110 | 162 | **214** |
+| `@myweli.com` (our own) | 105 | 155 | **205** |
+| `@myweli.test` (the seeds) | 102 | 149 | **197** |
+| `@yahoo.com` · `@icloud.com` | 98–99 | 145 | **192** |
+| `@gmail.com` · `@exemple.ci` | 95–96 | 139–142 | 184–187 |
+| `@hotmail.fr` · `@outlook.fr` · `@orange.ci` · `@yahoo.fr` | 77–89 | 114–130 | 150–172 |
+
+Without the initial avatar the title gets **248 dp** (288 on the owner's row,
+which has no chevron), measured on the screen, and every domain above fits at
+2×. The gate tests did not see it because their addresses all end in
+`@exemple.ci` or `@gmail.com`, which fit. Taken back to the owner (§5,
+question 3).
+
 ## 4. The shape (proposed)
 
 - **The roster row (1).** The address is the row's title, on its own, breaking
@@ -86,13 +108,15 @@ that does not hold this piece either (≈ 285 dp at 2×). It would only join
   row now has a chip line, so rows get one line taller.
 
   ```text
-  (A)  aminata.kone                    ›
-       @exemple.ci
-       [Manager]
+  aminata.kone                         ›
+  @exemple.ci
+  [Manager]
   ```
 
-  A screen reader hears the same thing in the same order: the address
-  (without its break marks), the role, then the subtitle lines. The row's
+  **The initial avatar is gone** (§5.3, after §3's correction): it left the
+  address 192 dp at 200 %, too narrow for a twelve-character domain. A screen
+  reader hears the address first (without its break marks; it used to hear
+  the initial before it), then the role, then the subtitle lines. The row's
   semantics are merged by `ListTile`, as today.
 - **The actions sheet's heading (2).** The address on its own at
   `titleMedium`, breaking at its seams. The chip goes under it.
@@ -138,6 +162,17 @@ places follow rules it already states. §21 row 99 gains these seven places.
    line of its own inside the snackbar. That needs `AppSnackBar` to take an
    address and draw it as `CodeSentTo` does, a change to the shared
    component every snackbar in both apps goes through.
+
+3. **The roster's avatar at 200 %** (asked 2026-11-27, after the correction
+   in §3) — **« Drop it everywhere »**, as recommended: **drop the initial avatar at every size**: the title
+   gets 248 dp at 360, every common domain fits at 2×, no branch can rot, and a
+   screen reader stops saying « A » before each address (it hears the initial
+   today: « A, aminata.kone@exemple.ci, Manager »). The 1× roster loses its
+   initial circles. Alternative: **hide it only when an address's widest piece
+   would not fit beside it**, measured on the roster's data as
+   [amounts-that-fit.md](amounts-that-fit.md) does, so 1× keeps the circles.
+   Or keep it, and a 12-character domain breaks inside at 200 %
+   (« @hotmail.co » / « m »).
 
 ## 6. Tests: red first, on the code before the change
 
