@@ -10,6 +10,7 @@ import '../../core/forms/field_errors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
+import '../../core/utils/formatters.dart';
 import '../../core/utils/phone_numbering.dart';
 import '../../core/utils/validators.dart';
 import '../../models/user.dart';
@@ -350,8 +351,14 @@ class _EmailRow extends StatelessWidget {
                 alignment: WrapAlignment.spaceBetween,
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
+                  // A long address breaks at its seams (§13.3), never where
+                  // the line runs out (« awa.kone@exemple. » / « ci »); the
+                  // marks are drawn, never heard.
                   Text(
-                    email ?? 'Aucune adresse',
+                    email == null
+                        ? 'Aucune adresse'
+                        : Formatters.breakableEmail(email),
+                    semanticsLabel: email,
                     style: AppTextStyles.bodyLarge.copyWith(
                       color: email == null
                           ? AppColors.textSecondary

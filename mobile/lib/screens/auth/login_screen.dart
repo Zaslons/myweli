@@ -20,6 +20,7 @@ import '../../widgets/common/app_button.dart';
 import '../../widgets/common/app_snack_bar.dart';
 import '../../widgets/common/app_text_field.dart';
 import '../../widgets/common/apple_logo.dart';
+import '../../widgets/common/code_sent_to.dart';
 import '../../widgets/common/google_g_logo.dart';
 import '../../widgets/common/inline_feedback.dart';
 import '../../widgets/common/legal_consent_text.dart';
@@ -449,9 +450,9 @@ class _LoginScreenState extends State<LoginScreen> {
   ];
 
   List<Widget> _codeStep(AuthProvider auth) => [
-    Text(
-      'Entrez le code reçu par e-mail à ${_emailController.text.trim()}.',
-      style: AppTextStyles.bodyLarge.copyWith(color: AppColors.textSecondary),
+    // The address on a line of its own (§13.3; account-email-change.md §12).
+    CodeSentTo.byEmail(
+      _emailController.text.trim(),
       textAlign: TextAlign.center,
     ),
     const SizedBox(height: AppTheme.spacingL),

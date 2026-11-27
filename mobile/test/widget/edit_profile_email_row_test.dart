@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
+import 'package:myweli/core/utils/formatters.dart';
 import 'package:myweli/providers/auth_provider.dart';
 import 'package:myweli/screens/profile/edit_profile_screen.dart';
 import 'package:myweli/services/api/api_auth_service.dart';
@@ -177,7 +178,10 @@ void main() {
       await openForm(tester);
 
       expect(find.text('Adresse e-mail'), findsOneWidget);
-      expect(find.text('awa@exemple.ci'), findsOneWidget);
+      expect(
+        find.text(Formatters.breakableEmail('awa@exemple.ci')),
+        findsOneWidget,
+      );
       expect(find.text('Modifier'), findsOneWidget);
       expect(
         find.text(
@@ -203,7 +207,10 @@ void main() {
     serverUser = userWith(email: 'awa@exemple.ci', emailVerified: false);
     await openForm(tester);
 
-    expect(find.text('awa@exemple.ci'), findsOneWidget);
+    expect(
+      find.text(Formatters.breakableEmail('awa@exemple.ci')),
+      findsOneWidget,
+    );
     expect(find.text('Non vérifiée'), findsOneWidget);
     expect(find.text('Vérifier'), findsOneWidget);
     expect(
