@@ -148,7 +148,7 @@ describe('« Alertes par e-mail » (owner Q2: the words as written, on by defaul
     expect(screen.getByRole('heading', { name: 'Préférences' })).toBeInTheDocument();
     expect(
       screen.getByText(
-        'Si une notification de l’app MyWeli Pro ne peut pas vous parvenir, nous vous écrivons à salon@example.com : nouvelle demande, report, annulation, justificatif d’acompte.',
+        'Si une notification de l’app MyWeli Pro ne peut pas vous parvenir (nouvelle demande, report, annulation, justificatif d’acompte), nous vous écrivons à salon@example.com.',
       ),
     ).toBeInTheDocument();
   });

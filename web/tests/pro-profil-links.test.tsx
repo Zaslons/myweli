@@ -143,7 +143,7 @@ describe('ProfilClient — the links follow the role, as in the app', () => {
   it('the slim view (Collaborateur, Réception) has it too', async () => {
     mockFetch();
     render(<ProfilClient />);
-    await screen.findByText('sonia.staff@equipe.test');
+    await screen.findByText('sonia.staff@equipe.test', { ignore: '[aria-hidden="true"]' });
     expect(link(/^Aide & Support/)).toHaveAttribute('href', '/support');
   });
 });

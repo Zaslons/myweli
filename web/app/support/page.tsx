@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { JsonLd } from '../../components/JsonLd';
 import { breadcrumbJsonLd, siteUrl } from '../../lib/seo/jsonld';
 import { SUPPORT, supportMailto, supportWhatsAppUrl } from '../../lib/support';
+import { EmailLink } from '../../components/BreakableEmail';
 
 /// The page every support affordance points at.
 ///
@@ -118,12 +119,13 @@ export default function SupportPage() {
 
         <ul className="mt-m flex flex-col gap-m">
           <li>
-            <a
+            {/* Breaks only before its « @ » (web-email-seams.md): at doubled
+                text the address was wider than the phone (352px). */}
+            <EmailLink
+              address={SUPPORT.email}
               href={supportMailto()}
               className="flex min-h-xxl items-center rounded-control border border-primary px-m py-s text-bodyLarge text-textPrimary underline hover:bg-surfaceVariant"
-            >
-              {SUPPORT.email}
-            </a>
+            />
             <p className="mt-xs text-bodyMedium text-textSecondary">
               Le moyen le plus sûr de nous joindre. Décrivez votre situation et,
               si c’est utile, joignez une capture d’écran.

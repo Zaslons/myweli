@@ -1,7 +1,8 @@
-import { SUPPORT, supportMailto } from '../../lib/support';
+import { SUPPORT } from '../../lib/support';
 import {
   A,
   Callout,
+  Email,
   H2,
   Lead,
   LegalPage,
@@ -54,7 +55,7 @@ export default function Page() {
 
       <H2>Nous contacter</H2>
       <P>
-        Écrivez-nous à <A href={supportMailto()}>{SUPPORT.email}</A>, ou passez
+        Écrivez-nous à <Email />, ou passez
         par la page <A href={SUPPORT.path}>Aide &amp; Support</A> — accessible
         aussi depuis l’application, <strong>Profil → Aide &amp; Support</strong>.
         L’adresse d’expédition de nos e-mails automatiques n’est pas relevée et

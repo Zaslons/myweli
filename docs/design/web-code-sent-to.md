@@ -130,9 +130,7 @@ aminata.kone                            ← textPrimary (ink), a line of its own
 
 ## 6. Not covered
 
-- **Other addresses on the web** — the team list (`EquipeClient`), the Pro
-  sidebar (`ProSidebar`) and the salon profile (`ProfilClient`) draw an
-  address with `break-all`, which cuts anywhere; the legal pages' `Email` breaks
-  « support@myweli.com » after its « @ » rather than before it (those pages are
-  frozen while Apple reviews). Not measured here; a task of its own.
+- **Other addresses on the web** — measured and brought under the rule by
+  [web-email-seams.md](web-email-seams.md) (twelve places, not four), which
+  also moves this step's drawing into the shared `EmailSeams`.
 - A name piece or a domain wider than a line still breaks inside (§3).

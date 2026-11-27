@@ -1,6 +1,4 @@
-import { Fragment } from 'react';
-
-import { emailSeams } from '../../lib/format';
+import { EmailSeams } from '../BreakableEmail';
 
 const LEAD = 'Entrez le code reçu par e-mail à';
 
@@ -18,7 +16,7 @@ const LEAD = 'Entrez le code reçu par e-mail à';
 /// « à », an address wider than the line did not break — it spilled: with
 /// Android's text at 200 % on a 320 phone, « awa.kone.nouvelle@exemple.ci »
 /// grew the page to 483 px. On its own line it breaks only at its seams
-/// ([emailSeams], one `<wbr>` each); `break-words` cuts inside a piece only
+/// ([EmailSeams], one `<wbr>` each); `break-words` cuts inside a piece only
 /// when that piece alone is wider than the line, where no layout has more to
 /// give. No period is drawn after it: on a line of its own, it would read as
 /// part of the address.
@@ -39,12 +37,7 @@ export function CodeSentTo({ email }: { email: string }) {
       <span aria-hidden="true">
         <span className="text-textSecondary">{LEAD}</span>
         <span className="block break-words text-textPrimary">
-          {emailSeams(address).map((piece, i) => (
-            <Fragment key={i}>
-              {i > 0 ? <wbr /> : null}
-              {piece}
-            </Fragment>
-          ))}
+          <EmailSeams address={address} />
         </span>
       </span>
     </p>
