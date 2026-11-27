@@ -129,9 +129,11 @@ export function AvisClient() {
             {/* 14 rem beside the average, else a line of its own, where it may
                 shrink to the card: `min-w-56` was 448 px at a 32 px root, and
                 the page scrolled sideways (web-report-rows-doubled-text.md §3.3).
-                Not `flex-1`: its 0 % basis would never send the list to its
-                own line. */}
-            <dl className="w-56 min-w-0 grow">
+                No `min-w-0` needed: a flex item's automatic minimum is the
+                smaller of its width and its content's, about 128 px here. Not
+                `flex-1`: its 0 % basis would never send the list to its own
+                line. */}
+            <dl className="w-56 grow">
               {stats.distribution.map((d) => (
                 <div key={d.rating} className="flex items-center gap-s py-xs">
                   <dt className="w-8 shrink-0 text-bodyMedium text-textSecondary">
