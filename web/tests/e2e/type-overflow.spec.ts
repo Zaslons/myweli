@@ -2057,10 +2057,17 @@ test.describe('every other place that draws an address (web-email-seams)', () =>
                 const revoke = await drawnAddresses(page, address, '[role="dialog"]');
                 expect(revoke.length, '« Révoquer l’accès » draws the address once').toBe(1);
                 expectDrawnAtItsSeams(revoke[0], address, { font: size(14), broken: android, sentence: true });
+                // Rename-tolerant: pro.spec's profil journey renames the shared
+                // stub salon to « Beauté Divine Web », in whatever order the
+                // workers run.
                 expect(
                   await page.getByRole('dialog').locator('p').first().ariaSnapshot(),
                   'what a screen reader hears of the sentence',
-                ).toBe(`- paragraph: ${address} perdra immédiatement l’accès à Beauté Divine. Son compte MyWeli n’est pas supprimé.`);
+                ).toMatch(
+                  new RegExp(
+                    `^- paragraph: ${address.replace(/\./g, '\\.')} perdra immédiatement l’accès à Beauté Divine( Web)?\\. Son compte MyWeli n’est pas supprimé\\.$`,
+                  ),
+                );
                 await expectHeardWhole(page, address);
                 await page.keyboard.press('Escape');
                 await expect(page.getByRole('dialog')).toBeHidden();
