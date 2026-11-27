@@ -1,4 +1,4 @@
-- 🟡 **B19.1 : la sonde, un lancement par heure arrive-t-il à l’heure ? (CI · 2026-11-26 — BACKLOG lot 19, décisions 266 et 271).** Branche `feat/b19-1-schedule-probe`, empilée sur la spec (#881). Spec : [infra-production-checks-on-time.md](../../design/infra-production-checks-on-time.md) §3.2 et §13.1.
+- 🟢 **B19.1 : la sonde, un lancement par heure arrive-t-il à l’heure ? (CI · 2026-11-26 — BACKLOG lot 19, décisions 266 et 271).** Branche `feat/b19-1-schedule-probe`, empilée sur la spec (#881). Spec : [infra-production-checks-on-time.md](../../design/infra-production-checks-on-time.md) §3.2 et §13.1.
   - **Pourquoi :** GitHub crée le contrôle quotidien de 06 h 00 avec 4 à 12 heures de retard depuis le 2026-08-27. Un autre dépôt public, planifié toutes les 10 minutes, démarre à l’heure. La sonde mesure si un lancement par heure arrive à l’heure ici aussi.
   - **Construit :** `.github/workflows/schedule-probe.yml`.
     - Un lancement par heure, à la 17ᵉ minute.
@@ -8,7 +8,9 @@
     - le fichier se lit en YAML ;
     - les tests qui lisent tous les workflows passent : 112 côté backend, 14 côté mobile.
   - **Pas vérifiable avant la fusion :** GitHub ne lance un horaire que depuis la branche principale. La première preuve sera le premier lancement après la fusion.
-  - **Reste :**
-    - la fusion de la spec (#881), puis celle de cette PR, sur le mot du propriétaire ; elle démarre les trois jours ;
-    - la lecture après trois jours (§3.2) ;
-    - le retrait de la sonde, dans la PR de B19.2 ou seule.
+  - **Fusionnée** le 2026-11-26 à 15 h 43 UTC sur le mot du propriétaire (#882, `8ac2c73a`), après la spec (#881).
+  - **Lue le 2026-11-27 à 07 h 07 UTC** (spec §13.1) :
+    - en quinze heures, GitHub a créé **un seul** lancement, à 00 h 37 UTC ; les quatorze autres ne sont jamais venus ;
+    - **aucun entre 06 h 00 et 07 h 00** ; le contrôle quotidien de ce jour-là n’était pas créé non plus à 07 h 07.
+  - **Décidé après un seul matin,** sur la réponse du propriétaire « Yes, decide tomorrow » : la règle demandait chaque jour un lancement avant 07 h 00. L’étape 1 ne suffit pas ; B19.2 n’est pas construite.
+  - **Retirée** dans B19.3a.

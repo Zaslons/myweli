@@ -1,0 +1,39 @@
+- 🟡 **B19.3a : le déclencheur de 06 h 00 du contrôle quotidien, et la barrière qui le tient loin des déploiements (CI · Cloudflare · 2026-11-27 — BACKLOG lot 19, décisions 267–270).** Branche `feat/b19-3a-outside-trigger`, créée depuis `main` (`7f08c725`). Spec : [infra-production-checks-on-time.md](../../design/infra-production-checks-on-time.md) §4 et §13.2.
+  - **Pourquoi :** la sonde B19.1 a reçu un seul lancement en quinze heures, et aucun entre 06 h 00 et 07 h 00 le 2026-11-27. Un horaire toutes les heures ne vaut pas mieux ici qu’un horaire par jour. L’étape 1 ne suffit pas : décision prise ce matin-là, sur la réponse du propriétaire « Yes, decide tomorrow », puis « Yes, start step 2 ».
+  - **Construit :**
+    - **la barrière, la partie qu’un fichier peut tenir :**
+      - `deploy-admin.yml` déclare l’environnement `admin-production`, qui recevra les deux secrets Cloudflare ;
+      - le premier pas de chaque déploiement refuse un lancement qui n’a pas été démarré par `Zaslons`. Les 60 derniers lancements de `deploy-backend.yml` et les 91 de `deploy-admin.yml` l’ont tous été ;
+      - `infra/ci/98-verify-deploy-fence.sh` relit les règles des environnements, en lecture seule. Lancé sur les réglages d’aujourd’hui, il est rouge et nomme chaque règle qui manque ;
+    - **le Worker `myweli-production-checks-trigger`** : aucune adresse, un cron à 06 h 00 UTC. Il signe un JWT avec la clé de l’App GitHub, obtient un jeton limité à `myweli` et à Actions: write, puis lance `production-checks.yml` sur `main`, sans paramètre. Il ne journalise jamais la clé, le JWT ni le jeton. Les identifiants de l’App sont vides : le Worker refuse de démarrer sans eux. Il se déploie par `infra/cloudflare/97-production-checks-trigger.sh`, qui relit d’abord la barrière ;
+    - **`ontime`** (décision 269) : à chaque lancement, il lit l’heure de création du lancement et ouvre ou ferme son propre ticket, « The morning check starts late ». Jamais l’alarme de production. Tant que l’App n’existe pas, un lancement planifié créé après 07 h 00 l’ouvre : ce sera le cas dès le premier lancement après la fusion, et c’est vrai ;
+    - **`clear`** ne ferme l’alarme que sur `main` et au premier essai ;
+    - **`privacy` et `legal`** n’héritent plus des droits d’écriture du workflow ;
+    - **le contrôle « homme mort »** ne compte plus que les lancements planifiés qui ont vraiment exécuté leurs contrôles ;
+    - **la sonde est retirée.**
+  - **Tests :**
+    - 63 nouveaux dans `web/tests/production-checks-trigger.test.ts` ;
+    - 6 de plus pour le contrôle « homme mort » ;
+    - le test de l’alarme côté backend mis à jour ;
+    - les neuf tests backend qui lisent les workflows passent (164), et les trois tests du site qui les lisent aussi (89). Typecheck et lint propres.
+  - **Lus en vrai, en lecture seule :**
+    - le nouveau contrôle « homme mort » sur le dépôt : vert, sur le lancement planifié du 2026-11-26 ;
+    - la relecture de la barrière sur les réglages d’aujourd’hui : rouge, chaque règle manquante nommée.
+  - **Mutations vues rouges :** 57, chacune appliquée au code commité, testée, puis retirée :
+    - **le Worker (11) :** des paramètres dans le lancement ; un jeton non limité au dépôt, ou qui demande `contents` ; un 4xx réessayé ; le jeton ou le JWT journalisé ; un JWT valable 11 minutes ; une clé PKCS#1 non refusée par son nom ; 200 accepté pour le jeton ; aucun délai entre deux essais ; un identifiant vide accepté ;
+    - **son `wrangler.toml` (3) :** `workers_dev = true` ; une route ; un cron toutes les heures ;
+    - **`ontime` (15) :** 08 h 00 au lieu de 07 h 00 ; 06 h 45 au lieu de 06 h 30 ; l’horloge au lieu de `created_at` ; la branche, l’acteur ou le jour ignorés ; un lancement manuel jugé ; un lancement hors de `main` jugé ; un commentaire chaque jour sur un ticket ouvert ; le lancement mis en échec pour un retard ; un titre qui contient seulement celui du ticket ; une erreur de l’API lue comme un succès ; aucun nouvel essai sur un 5xx ; un 4xx réessayé ; l’App renseignée sans ses identifiants ;
+    - **le contrôle « homme mort » (5) :** les lancements créés de nouveau comptés ; un lancement sans tâche compté ; une supposition quand la tâche Core Web Vitals manque ; la fenêtre ignorée ; `cancelled` compté ;
+    - **`production-checks.yml` (8) :** `clear` sans `run_attempt`, ou sans `main` ; `ontime` absent de `clear.needs`, de `report.needs` ou de la ligne d’état ; un `if` sur `ontime` ; `pull-requests: write` pour lui ; `privacy` de nouveau avec les droits du workflow ;
+    - **les déploiements (5) :** `deploy-admin.yml` sans son environnement, ou avec un autre ; la vérification du propriétaire en second ; la vérification qui lit `actor` ; celle qui ne s’arrête jamais ;
+    - **la relecture de la barrière (7) :** n’importe quel approbateur accepté ; « Prevent self-review » non lu ; `main` et une autre branche acceptées ; les secrets du dépôt non lus ; une lecture impossible des branches, d’un environnement ou des secrets qui passe ;
+    - **le script de déploiement (3) :** le Worker déployé avant la relecture de la barrière ; la clé en argument ; le jeton affiché.
+
+    **Le premier passage en a laissé huit vertes, examinées une à une :** trois venaient du banc qui lisait les deux mauvaises lignes de la sortie Dart, une lançait le mauvais fichier de test, une ne changeait rien (`return 0 || fail()`), et trois étaient de vrais trous : aucun test ne faisait réessayer `ontime`, aucun ne lisait l’échec d’une lecture des branches ou des secrets dans le script de la barrière. Tests ajoutés, puis les huit et trois de plus relancées en lisant le code de sortie : 11 rouges sur 11.
+  - **Aucune donnée de production n’a été modifiée.** Rien n’est déployé, rien n’est réglé dans GitHub ni dans Cloudflare.
+  - **Reste, chacun sur le mot du propriétaire :**
+    - la fusion de cette PR ;
+    - B19.3b : les règles des environnements et les secrets, puis leur relecture ;
+    - B19.3c : l’App et sa clé ;
+    - B19.3d : la PR des identifiants ;
+    - B19.3e : le déploiement du Worker et la lecture du lendemain.

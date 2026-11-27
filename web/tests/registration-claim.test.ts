@@ -905,13 +905,24 @@ describe("the dead-man's switch, exercised rather than described", () => {
   const daysAgo = (n: number) => new Date(Date.now() - n * 86_400_000).toISOString();
   const runsJson = (created: string | null) =>
     JSON.stringify({
-      workflow_runs: created === null ? [] : [{ created_at: created, conclusion: 'success' }],
+      workflow_runs: created === null ? [] : [{ id: 1, created_at: created, conclusion: 'success' }],
     });
+  /// Several scheduled runs, newest first: [id, created_at].
+  const runsOf = (...runs: [number, string][]) =>
+    JSON.stringify({ workflow_runs: runs.map(([id, created_at]) => ({ id, created_at, conclusion: 'success' })) });
+
+  /// The jobs answer per run id, beside MONITOR_RUNS_JSON (B19.3, spec §3.5): a
+  /// run counts only when this job concluded `success` or `failure`. By
+  /// default, run 1 ran its checks.
+  const CWV = 'Real domain — Core Web Vitals (mobile)';
+  type Job = { name: string; conclusion: string | null };
+  const jobsJson = (byRun: Record<number, Job[]> = { 1: [{ name: CWV, conclusion: 'success' }] }) =>
+    JSON.stringify(Object.fromEntries(Object.entries(byRun).map(([id, jobs]) => [id, { jobs }])));
 
   const run = (env: Record<string, string>) => {
     try {
       const out = execFileSync('node', [SWITCH], {
-        env: { ...process.env, GH_REPO: '', GH_TOKEN: '', ...env },
+        env: { ...process.env, GH_REPO: '', GH_TOKEN: '', MONITOR_JOBS_JSON: jobsJson(), ...env },
         encoding: 'utf8',
         stdio: ['ignore', 'pipe', 'pipe'],
       });
@@ -943,6 +954,59 @@ describe("the dead-man's switch, exercised rather than described", () => {
     expect(r.out).toContain('::error::');
     // An unhandled throw exits 1 too, but prints a stack and no annotation.
     expect(r.out).not.toMatch(/^\s+at /m);
+  });
+
+  it('counts a run whose checks ran, whatever they found', () => {
+    const failed = run({ MONITOR_RUNS_JSON: runsJson(daysAgo(1)), MONITOR_JOBS_JSON: jobsJson({ 1: [{ name: CWV, conclusion: 'failure' }] }) });
+    expect(failed.code).toBe(0);
+    expect(failed.out).toContain('Core Web Vitals: failure');
+  });
+
+  it('looks past a newest run that checked nothing, to one in the window that did', () => {
+    const r = run({
+      MONITOR_RUNS_JSON: runsOf([2, daysAgo(0)], [1, daysAgo(1)]),
+      MONITOR_JOBS_JSON: jobsJson({ 2: [{ name: CWV, conclusion: 'cancelled' }], 1: [{ name: CWV, conclusion: 'success' }] }),
+    });
+    expect(r.code).toBe(0);
+    expect(r.out).toContain('1 day(s) ago');
+  });
+
+  // **The case B19.3 adds (spec §3.5, §4.7):** a GitHub App can start and cancel
+  // this workflow, so a leaked key could cancel the backup every day. Runs are
+  // created; none checks. Counting created runs, this stayed green.
+  it('fails when runs were created but none ran its checks, and says « Enable workflow » is not the fix', () => {
+    const r = run({
+      MONITOR_RUNS_JSON: runsOf([3, daysAgo(0)], [2, daysAgo(1)], [1, daysAgo(2)]),
+      MONITOR_JOBS_JSON: jobsJson({
+        3: [{ name: CWV, conclusion: 'skipped' }],
+        2: [], // cancelled before it started: no job at all
+        1: [{ name: CWV, conclusion: 'cancelled' }],
+      }),
+    });
+    expect(r.code).toBe(1);
+    expect(r.out).toContain('3 time(s) in the last 3 days, and none of those runs ran its checks');
+    expect(r.out).toContain('is not the fix');
+    expect(r.out).toContain('::error::');
+  });
+
+  it('does not count a run that checked outside the window', () => {
+    const r = run({
+      MONITOR_RUNS_JSON: runsOf([2, daysAgo(0)], [1, daysAgo(5)]),
+      MONITOR_JOBS_JSON: jobsJson({ 2: [{ name: CWV, conclusion: 'skipped' }], 1: [{ name: CWV, conclusion: 'success' }] }),
+    });
+    expect(r.code).toBe(1);
+    expect(r.out).toContain('1 time(s) in the last 3 days');
+  });
+
+  it('refuses to guess when the Core Web Vitals job is not found on a run that has jobs', () => {
+    const r = run({ MONITOR_RUNS_JSON: runsJson(daysAgo(0)), MONITOR_JOBS_JSON: jobsJson({ 1: [{ name: 'Renamed CWV', conclusion: 'success' }] }) });
+    expect(r.code).toBe(1);
+    expect(r.out).toContain(`none named « ${CWV} »`);
+  });
+
+  it('pins the job name to the one production-checks.yml gives the job', () => {
+    expect(readRepoFile('.github/workflows/production-checks.yml')).toMatch(/^ {4}name: Real domain — Core Web Vitals \(mobile\)$/m);
+    expect(stripComments(readRepoFile('infra/ci/99-verify-monitor-alive.mjs'))).toContain(`'${CWV}'`);
   });
 
   it('refuses to run without the repo or the token, rather than skipping', () => {
@@ -1002,7 +1066,7 @@ describe("the dead-man's switch, exercised rather than described", () => {
     // One env line in this workflow disarms the whole design in a PR nothing
     // goes red on — the same kill-switch shape an earlier round found in
     // `allowedAnchors`, and it reads in review as configuration.
-    for (const knob of ['MONITOR_MAX_AGE_DAYS', 'MONITOR_RUNS_JSON', 'MONITOR_WORKFLOW']) {
+    for (const knob of ['MONITOR_MAX_AGE_DAYS', 'MONITOR_RUNS_JSON', 'MONITOR_JOBS_JSON', 'MONITOR_WORKFLOW']) {
       // `SET`, not merely mentioned: the ban used `toContain` over the whole
       // file, so naming a knob in a comment failed the build with a message
       // that then said something untrue.

@@ -20,9 +20,11 @@
 # Exit 0 = the live account satisfies the manifest. Exit 1 = drift, listed.
 #
 # Needs `wrangler login` (an interactive OAuth session), which is why this is
-# not a CI job: CI has no Cloudflare identity, and giving it one would mean
-# minting a token with bucket-configuration rights — the very thing
-# backend-upload-orphans.md §5 argues the application must not hold.
+# not a CI job: no CI job holds a Cloudflare token that can read R2, and giving
+# one such a token would mean minting one with bucket-configuration rights — the
+# very thing backend-upload-orphans.md §5 argues the application must not hold.
+# (CI's only Cloudflare token is deploy-admin.yml's, documented as « Cloudflare
+# Pages: Edit »; docs/design/infra-production-checks-on-time.md §2.7.)
 set -euo pipefail
 
 cd "$(dirname "$0")/../.."
