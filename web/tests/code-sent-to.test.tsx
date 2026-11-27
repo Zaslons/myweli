@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import type { ReactElement } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { CodeSentTo } from '../components/auth/CodeSentTo';
 import { LoginOptions } from '../components/auth/LoginOptions';
 import { ProLoginOptions } from '../components/pro/ProLoginOptions';
 
@@ -27,7 +28,9 @@ const ADDRESSES: [typed: string, address: string, pieces: string[]][] = [
   // The domain's dots are no seam: a line would end on « gmail » and leave
   // « .com » alone on the next (SYSTEM.md §13.3).
   ['koffi.yao@gmail.com', 'koffi.yao@gmail.com', ['koffi', '.yao', '@gmail.com']],
-  // As typed, then trimmed, as it was sent.
+  // Typed with spaces: a `type="email"` field strips them from its value
+  // (HTML's value sanitization), so this row holds the FIELD's trim. The
+  // component's own is held by the direct test at the end.
   ['  awa.kone.nouvelle@exemple.ci ', 'awa.kone.nouvelle@exemple.ci', ['awa', '.kone', '.nouvelle', '@exemple.ci']],
 ];
 
@@ -116,5 +119,15 @@ describe.each(SURFACES)('%s — the code step names the address', (_, request, v
       // The fallback for a piece wider than a line by itself.
       expect(drawn!.className.split(/\s+/)).toContain('break-words');
     });
+  });
+});
+
+describe('CodeSentTo — its own contract', () => {
+  it('names the address as sent: trimmed, in what is heard and what is drawn', () => {
+    render(<CodeSentTo email={'  aminata.kone@exemple.ci \n'} />);
+    expect(screen.getByText(`${LEAD} aminata.kone@exemple.ci.`)).toBeInTheDocument();
+    const drawn = drawnAddress('aminata.kone@exemple.ci');
+    expect(drawn, 'the drawn address is not the trimmed one').toBeDefined();
+    expect(piecesOf(drawn!)).toEqual(['aminata', '.kone', '@exemple.ci']);
   });
 });
