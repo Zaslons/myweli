@@ -1,0 +1,28 @@
+- 🟡 **MyWeli (client) et MyWeli Pro, A6 : la localisation — approximative sur Android, demandée après une explication, et une sortie après un refus (app · 2026-11-27 — BACKLOG B0.10, décisions 272 à 276 ; écart 13 et première moitié du 22 de l’audit ; FR-DISC-005, FR-DISC-002).** Branche `feat/a6-location`, depuis `main` `3a2cb1d7`. Spec : [consumer-location.md](../../design/consumer-location.md) §2 à §8 et §15.
+  - **Pourquoi :**
+    - les deux apps partageaient un manifeste Android qui demande la position précise ; l’app client n’en a pas besoin, et Google exige à partir du 2027-01-27 une déclaration qui justifie pourquoi l’approximative ne suffit pas ;
+    - la carte ouvrait la fenêtre de localisation du système dès son ouverture, sans un mot ;
+    - après un refus définitif, « Activer » ne faisait plus rien, et « Près de moi » comme « Utiliser ma position » ne menaient jamais aux réglages.
+  - **Android :** la position précise quitte le manifeste commun pour `src/pro/AndroidManifest.xml`, fusionné dans MyWeli Pro seul. Lu sur les APK construits le 2026-11-27 : avant, l’APK client déclarait `ACCESS_FINE_LOCATION` ; après, seulement `ACCESS_COARSE_LOCATION` ; l’APK Pro garde les deux.
+  - **Un seul parcours partagé** (`LocationAccess`) à la place des trois copies :
+    - lire ce que le téléphone permet, sans fenêtre et sans jamais planter ;
+    - une seule lecture à la fois dans toute l’app (deux en même temps bloquent le greffon) ;
+    - jamais plus de 30 secondes, par la limite du greffon lui-même, qui annule aussi la lecture sur Android ;
+    - précision « moyenne » pour le client, « la meilleure » pour Pro ;
+    - sur iPhone, un refus qui survit à une demande veut dire « limitée » (Temps d’écran, profil installé).
+  - **La carte :**
+    - n’ouvre plus jamais la fenêtre du système d’elle-même : « Voir les salons autour de vous ? », une seule fois par téléphone, avec « Plus tard » et « Activer » ;
+    - chaque issue dit ce qui s’est passé et offre la sortie qui marche : « Autoriser », « Ouvrir les réglages » (la page de l’app, ou celle de la localisation quand elle est coupée sur Android), « Réessayer », ou une phrase seule quand aucun bouton ne peut marcher (iPhone) ;
+    - au retour des réglages qu’elle a ouverts, et seulement ceux-là, elle se recentre sans redemander ;
+    - le point dit « Votre position » à un lecteur d’écran, un cercle montre sa précision, et la carte cadre le cercle au-delà de 500 m ;
+    - le focus va à « Me localiser » quand la bannière part, ou à la sortie de la nouvelle bannière.
+  - **« Près de moi »** dit chaque issue dans la feuille, avec « Ouvrir les réglages » quand il le faut (`InlineFeedback` reçoit une action). **« Utiliser ma position » (Pro)** dit chaque issue en snackbar, et « Position approximative : touchez la carte pour placer votre salon exactement. » quand le téléphone a donné une position approximative.
+  - **Les gardes :**
+    - les manifestes épinglés dans le code, commentaires retirés ;
+    - l’APK client lu en CI par `tool/verify_android_location.sh`, qui refuse toute ligne nommant la position précise ; ses refus tournent à chaque PR sur les lignes réelles des APK d’avant et d’après ;
+    - chaque issue en test, et les images de la carte (la demande, la position bloquée, le point et son cercle) faites sur Linux.
+  - **Tests :** RESULTS.
+  - **Reste :**
+    - la fusion, sur le mot du propriétaire ;
+    - les essais sur téléphone (§8.4), avec le premier build client et le prochain build Pro : non faits ;
+    - le rayon réel d’une position approximative sur un téléphone, et le comportement sans les services Google : non vus.

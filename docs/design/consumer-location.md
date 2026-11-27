@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Module** | discovery (mobile, both flavours: the client map, the shared commune picker, MyWeli Pro's « Utiliser ma position »; the Android manifests) |
-| **Status** | **Approved 2026-11-27.** Written on the owner's « Yes, start A6 »; the owner answered the five questions of §11 at once, « Approve as recommended »: decisions 272–276 in BACKLOG, Pro's half included (#890). Read once by an independent reviewer told to refute it: 12 findings, checked, then taken in (§14). Nothing built. Next, each on the owner's word: the merge of this spec, then the one app PR (§9). |
+| **Status** | **Approved 2026-11-27.** Written on the owner's « Yes, start A6 »; the owner answered the five questions of §11 at once, « Approve as recommended »: decisions 272–276 in BACKLOG, Pro's half included (#890). Read once by an independent reviewer told to refute it: 12 findings, checked, then taken in (§14). The spec merged as `3a2cb1d7` (#890). **Built 2026-11-27** on the owner's « Yes, build A6 », branch `feat/a6-location`, one app PR (§15): not merged. It reaches people with the next client build and MyWeli Pro's next build; the device rows of §8.4 wait for them. |
 | **Last updated** | 2026-11-27 |
 | **Audit** | [consumer-app-release-audit.md](consumer-app-release-audit.md) row **A6** (Track A, §7): gap **13** (`ACCESS_FINE_LOCATION` in the client manifest) and the first half of gap **22** (the map asks with no explanation; « Activer » is dead after a refusal). Gap 22's other half, the commune, was A4's ([consumer-search.md](consumer-search.md) §2.8). Not to be confused with the earlier « A6 » of [mobile-a6-feedback.md](mobile-a6-feedback.md), whose comments in `commune_picker_sheet.dart` say « A6 ». |
 | **BACKLOG** | B0.10 (the audit's Track A). Track C, the consumer builds, waits for A1, A2, A3 and this. |
@@ -539,15 +539,15 @@ result.
 
 ## 12. Definition of done
 
-- [ ] `flutter analyze` 0 · format clean · the full app suite green (sequential).
-- [ ] Every outcome of §2.1–§2.3 rendered and tested; the four states and the
+- [x] `flutter analyze` 0 · format clean · the full app suite green (sequential) (§15).
+- [x] Every outcome of §2.1–§2.3 rendered and tested; the four states and the
       permission-denied state on the map (SYSTEM §12).
-- [ ] Tokens only (the new colour added to SYSTEM first); 48 dp targets; 200 %
+- [x] Tokens only (the new colour added to SYSTEM first); 48 dp targets; 200 %
       at 360 dp; live regions and focus where §2.5 says.
-- [ ] The source pin and the APK read in CI, each watched red; §8.5's mutations
-      listed in the commit message.
-- [ ] Goldens authored on Linux, every changed PNG opened.
-- [ ] §10's docs updated in the same PR; this spec's status line.
+- [x] The source pin and the APK read in CI, each watched red; §8.5's mutations
+      listed in the commit message (§15).
+- [x] Goldens authored on Linux, every changed PNG opened.
+- [x] §10's docs updated in the same PR; this spec's status line.
 - [ ] Feature branch, PR, CI green; merged on the owner's word.
 
 ## 13. Seen in passing (not A6)
@@ -587,3 +587,68 @@ a request; iOS's first refusal being final; iOS asking « while using »; the
 approximate-only dialog with COARSE alone; the merged Pro manifest; no client
 coordinate sent; the distances between commune centres; the flutter_map camera;
 every other line citation.
+
+## 15. As built (2026-11-27)
+
+Built on the owner's « Yes, build A6 », branch `feat/a6-location` from `main`
+`3a2cb1d7`, one app PR (§9). The files:
+- `lib/core/location/location_access.dart`, the shared flow (§5);
+- `map_screen.dart`, `commune_picker_sheet.dart` and
+  `pro_salon_profile_screen.dart` call it;
+- `InlineFeedback` gains `action`, and `AppColors.locationAccuracy` is new
+  (SYSTEM §3.4, §11.1, §12);
+- `android/app/src/pro/AndroidManifest.xml` is new;
+- the CI step, `tool/verify_android_location.sh`.
+
+**Read on the built artifacts (2026-11-27, aapt2 2.20, arm64 release APKs
+built on this Mac):**
+- the client APK from `main` declared `ACCESS_FINE_LOCATION` and
+  `ACCESS_COARSE_LOCATION`, gap 13 on the binary itself;
+- the client APK with A6 declares `ACCESS_COARSE_LOCATION` alone;
+- MyWeli Pro's APK with A6 declares both.
+
+The verifier refuses the first badging and Pro's (exit 1) and accepts the
+second; its fixture test uses those lines.
+
+**Where the build departs from the text above, and why:**
+- **`locate({accuracy, ask})`.** `ask: false` never opens the dialog and
+  never sets the flag. It is the map's silent read on opening and after the
+  Settings. §4's « every `locate()` » is every `locate()` that may ask, every
+  tap. A permission withdrawn between the `status()` and the read cannot open
+  the dialog by itself.
+- **The outcomes' names:** `Located`, `LocationRefused`, `LocationBlocked`,
+  `LocationRestricted`, `LocationOff`, `LocationFailed` (§5's short names,
+  prefixed).
+- **The 30 s bound is the plugin's own `timeLimit`.** A `.timeout` around the
+  call would leave Android's native request running; the plugin's limit
+  cancels it (`cancelGetCurrentPosition`, `geolocator_android.dart:128-136`).
+- **« Me localiser » is not disabled while a read runs.** It shows the loader
+  and its tap does nothing, so it keeps the focus it holds (§2.5); a disabled
+  button drops it. The banner's actions are disabled, as §2.1 says.
+- **« Me localiser » always moves the camera to the position,** even with a
+  salon opened: the person asked for it. The banner's actions do not move it
+  off an opened salon.
+- **The return from the Settings counts only once the app has left**
+  (`hidden` or `paused`), then a `resumed`. A resume without a departure is
+  not a return.
+- **Back from the Settings, `unknown`** leaves the banner as it was.
+- **The picker clears its last sentence** when « Près de moi » is tapped
+  again, so the new outcome is announced.
+- **An unreadable accuracy status** is not called approximate: Pro's line
+  says nothing rather than something wrong.
+
+**Seen while building:**
+- **Under an opened salon's sheet, the dot is hidden from screen readers.**
+  Its scrim blocks the map's semantics, as for every pin.
+- **flutter_map does not build off-screen markers.** The dot off the camera
+  is in the layer, not in the tree.
+- **A test that answers nothing on the plugin's channel never sees `status()`
+  return** on the fake clock. The engine answers on the real one: the unit
+  test reads it in `runAsync`. The map then shows nothing, as it should
+  (`carto_basemap_layer_test`).
+
+**Not verified:**
+- every device row of §8.4 (with the first client build, Track C, and Pro's
+  next build);
+- the radius a real approximate position reports, and so the circle's size;
+- a phone without Google Play services.
