@@ -12,6 +12,7 @@ import '../../core/constants/failure_messages.dart';
 import '../../core/utils/logger.dart';
 import '../../core/utils/salon_id.dart';
 import '../../models/api_response.dart';
+import '../../models/email_change_request.dart';
 import '../../models/pro_membership.dart';
 import '../../models/pro_sign_up_fields.dart';
 import '../../models/provider_login_result.dart';
@@ -407,7 +408,6 @@ class ApiAuthService implements AuthServiceInterface {
   @override
   Future<ApiResponse<User>> updateUser({
     String? name,
-    String? email,
     String? avatarUrl,
     String? phone,
   }) async {
@@ -420,21 +420,76 @@ class ApiAuthService implements AuthServiceInterface {
         headers: _bearer(token),
         body: jsonEncode({
           'name': ?name,
-          'email': ?email,
           'avatarUrl': ?avatarUrl,
           'phone': ?phone,
         }),
       ),
     );
+    return _adoptUser(res);
+  }
+
+  /// A `User` answered by a `/me` write becomes the current one, and the
+  /// stored session's — without disturbing a token the silent refresh may
+  /// have just rotated during the call.
+  Future<ApiResponse<User>> _adoptUser(http.Response? res) async {
     if (res == null) return networkError();
     if (res.statusCode != 200) return _refused(res);
-
-    final user = User.fromJson(_decode(res.body));
+    final read = readOrUnreadable(
+      res,
+      (json) => User.fromJson(json! as Map<String, dynamic>),
+    );
+    final user = read.data;
+    if (!read.success || user == null) return read;
     _currentUser = user;
-    // Persist the updated user without disturbing a token the silent refresh
-    // may have just rotated during this call.
     await _authed.mergeIntoSession({'user': user.toJson()});
     return ApiResponse.success(user);
+  }
+
+  // ---- The address change (B16.3 — docs/design/account-email-change.md) ----
+
+  @override
+  Future<ApiResponse<EmailChangeRequest>> requestEmailChange(
+    String email,
+  ) async {
+    if (await _authed.accessToken() == null) {
+      return ApiResponse.error('Utilisateur non connecté');
+    }
+    final res = await _authed.send(
+      (token) => _client.post(
+        _uri('/me/email/otp/request'),
+        headers: _bearer(token),
+        body: jsonEncode({'email': email}),
+      ),
+    );
+    if (res == null) return networkError();
+    if (res.statusCode != 202) return _refused(res);
+    return readOrUnreadable(
+      res,
+      (json) => EmailChangeRequest.fromJson(json! as Map<String, dynamic>),
+    );
+  }
+
+  @override
+  Future<ApiResponse<User>> confirmEmailChange(
+    String email,
+    String code, {
+    String? currentCode,
+  }) async {
+    if (await _authed.accessToken() == null) {
+      return ApiResponse.error('Utilisateur non connecté');
+    }
+    final res = await _authed.send(
+      (token) => _client.post(
+        _uri('/me/email/otp/verify'),
+        headers: _bearer(token),
+        body: jsonEncode({
+          'email': email,
+          'code': code,
+          'currentCode': ?currentCode,
+        }),
+      ),
+    );
+    return _adoptUser(res);
   }
 
   @override
@@ -1048,6 +1103,29 @@ class ApiAuthService implements AuthServiceInterface {
         return 'Méthode de connexion indisponible.';
       case 'invitation_expired':
         return 'Cette invitation a expiré. Demandez au salon de la renvoyer.';
+      // B16.3 — the address change (account-email-change.md §3.1, §5.4).
+      case 'email_taken':
+        return kEmailTakenMessage;
+      case 'email_unchanged':
+        return 'C’est déjà votre adresse.';
+      // Only an older build, or a client that edits the address in « Modifier
+      // le profil »: this one cannot (`updateUser` has no `email`).
+      case 'email_change_requires_code':
+        return 'Changez votre adresse e-mail avec « Modifier » : un code vous '
+            'sera envoyé.';
+      case 'current_otp_none':
+        return 'Aucun code actif pour votre adresse actuelle. Demandez un '
+            'nouveau code.';
+      case 'current_otp_expired':
+        return 'Le code de votre adresse actuelle a expiré. Demandez un '
+            'nouveau code.';
+      case 'current_otp_locked':
+        return 'Trop de tentatives pour le code de votre adresse actuelle. '
+            'Demandez un nouveau code.';
+      case 'current_otp_invalid':
+        return 'Code de votre adresse actuelle incorrect.';
+      case 'rate_limited':
+        return 'Trop de tentatives. Réessayez plus tard.';
       default:
         return null;
     }

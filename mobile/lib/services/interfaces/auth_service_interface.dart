@@ -1,5 +1,6 @@
 import '../../core/utils/salon_id.dart';
 import '../../models/api_response.dart';
+import '../../models/email_change_request.dart';
 import '../../models/pro_membership.dart';
 import '../../models/pro_sign_up_fields.dart';
 import '../../models/provider_login_result.dart';
@@ -33,11 +34,42 @@ abstract class AuthServiceInterface {
 
   /// [phone] sets the CONTACT phone (unverified until proven via SMS later);
   /// empty string clears it.
+  ///
+  /// **No `email`:** an address changes only by a code, through
+  /// [requestEmailChange] and [confirmEmailChange] (B16.3, decision 261).
+  /// `PATCH /me` answers `409 email_change_requires_code` to any other address
+  /// than the stored one, so a parameter here could only ever carry that 409.
   Future<ApiResponse<User>> updateUser({
     String? name,
-    String? email,
     String? avatarUrl,
     String? phone,
+  });
+
+  /// Sends a code to [email], and one to the current address when that
+  /// proven address is the account's only way in (decision 265;
+  /// [EmailChangeRequest.currentCodeSent]). The same answer whether or not
+  /// [email] belongs to another account: « taken » is said only by
+  /// [confirmEmailChange], to whoever proves the inbox (decision 262).
+  /// docs/design/account-email-change.md §3.1, §5.4.
+  ///
+  /// Refusals: `invalid_email`, `email_unchanged` (already the account's
+  /// proven address), `otp_resend_limit`, `rate_limited`,
+  /// `account_suspended`, `auth_method_disabled`.
+  Future<ApiResponse<EmailChangeRequest>> requestEmailChange(String email);
+
+  /// Proves [email] by [code] — and the current address by [currentCode]
+  /// when [requestEmailChange] sent it — then makes it the account's address,
+  /// proven. The account answered is the signed-in one, updated.
+  ///
+  /// Refusals: the new code's `otp_invalid` · `otp_expired` · `otp_none` ·
+  /// `otp_locked` (and `invalid_input`), the current code's same four
+  /// prefixed `current_`, `email_taken` (another account proved it; the code
+  /// is left for its owner), `email_unchanged`, `rate_limited`,
+  /// `account_suspended`.
+  Future<ApiResponse<User>> confirmEmailChange(
+    String email,
+    String code, {
+    String? currentCode,
   });
 
   /// Permanently delete the signed-in user's account. Irreversible.

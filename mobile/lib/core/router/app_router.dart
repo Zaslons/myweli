@@ -11,6 +11,7 @@ import '../../screens/notifications/notifications_screen.dart';
 import '../../screens/profile/about_screen.dart';
 import '../../screens/profile/data_export_screen.dart';
 import '../../screens/profile/edit_profile_screen.dart';
+import '../../screens/profile/email_change_screen.dart';
 import '../../screens/profile/notification_preferences_screen.dart';
 import '../../screens/profile/profile_screen.dart';
 import '../../screens/providers/provider_detail_screen.dart';
@@ -133,6 +134,17 @@ class AppRouter {
             path: 'edit',
             name: 'profile-edit',
             builder: (context, state) => const EditProfileScreen(),
+            routes: [
+              // B16.3b — account-email-change.md §5.4. `?verifier=1`:
+              // « Vérifier », the account's own unproven address.
+              GoRoute(
+                path: 'email',
+                name: 'profile-edit-email',
+                builder: (context, state) => EmailChangeScreen(
+                  verifyCurrent: state.uri.queryParameters['verifier'] == '1',
+                ),
+              ),
+            ],
           ),
           GoRoute(
             path: 'data',

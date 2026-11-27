@@ -10,6 +10,7 @@ import '../../core/utils/salon_id.dart';
 import '../../core/utils/validators.dart';
 import '../../models/api_response.dart';
 import '../../models/appointment.dart';
+import '../../models/email_change_request.dart';
 import '../../models/pro_membership.dart';
 import '../../models/pro_sign_up_fields.dart';
 import '../../models/provider_login_result.dart';
@@ -173,12 +174,16 @@ class MockAuthService implements AuthServiceInterface {
     required String email,
     required String provider,
   }) async {
+    // The server's rule (decision 260): only an account that PROVED the
+    // address is found by it; a proof takes it from an unproven holder.
     final user = MockData.users.firstWhere(
-      (u) => u.email?.toLowerCase() == email,
+      (u) => u.email?.toLowerCase() == email && u.emailVerified,
       orElse: () {
+        _takeUnproven(email);
         final created = User(
           id: MockIds.next('user'),
           email: email,
+          emailVerified: true,
           authProvider: provider,
           createdAt: AppClock.now(),
         );
@@ -191,10 +196,38 @@ class MockAuthService implements AuthServiceInterface {
     return ApiResponse.success(user, message: 'Connexion réussie');
   }
 
+  /// Any account holding [key] UNPROVEN loses it (decision 260): an address
+  /// belongs to whoever proved it.
+  void _takeUnproven(String key) {
+    for (var i = 0; i < MockData.users.length; i++) {
+      final u = MockData.users[i];
+      if (u.email?.toLowerCase() == key && !u.emailVerified) {
+        MockData.users[i] = _withoutEmail(u);
+        if (_currentUser?.id == u.id) _currentUser = MockData.users[i];
+      }
+    }
+  }
+
+  /// `copyWith` cannot null a field.
+  static User _withoutEmail(User u) => User(
+    id: u.id,
+    phoneNumber: u.phoneNumber,
+    phoneVerified: u.phoneVerified,
+    name: u.name,
+    authProvider: u.authProvider,
+    avatarUrl: u.avatarUrl,
+    createdAt: u.createdAt,
+  );
+
   @override
   Future<ApiResponse<String>> requestEmailOtp(String email) async {
     await Future.delayed(AppConstants.mockDelay);
-    final key = email.trim().toLowerCase();
+    return _issueEmailCode(email.trim().toLowerCase());
+  }
+
+  /// One code per address, shared by the sign-in and the address change, as
+  /// on the server (`email_otp_codes`; account-email-change.md §3.1).
+  ApiResponse<String> _issueEmailCode(String key) {
     final existing = _emailOtpStates[key];
     final expired =
         existing != null && AppClock.now().isAfter(existing.expiresAt);
@@ -220,39 +253,20 @@ class MockAuthService implements AuthServiceInterface {
   Future<ApiResponse<User>> verifyEmailOtp(String email, String code) async {
     await Future.delayed(AppConstants.mockDelay);
     final key = email.trim().toLowerCase();
-    final state = _emailOtpStates[key];
-    if (state == null) {
-      return ApiResponse.error(
-        'Aucun code actif. Demandez un nouveau code.',
-        code: 'otp_none',
-      );
-    }
-    if (AppClock.now().isAfter(state.expiresAt)) {
-      _emailOtpStates.remove(key);
-      return ApiResponse.error(
-        'Code expiré. Demandez un nouveau code.',
-        code: 'otp_expired',
-      );
-    }
-    if (state.attemptsLeft <= 0 || state.code != code) {
-      state.attemptsLeft -= 1;
-      final locked = state.attemptsLeft <= 0;
-      return ApiResponse.error(
-        locked
-            ? 'Trop de tentatives. Demandez un nouveau code.'
-            : 'Code incorrect.',
-        code: locked ? 'otp_locked' : 'otp_invalid',
-      );
-    }
+    final refused = _checkEmailCode<User>(key, code);
+    if (refused != null) return refused;
     _emailOtpStates.remove(key);
-    // Inbox proven → find-or-create; a fresh account has no phone (the
-    // mandatory phone step follows).
+    // Inbox proven → find the account that PROVED it, else take it from an
+    // unproven holder and create one (decision 260); a fresh account has no
+    // phone (the mandatory phone step follows).
     final user = MockData.users.firstWhere(
-      (u) => u.email?.toLowerCase() == key,
+      (u) => u.email?.toLowerCase() == key && u.emailVerified,
       orElse: () {
+        _takeUnproven(key);
         final created = User(
           id: MockIds.next('user'),
           email: key,
+          emailVerified: true,
           authProvider: 'email',
           createdAt: AppClock.now(),
         );
@@ -263,6 +277,135 @@ class MockAuthService implements AuthServiceInterface {
     _currentUser = user;
     await _persistSession(user);
     return ApiResponse.success(user, message: 'Connexion réussie');
+  }
+
+  /// [key]'s code checked, NOT consumed: null when [code] is right, else the
+  /// refusal — a wrong code spends an attempt. [prefix] names the current
+  /// address's code (`current_`, decision 265).
+  ApiResponse<T>? _checkEmailCode<T>(
+    String key,
+    String code, {
+    String prefix = '',
+  }) {
+    final state = _emailOtpStates[key];
+    if (state == null) {
+      return ApiResponse.error(
+        'Aucun code actif. Demandez un nouveau code.',
+        code: '${prefix}otp_none',
+      );
+    }
+    if (AppClock.now().isAfter(state.expiresAt)) {
+      _emailOtpStates.remove(key);
+      return ApiResponse.error(
+        'Code expiré. Demandez un nouveau code.',
+        code: '${prefix}otp_expired',
+      );
+    }
+    if (state.attemptsLeft <= 0 || state.code != code) {
+      state.attemptsLeft -= 1;
+      final locked = state.attemptsLeft <= 0;
+      return ApiResponse.error(
+        locked
+            ? 'Trop de tentatives. Demandez un nouveau code.'
+            : 'Code incorrect.',
+        code: locked ? '${prefix}otp_locked' : '${prefix}otp_invalid',
+      );
+    }
+    return null;
+  }
+
+  // ---- The address change (B16.3 — docs/design/account-email-change.md) ----
+
+  /// Decision 265's test, the mock's way: the server asks whether the account
+  /// has a Google or Apple link; the mock knows only how it signed in.
+  bool _emailIsOnlySignIn(User user) =>
+      user.email != null && user.emailVerified && user.authProvider == 'email';
+
+  @override
+  Future<ApiResponse<EmailChangeRequest>> requestEmailChange(
+    String email,
+  ) async {
+    await Future.delayed(AppConstants.mockDelay);
+    final user = _currentUser;
+    if (user == null) return ApiResponse.error('Utilisateur non connecté');
+    final key = email.trim().toLowerCase();
+    if (Validators.email(key) != null) {
+      return ApiResponse.error('E-mail invalide.', code: 'invalid_email');
+    }
+    if (user.email?.toLowerCase() == key && user.emailVerified) {
+      return ApiResponse.error(
+        'C’est déjà votre adresse.',
+        code: 'email_unchanged',
+      );
+    }
+    final sent = _issueEmailCode(key);
+    if (!sent.success) return ApiResponse.error(sent.error!, code: sent.code);
+    final second = _emailIsOnlySignIn(user);
+    // Its resend budget spent is no refusal: a live code already sits in
+    // that inbox (the server's 202, `currentCodeSent: true`).
+    if (second) _issueEmailCode(user.email!.toLowerCase());
+    return ApiResponse.success(
+      EmailChangeRequest(
+        expiresInSeconds: _otpValidity.inSeconds,
+        currentCodeSent: second,
+        devCode: demoOtp,
+        currentDevCode: second ? demoOtp : null,
+      ),
+    );
+  }
+
+  @override
+  Future<ApiResponse<User>> confirmEmailChange(
+    String email,
+    String code, {
+    String? currentCode,
+  }) async {
+    await Future.delayed(AppConstants.mockDelay);
+    final user = _currentUser;
+    if (user == null) return ApiResponse.error('Utilisateur non connecté');
+    final key = email.trim().toLowerCase();
+    if (user.email?.toLowerCase() == key && user.emailVerified) {
+      return ApiResponse.error(
+        'C’est déjà votre adresse.',
+        code: 'email_unchanged',
+      );
+    }
+    // The server's order (§8.4): the new code first, so « taken » is said
+    // only to whoever holds the inbox (decision 262).
+    final refused = _checkEmailCode<User>(key, code);
+    if (refused != null) return refused;
+    final takenByAnother = MockData.users.any(
+      (u) =>
+          u.id != user.id && u.email?.toLowerCase() == key && u.emailVerified,
+    );
+    if (takenByAnother) {
+      // Nothing consumed: the code still signs its owner in.
+      return ApiResponse.error(kEmailTakenMessage, code: 'email_taken');
+    }
+    final current = user.email?.toLowerCase();
+    if (_emailIsOnlySignIn(user)) {
+      if (currentCode == null) {
+        return ApiResponse.error(
+          'Aucun code actif. Demandez un nouveau code.',
+          code: 'current_otp_none',
+        );
+      }
+      final refusedCurrent = _checkEmailCode<User>(
+        current!,
+        currentCode,
+        prefix: 'current_',
+      );
+      if (refusedCurrent != null) return refusedCurrent;
+      _emailOtpStates.remove(current);
+    }
+    _emailOtpStates.remove(key);
+    _takeUnproven(key);
+    final updated = user.copyWith(email: key, emailVerified: true);
+    _currentUser = updated;
+    final index = MockData.users.indexWhere((u) => u.id == updated.id);
+    if (index != -1) MockData.users[index] = updated;
+    await _persistSession(updated);
+    return ApiResponse.success(updated);
   }
 
   @override
@@ -329,7 +472,6 @@ class MockAuthService implements AuthServiceInterface {
   @override
   Future<ApiResponse<User>> updateUser({
     String? name,
-    String? email,
     String? avatarUrl,
     String? phone,
   }) async {
@@ -341,9 +483,6 @@ class MockAuthService implements AuthServiceInterface {
 
     var updatedUser = _currentUser!.copyWith(
       name: (name != null && name.isNotEmpty) ? name : _currentUser!.name,
-      email: email == null
-          ? _currentUser!.email
-          : (email.isEmpty ? null : email),
       avatarUrl: avatarUrl ?? _currentUser!.avatarUrl,
     );
     if (phone != null && phone != _currentUser!.phoneNumber) {
@@ -354,6 +493,7 @@ class MockAuthService implements AuthServiceInterface {
               id: updatedUser.id,
               name: updatedUser.name,
               email: updatedUser.email,
+              emailVerified: updatedUser.emailVerified,
               authProvider: updatedUser.authProvider,
               avatarUrl: updatedUser.avatarUrl,
               createdAt: updatedUser.createdAt,

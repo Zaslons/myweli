@@ -10,6 +10,7 @@ import 'package:myweli/providers/auth_provider.dart';
 import 'package:myweli/screens/profile/edit_profile_screen.dart';
 import 'package:myweli/services/api/api_auth_service.dart';
 import 'package:myweli/services/interfaces/session_store.dart';
+import 'package:myweli/widgets/common/app_text_field.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -186,11 +187,11 @@ void main() {
       );
       expect(find.text('Non vérifiée'), findsNothing);
       expect(
-        find.byType(TextField),
+        find.byType(AppTextField),
         findsOneWidget,
         reason:
-            'the name is the only text field left — the phone is its '
-            'own widget, and the address is a row, not a field',
+            'the name is the only AppTextField left (the phone is a '
+            'PhoneNumberField): the address is a row, not a field',
       );
     },
   );
