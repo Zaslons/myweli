@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
 import '../../core/utils/formatters.dart';
+import 'email_sentence.dart';
 
 /// The sentence that says where a code went, with the address on a line of
 /// its own (docs/design/account-email-change.md §12, SYSTEM.md §13.3):
@@ -27,6 +28,8 @@ import '../../core/utils/formatters.dart';
 ///
 /// Used on every code step that names an address: the sign-in, the Pro
 /// sign-in, the Android Pro sign-up, and the address change (both codes).
+/// Drawn by [EmailSentence], which « Équipe » shares
+/// (docs/design/app-team-email-seams.md).
 class CodeSentTo extends StatelessWidget {
   /// « Entrez le code reçu par e-mail à » / {address}.
   const CodeSentTo.byEmail(
@@ -60,29 +63,11 @@ class CodeSentTo extends StatelessWidget {
   String get spoken => '$lead$_spokenJoin$address.';
 
   @override
-  Widget build(BuildContext context) => Semantics(
-    container: true,
-    label: spoken,
-    child: ExcludeSemantics(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            lead,
-            style: AppTextStyles.bodyLarge.copyWith(
-              color: AppColors.textSecondary,
-            ),
-            textAlign: textAlign,
-          ),
-          Text(
-            Formatters.breakableEmail(address),
-            style: AppTextStyles.bodyLarge.copyWith(
-              color: AppColors.textPrimary,
-            ),
-            textAlign: textAlign,
-          ),
-        ],
-      ),
-    ),
+  Widget build(BuildContext context) => EmailSentence.addressLast(
+    lead: lead,
+    address: address,
+    spoken: spoken,
+    style: AppTextStyles.bodyLarge.copyWith(color: AppColors.textSecondary),
+    textAlign: textAlign,
   );
 }

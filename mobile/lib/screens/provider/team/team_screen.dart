@@ -18,6 +18,7 @@ import '../../../widgets/common/app_skeleton.dart';
 import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/brand_refresh.dart';
 import '../../../widgets/common/confirm_dialog.dart';
+import '../../../widgets/common/email_sentence.dart';
 import '../../../widgets/common/empty_state.dart';
 import '../../../widgets/common/screen_title.dart';
 import '../../../widgets/team/team_role_chip.dart';
@@ -247,18 +248,15 @@ class _MemberRow extends StatelessWidget {
           backgroundColor: AppColors.surfaceVariant,
           child: Text(initial, style: AppTextStyles.titleMedium),
         ),
-        title: Row(
-          children: [
-            Flexible(
-              child: Text(
-                member.email,
-                style: AppTextStyles.bodyLarge,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            const SizedBox(width: AppTheme.spacingS),
-            TeamRoleChip(role: member.role),
-          ],
+        // The address is the row's name, and it is drawn whole, breaking only
+        // at its seams (SYSTEM.md §13.3). Beside the chip it was cut at every
+        // size — « aminata.kone… » at 1×, « a… » at 200 % on 360 dp — so the
+        // chip moved under it (docs/design/app-team-email-seams.md §4). The
+        // marks are drawn, never heard.
+        title: Text(
+          Formatters.breakableEmail(member.email),
+          semanticsLabel: member.email,
+          style: AppTextStyles.bodyLarge,
         ),
         subtitle: _subtitle(),
         trailing: onTap == null ? null : const Icon(Icons.chevron_right),
@@ -266,8 +264,13 @@ class _MemberRow extends StatelessWidget {
     );
   }
 
-  Widget? _subtitle() {
-    final lines = <Widget>[];
+  Widget _subtitle() {
+    final lines = <Widget>[
+      Padding(
+        padding: const EdgeInsets.symmetric(vertical: AppTheme.spacingXS),
+        child: TeamRoleChip(role: member.role),
+      ),
+    ];
     if (member.role == TeamRole.staff && member.artistName != null) {
       lines.add(
         Text(
@@ -306,7 +309,6 @@ class _MemberRow extends StatelessWidget {
         );
       }
     }
-    if (lines.isEmpty) return null;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: lines,
@@ -330,15 +332,17 @@ class _MemberActionsSheet extends StatelessWidget {
         children: [
           Padding(
             padding: const EdgeInsets.all(AppTheme.spacingM),
-            child: Row(
+            // Who this sheet acts on, whole: the chip under the address, not
+            // beside it, where it cut the address (app-team-email-seams.md).
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: Text(
-                    member.email,
-                    style: AppTextStyles.titleMedium,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                Text(
+                  Formatters.breakableEmail(member.email),
+                  semanticsLabel: member.email,
+                  style: AppTextStyles.titleMedium,
                 ),
+                const SizedBox(height: AppTheme.spacingXS),
                 TeamRoleChip(role: member.role),
               ],
             ),
@@ -419,9 +423,11 @@ class _MemberActionsSheet extends StatelessWidget {
     final ok = await team.changeRole(member.id, role: role);
     navigator.pop();
     if (ok) {
+      // The row names who, and shows the new role; the snackbar says what
+      // happened (app-team-email-seams.md §4 — the website's words).
       AppSnackBar.showOn(
         messenger,
-        'Rôle de ${member.email} : ${teamRoleLabel(role)}.',
+        'Rôle mis à jour.',
         kind: SnackKind.success,
       );
     } else {
@@ -443,7 +449,7 @@ class _MemberActionsSheet extends StatelessWidget {
     AppSnackBar.outcomeOn(
       messenger,
       ok: ok,
-      success: 'Invitation renvoyée à ${member.email}.',
+      success: 'Invitation renvoyée.',
       error: team.actionError ?? 'Renvoi impossible.',
     );
   }
@@ -454,9 +460,15 @@ class _MemberActionsSheet extends StatelessWidget {
     final confirmed = await showConfirmDialog(
       context,
       title: 'Révoquer l’accès ?',
-      message:
-          '${member.email} perdra immédiatement l’accès à $salonName. '
-          'Son compte MyWeli n’est pas supprimé.',
+      // The address first, on a line of its own, as on the website: inline,
+      // at 200 % it broke mid-word (« aminata.kone@exe » / « mple.ci perdra »).
+      // A screen reader hears the sentence as it was.
+      content: EmailSentence.addressFirst(
+        address: member.email,
+        rest:
+            'perdra immédiatement l’accès à $salonName. '
+            'Son compte MyWeli n’est pas supprimé.',
+      ),
       confirmLabel: 'Révoquer',
     );
     // No `mounted` here by design: this is a stateless row, and the messenger
@@ -468,7 +480,7 @@ class _MemberActionsSheet extends StatelessWidget {
     AppSnackBar.outcomeOn(
       messenger,
       ok: ok,
-      success: 'Accès de ${member.email} révoqué.',
+      success: 'Accès révoqué.',
       error: team.actionError ?? 'Révocation impossible.',
     );
   }
