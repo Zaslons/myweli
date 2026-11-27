@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:myweli/core/constants/failure_messages.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
+import 'package:myweli/core/theme/app_theme.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/email_change_request.dart';
 import 'package:myweli/models/user.dart';
@@ -17,6 +18,8 @@ import 'package:myweli/widgets/common/inline_feedback.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../a11y/_a11y.dart';
+import '../support/fonts.dart';
 import '../support/pump_app.dart';
 import '../support/secure_storage.dart';
 
@@ -34,10 +37,13 @@ void main() {
   var n = 0;
   String address(String who) => '$who.${n++}@exemple.ci';
 
-  setUpAll(() {
+  setUpAll(() async {
     SharedPreferences.setMockInitialValues({});
     stubSecureStorage();
     serviceLocator.authService = spy;
+    // The width gates measure glyphs: the placeholder font draws every one
+    // as a square (test/support/fonts.dart).
+    await loadRealFonts();
   });
 
   tearDown(spy.disarm);
@@ -55,6 +61,7 @@ void main() {
   Future<AuthProvider> openProfile(
     WidgetTester tester, {
     required Future<void> Function() by,
+    bool realFont = false,
   }) async {
     late final AuthProvider auth;
     await tester.runAsync(() async {
@@ -99,6 +106,7 @@ void main() {
       wrapApp(
         providers: [ChangeNotifierProvider<AuthProvider>.value(value: auth)],
         routerConfig: router,
+        theme: realFont ? AppTheme.themeData(fontFamily: kRealFont) : null,
       ),
     );
     await settle(tester);
@@ -495,6 +503,27 @@ void main() {
     await openChange(tester);
     await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
     handle.dispose();
+  });
+
+  testWidgets('at 200 % text on 360 dp, the row breaks no word', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(360, 740);
+    tester.view.devicePixelRatio = 1;
+    tester.platformDispatcher.textScaleFactorTestValue = 2;
+    addTearDown(tester.view.reset);
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    // An address that fits the full line at 200 % (≈ 240 px of 312): beside
+    // « Modifier » it had ≈ 154 and broke, as « Adresse e-/mail » did (the
+    // first golden). One wider than the whole line — « awa.kone@exemple.ci »
+    // measures 328 — breaks at its punctuation, by necessity: no layout has
+    // more than the line to give.
+    final own = 'awa.${n++}@ex.ci';
+    await openProfile(tester, by: byCode(own), realFont: true);
+
+    expectNoMidWordBreak(tester, 'Adresse e-mail', '360 × 2×');
+    expectNoMidWordBreak(tester, own, '360 × 2×');
+    expectNoMidWordBreak(tester, 'Modifier', '360 × 2×');
   });
 
   testWidgets('at 200 % text on 360 dp, « Confirmer » stays reachable', (

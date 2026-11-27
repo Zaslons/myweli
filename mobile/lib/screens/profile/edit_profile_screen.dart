@@ -329,35 +329,40 @@ class _EmailRow extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        // One control, read as one: « Adresse e-mail, awa@exemple.ci,
+        // Modifier ». The label sits ABOVE, full width, and « Modifier » goes
+        // under the address only when the two cannot share a line: at 200 %
+        // on 360 dp, beside it, the label broke inside « e-mail » and the
+        // address on three lines (SYSTEM.md §13.3 — the control beside a
+        // value moves first; seen in the first golden).
         MergeSemantics(
-          child: Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Adresse e-mail',
-                      style: AppTextStyles.labelMedium.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                    const SizedBox(height: AppTheme.spacingXS),
-                    Text(
-                      email ?? 'Aucune adresse',
-                      style: AppTextStyles.bodyLarge.copyWith(
-                        color: email == null
-                            ? AppColors.textSecondary
-                            : AppColors.textPrimary,
-                      ),
-                    ),
-                  ],
+              Text(
+                'Adresse e-mail',
+                style: AppTextStyles.labelMedium.copyWith(
+                  color: AppColors.textSecondary,
                 ),
               ),
-              const SizedBox(width: AppTheme.spacingS),
-              TextButton(
-                onPressed: () => context.push('/profile/edit/email'),
-                child: const Text('Modifier'),
+              const SizedBox(height: AppTheme.spacingXS),
+              Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Text(
+                    email ?? 'Aucune adresse',
+                    style: AppTextStyles.bodyLarge.copyWith(
+                      color: email == null
+                          ? AppColors.textSecondary
+                          : AppColors.textPrimary,
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () => context.push('/profile/edit/email'),
+                    child: const Text('Modifier'),
+                  ),
+                ],
               ),
             ],
           ),

@@ -102,7 +102,9 @@ void main() {
       );
       await tester.pump();
       FocusManager.instance.primaryFocus?.unfocus();
-      await tester.pump();
+      // The floating label's animation, run to its end: one frame after the
+      // unfocus caught the label mid-flight, over the typed address.
+      await settleMocks(tester);
       await expectGolden(tester, 'consumer_email_change_address_w360_x2');
     });
 
@@ -125,7 +127,7 @@ void main() {
         reason: 'an e-mail-code account: the second code (decision 265)',
       );
       FocusManager.instance.primaryFocus?.unfocus();
-      await tester.pump();
+      await settleMocks(tester);
       await expectGolden(tester, 'consumer_email_change_codes_w360_x2');
     });
   }, skip: kGoldensSkip);
