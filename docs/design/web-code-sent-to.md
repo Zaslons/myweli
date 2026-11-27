@@ -6,7 +6,7 @@
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-11-27 |
 | **Approved** | by the owner, 2026-11-27 (« Approved, build it »), on the plan in §4 |
-| **Register row** | [WEB-SYSTEM.md](WEB-SYSTEM.md) §15 row 39 |
+| **Register row** | [WEB-SYSTEM.md](WEB-SYSTEM.md) §15 row 39 · [SYSTEM.md](SYSTEM.md) §21 row 99's clause on the website, which listed these two sign-ins as not covered and now points here |
 | **Rule** | [WEB-SYSTEM.md](WEB-SYSTEM.md) §9 « An e-mail address breaks only at its seams » · the app's rule, [SYSTEM.md](SYSTEM.md) §13.3 (#895) |
 | **Governs** | `web/components/auth/CodeSentTo.tsx` · `emailSeams` in `web/lib/format.ts` · the code step of `web/components/auth/LoginOptions.tsx` and `web/components/pro/ProLoginOptions.tsx` · the « code step with a long address » block of `web/tests/e2e/type-overflow.spec.ts` · `web/tests/code-sent-to.test.tsx` |
 | **Skills checked** | `myweli-web-guardrails`, `myweli-dev-guardrails` |
@@ -136,5 +136,3 @@ aminata.kone                            ← textPrimary (ink), a line of its own
   « support@myweli.com » after its « @ » rather than before it (those pages are
   frozen while Apple reviews). Not measured here; a task of its own.
 - A name piece or a domain wider than a line still breaks inside (§3).
-- [SYSTEM.md](SYSTEM.md) §21 row 99 (#895, not on `main` yet) says the website
-  is not covered; that clause can be struck once both are merged.
