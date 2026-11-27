@@ -9,8 +9,8 @@
 | **Module / phase** | `access` (the member's Profil) · `auth` (the Android Pro sign-up, E3) · V1 |
 | **Register row** | [SYSTEM.md](SYSTEM.md) §21 row 99 (extended) |
 | **Rule** | [SYSTEM.md](SYSTEM.md) §13.3 « An e-mail address breaks only at its seams » and « A sentence that names an address gives it a line of its own » (#895) |
-| **Builds on** | [app-team-email-seams.md](app-team-email-seams.md) (PR #905, not merged): `EmailSentence` and the gate's `within:`. This branch is cut from #905's |
-| **Parity** | the website's member Profil ([web-email-seams.md](web-email-seams.md) §2 place 3, PR #902, not merged): the address alone, the role chip under it |
+| **Builds on** | [app-team-email-seams.md](app-team-email-seams.md) (PR #905, merged `c5e1d708`): `EmailSentence` and the gate's `within:`. This branch was cut from #905's head, then rebased onto `main` once #905 merged |
+| **Parity** | the website's member Profil ([web-email-seams.md](web-email-seams.md) §2 place 3, PR #902, merged `0bc14543`): the address alone, the role chip under it |
 | **Governs** | `mobile/lib/screens/provider/profile/pro_profile_screen.dart` (the member header) · `mobile/lib/screens/provider/android/pro_sign_up_screen.dart` (`_carriedIdentity`) · `mobile/test/a11y/pro_profile_email_test.dart` · `mobile/test/a11y/pro_sign_up_email_test.dart` · [pro-android-signup.md](pro-android-signup.md) §2.2 and §2.4 row 8 (their copy) |
 | **Skills checked** | `myweli-dev-guardrails` |
 
@@ -244,9 +244,14 @@ two places.
 ## 8. As built (2026-11-27)
 
 Branch `fix/app-pro-profile-email-seams`, cut from #905's head
-(`e4903609`). The spec approved (`6ab0a1e2`), the tests red first
-(`728558f2`), the build (`c8de3dc4`), pro-android-signup.md's copy
-(`7bc1e8e0`), the goldens (`5ed6c5d3`).
+(`e4903609`). #905 then merged (`c5e1d708`, a squash whose tree is that
+head's), and #902 after it (`0bc14543`, `web/` and docs only). The branch
+was rebased onto `main` at `0bc14543` with `--onto e4903609`, cleanly. After
+the rebase: the spec approved (`18d443ac`), the tests red first
+(`305efc82`), the build (`c059439f`), pro-android-signup.md's copy
+(`dd708637`), the goldens (`be6262b9`). Every figure below was taken
+before the rebase, on the commits it replayed. `mobile/` is byte-identical
+before and after (`git diff` empty), and `main` brought nothing into it.
 
 - **Red first, on the code before the change:** 11 tests, each for its own
   reason:
@@ -267,7 +272,8 @@ Branch `fix/app-pro-profile-email-seams`, cut from #905's head
   - targeted: the two new files and `pro_login_android_test` (20 tests);
     the Profil's, the sign-up's, `CodeSentTo`'s, `EmailSentence`'s and
     « Équipe »'s (105);
-  - the full app suite on `5ed6c5d3`: 4,636 passed, 107 skipped (the goldens, off Linux); analyze 0; format clean.
+  - the full app suite on `5ed6c5d3` (before the rebase; its `mobile/` is
+    `be6262b9`'s): 4,636 passed, 107 skipped (the goldens, off Linux); analyze 0; format clean.
 - **Goldens, drawn on Linux** (run 46066515146) and looked at:
   - `pro_profile_member_w360_x2`: « adjoua.kouame » / « .konan » /
     « @hotmail.com », drawn once, the chip under it;
