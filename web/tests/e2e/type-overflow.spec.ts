@@ -838,8 +838,8 @@ const AUTHED_ROUTES: Route[] = [
     // argued: its parent `Card` is `flex flex-wrap`, so the list wraps onto its
     // own line and 224 fits the ~240 a 320 viewport leaves. The census read the
     // child and not the parent. True at a 16 px root only: `min-w-56` is 14
-    // rem, and at a 32 px root the page was 489 px wide. It is `w-56 min-w-0
-    // grow` now, and the « Signaler » block below runs this page at that root
+    // rem, and at a 32 px root the page was 489 px wide. It is `w-56 grow`
+    // now, and the « Signaler » block below runs this page at that root
     // (web-report-rows-doubled-text.md §3.3).
     name: 'the pro reviews — the 224px distribution list the census flagged',
     url: '/pro/avis',
@@ -2333,6 +2333,12 @@ test.describe('the « Signaler » forms at doubled text (web-report-rows-doubled
           }
           if (!f.pro) {
             expect(read!.dateLines, 'the date is squeezed beside the open form').toBe(1);
+            // Beside the date or alone on its line, the form keeps to the
+            // right, where « Signaler » was (`ml-auto`): without it the row's
+            // `justify-between` puts a lone item at the left.
+            expect(read!.form.right, 'the open form does not keep to the right of its card').toBeGreaterThanOrEqual(
+              read!.card.right - HAIR,
+            );
           }
 
           expect(await overflowingText(page), 'text spills out of its own box').toEqual([]);

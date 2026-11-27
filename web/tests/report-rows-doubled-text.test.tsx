@@ -123,9 +123,11 @@ describe('/pro/avis’s « Signaler » (AvisClient)', () => {
 
   // Decision 3: `min-w-56` is 14 rem, 448 px at a 32 px root, and the page
   // scrolled sideways to 489 px. `w-56` still sends the list to its own line
-  // when less than 14 rem is left beside the average; `min-w-0` lets it shrink
-  // to the card there. `flex-1` must go too: its 0 % basis would keep the list
-  // beside the average at any width, squeezed.
+  // when less than 14 rem is left beside the average, and the list may shrink
+  // to the card there (a flex item's automatic minimum is the smaller of its
+  // width and its content's; the mutation pass found `min-w-0` held nothing).
+  // `flex-1` must go too: its 0 % basis would keep the list beside the average
+  // at any width, squeezed.
   it('the distribution list goes to its own line at 14 rem, and may shrink there', async () => {
     stubPro();
     render(<AvisClient />);
@@ -135,7 +137,6 @@ describe('/pro/avis’s « Signaler » (AvisClient)', () => {
     expect(classes(list)).not.toContain('min-w-56');
     expect(classes(list)).not.toContain('flex-1');
     expect(classes(list)).toContain('w-56');
-    expect(classes(list)).toContain('min-w-0');
     expect(classes(list)).toContain('grow');
   });
 });
