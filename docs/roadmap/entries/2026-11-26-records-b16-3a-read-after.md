@@ -1,0 +1,13 @@
+- 🟡 **Registre : la lecture après le déploiement de B16.3a ; #888 consignée comme fusionnée (documentation · 2026-11-26 — BACKLOG B16.3, spec §9 étape 4).** Branche `docs/records-b16-3a-read-after`, créée depuis `main` (`343a1f4d`). Documentation seule : aucun code ne change, rien n’est construit ni déployé.
+  - **Ce qui est consigné :**
+    - [account-email-change.md](../../design/account-email-change.md) : son statut et, dans la §9.1 « As run », la lecture après (étape 4) ;
+    - le BACKLOG : la ligne 16, B16.3 et une ligne au journal de l’ordre proposé ;
+    - l’index des specs ;
+    - l’entrée de B16.3a : sa lecture après.
+  - **La lecture après,** sur le « Yes, run the read » du propriétaire, à 23:55 UTC, en lecture seule (une écriture d’essai refusée), des comptes seulement :
+    - la base : chaque compte de la lecture d’avant **inchangé** — 9 comptes clients, tous avec une adresse prouvée, **aucune non prouvée** ; aucun compte créé depuis le déploiement ;
+    - Sentry : **aucun problème** entre le déploiement et la lecture, une recherche témoin en trouvant quatre dans les deux jours d’avant ;
+    - les journaux : aucune connexion depuis le déploiement ; sur `/me/email/`, seulement les sondes de la relecture et de la règle Cloudflare.
+  - **Ce qu’elle ne montre pas :** personne n’a encore traversé les règles nouvelles en production ; `/me/email/` n’a pas d’appelant avant B16.3b.
+  - **Une entrée passe au vert,** sa fusion relue : le registre de B16.3 (#888, `343a1f4d` ; l’arbre de `main` égal à la tête testée `0e842797`, 12 contrôles sur 12, aucune ligne d’attribution).
+  - **Reste :** la fusion de cette PR, sur le mot du propriétaire ; son entrée passe au vert dans le registre suivant. Puis, sur son mot, B16.3b (l’application).

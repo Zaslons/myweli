@@ -15,4 +15,5 @@
     - `production-checks.yml` (run 45903535104) : 12 contrôles sur 12.
   - **Retour arrière :** `myweli-api-00062-f5c` (R2), sûr (aucune migration).
   - **La règle Cloudflare** couvre `/me/email/` depuis la même nuit : seule l’étape de la règle relancée, relue deux fois ; une rafale bloquée par Cloudflare (`error code: 1015`) dès la 11ᵉ requête.
-  - **Reste, chacun sur le mot du propriétaire :** la lecture après le déploiement ; puis B16.3b, l’application.
+  - **Lu après le déploiement,** la même nuit (spec §9.1) : les mêmes comptes, aucune adresse non prouvée, aucun compte créé depuis ; aucun problème Sentry depuis le déploiement, une recherche témoin en trouvant quatre dans les deux jours d’avant. Aucune connexion n’a atteint la production entre-temps : personne n’a encore traversé les règles nouvelles.
+  - **Reste, sur le mot du propriétaire :** B16.3b, l’application.

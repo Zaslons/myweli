@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Module** | identity & auth (a cross-cutting foundation, [MODULES.md](../MODULES.md)): the consumer `users` store (`AuthRepository`, both twins), `PATCH /me`, two new routes under `/me/email`, the `User` DTO, the error reporter, and the consumer app's profile edit |
-| **Status** | **Approved 2026-11-26.** Written on the owner's « Yes, spec B16.3 »; the owner answered the six questions of §11 at once, « Approve as recommended »: decisions 260–265 in BACKLOG, batch 16 (#879). Read once by an independent reviewer told to refute it against the code: 20 findings, each re-read in the code, then folded in (§13). **B16.3a (the backend) built 2026-11-26** on the owner's « Yes, build B16.3a » (§8.4), **merged** as `dabcbda4` (#886); **read before the deploy** (decision 263, §9.1): no account holds an unproven address, no Sentry report carries one; **deployed** 2026-11-26 (`myweli-api-00063-clx`, image `dabcbda`) and read back; the Cloudflare edge rule carries `/me/email/` since the same night. Next, each on the owner's word: the read after (§9 step 4), then B16.3b (the app). |
+| **Status** | **Approved 2026-11-26.** Written on the owner's « Yes, spec B16.3 »; the owner answered the six questions of §11 at once, « Approve as recommended »: decisions 260–265 in BACKLOG, batch 16 (#879). Read once by an independent reviewer told to refute it against the code: 20 findings, each re-read in the code, then folded in (§13). **B16.3a (the backend) built 2026-11-26** on the owner's « Yes, build B16.3a » (§8.4), **merged** as `dabcbda4` (#886); **read before the deploy** (decision 263, §9.1): no account holds an unproven address, no Sentry report carries one; **deployed** 2026-11-26 (`myweli-api-00063-clx`, image `dabcbda`) and read back; the Cloudflare edge rule carries `/me/email/` since the same night; **read after** the same night (§9 step 4): the same counts, no unproven address, no Sentry issue since the deploy. Next, on the owner's word: B16.3b (the app). |
 | **Owner** | the project owner: the answers, then each build, merge, read and deploy, each on the owner's word |
 | **Last updated** | 2026-11-26 |
 | **PRD ref / phase** | FR-AUTH-004 (profile: name, optional e-mail, photo) · threat model T32, T33, T34 · V1 |
@@ -431,7 +431,11 @@ Branch `feat/b16-3a-email-proven` from `main` (`2b8dd96b`). The tests red first 
   - Before (a GET): `/auth/` or `/admin/auth/`, block, 10 per 10 s per IP, timeout 10.
   - The ownership check passed, the PUT applied, the script read it back (rule `e3a6edbb…`); a second GET shows `… or starts_with(http.request.uri.path, "/me/email/")`, the numbers unchanged.
   - At the edge: 12 GETs to `/me/email/otp/request` in a burst — 1 to 10 answered 405 by the origin, 11 and 12 answered 429 `error code: 1015` by Cloudflare, not the app's JSON 429.
-- **Step 4, the read after** — the same counts; no new unproven address; no new Sentry event with an address — on the owner's word.
+- **Read after** (step 4), on the owner's « Yes, run the read », 23:55 UTC, 1 h 43 min after the deploy, `myweli-api-00063-clx` still serving: the same read-only session, a probe write refused, counts only; step 2's queries plus two (the accounts created since the deploy; the newest account's time), those two rehearsed first on a local fixture of 4 known rows, every count matched by hand.
+  - The database: every count of step 2's table **unchanged** — 9 consumer accounts, all holding a proven address, **none unproven**, none cut off, none in mixed case. **No account created since the deploy;** the newest dates from 2026-11-25 18:16 UTC.
+  - Sentry, all projects and environments, every state: **no issue** between the deploy and the read. The control, the same view over the two days before the deploy, lists four (web issues). Over 30 days, 17 issues, as at step 2, none a `23505`.
+  - The request logs since the deploy, counted by path and status: no sign-in (`/auth/*`: 0); on `/me/email/`, only the read back's and the edge's probes; no warning or error from the application.
+  - **What it shows, and what it cannot:** nothing moved, and nothing carried an address to Sentry. No sign-in, account creation or address change reached production in that window, so no real person has gone through the new rules yet; `/me/email/` has no caller until B16.3b.
 ---
 
 ## 10. Definition of done (for the build)
