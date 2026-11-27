@@ -2344,13 +2344,24 @@ test.describe('the « Signaler » forms at doubled text (web-report-rows-doubled
           expect(await overflowingText(page), 'text spills out of its own box').toEqual([]);
           expect(await overflowingFlexRows(page), 'a nowrap flex row does not fit its own container').toEqual([]);
           expect(await verticalClipping(page), 'text is cut off the bottom of its own box').toEqual([]);
-          // One declared loss is excused, by its text, on the Pro page only:
-          // the sidebar's salon switcher (`ProSidebar.tsx`, `// clip-ok:`,
-          // chrome in a 240 px rail, its full name in the button's accessible
-          // name and on /pro/profil). In the Android mode « Beauté Divine » is
-          // cut there, 156 of 174 px. Anything else truncated still fails.
+          // One declared loss is excused, on the Pro page only: the sidebar's
+          // salon switcher (`ProSidebar.tsx`, `// clip-ok:`, chrome in a 240 px
+          // rail, its full name in the button's accessible name and on
+          // /pro/profil). In the Android mode « Beauté Divine » is cut there,
+          // 156 of 174 px. Matched by the name the switcher shows NOW, read off
+          // the page: pro.spec renames the stub's salon to « Beauté Divine
+          // Web » from another worker (see roles.spec). Anything else
+          // truncated still fails.
+          const switcher = f.pro
+            ? await page.evaluate(
+                () =>
+                  document
+                    .querySelector('button[aria-label="Changer de salon"] > span.truncate')
+                    ?.textContent?.trim() ?? null,
+              )
+            : null;
           const losses = (await truncationLosses(page)).filter(
-            (l) => !(f.pro && l.startsWith('<span class="truncate"> "Beauté Divine"')),
+            (l) => !(switcher && l.startsWith(`<span class="truncate"> "${switcher.slice(0, 40)}"`)),
           );
           expect(losses, 'text is being truncated away').toEqual([]);
 
