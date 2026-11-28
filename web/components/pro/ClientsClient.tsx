@@ -366,7 +366,9 @@ function AddClientModal({
           onChange={(e) => setNote(e.target.value)}
         />
         {message ? <p role="alert" className="mt-s text-bodyMedium text-error">{message}</p> : null}
-        <div className="mt-l flex justify-end gap-s">
+        {/* Wraps: at Android's 200 % « Annuler » ran off the left, to x −20
+            (web-dialogs-toast-doubled-text.md §2.2). */}
+        <div className="mt-l flex flex-wrap justify-end gap-s">
           <Button variant="secondary" onClick={onClose} disabled={busy}>
             Annuler
           </Button>

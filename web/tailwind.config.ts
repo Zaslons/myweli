@@ -95,6 +95,12 @@ const config: Config = {
       max: 'max-content',
       fit: 'fit-content',
       prose: '65ch',
+      // The screen less its two `m` gutters, for a box placed against the viewport:
+      // the toast's region, whose percentage resolves against the screen. The same
+      // 16px the toast's placement code keeps from an edge (`EDGE` in Toast.tsx), so
+      // a pill as wide as this is already where a move may take it
+      // (docs/design/web-dialogs-toast-doubled-text.md §4).
+      gutterBound: `calc(100% - 2 * ${spacing.m})`,
       // SYSTEM.md §10's `contentMaxWidth` — the ONE non-icon dimension the design
       // system names. **Generated since A11 C6**: it was a hard-coded '720px'
       // here, with a comment admitting it stood in for §10 because §10 lived in
