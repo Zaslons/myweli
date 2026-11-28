@@ -2540,6 +2540,12 @@ void main() {
         tokens: tokens,
         echoDevCode: true,
       ),
+      expiring: () => PostgresProviderAuthRepository(
+        pool,
+        tokens: tokens,
+        echoDevCode: true,
+        otpValidity: const Duration(minutes: -1),
+      ),
     );
   });
 
@@ -2555,6 +2561,39 @@ void main() {
           parameters: {'t': at, 'ids': ids},
         );
       },
+    );
+  });
+
+  test('the user list — [tie, collation] ids in byte order, not the '
+      "database's collation (B16.4 §5.3)", () async {
+    // Under en_US, `-` and `_` are ignored at the first level, so
+    // « zz-a_c » sorts after « zz-ab »; in byte order, before. The twin's
+    // compareTo is byte order.
+    for (final id in ['zz-a_c', 'zz-ab']) {
+      await pool.execute(
+        Sql.named(
+          'INSERT INTO users (id, name, created_at) '
+          "VALUES (@id, @id, '2026-01-01T00:00:00Z')",
+        ),
+        parameters: {'id': id},
+      );
+    }
+    final collated = await pool.execute(
+      "SELECT string_agg(x, ',' ORDER BY x DESC) AS o "
+      "FROM (VALUES ('zz-a_c'), ('zz-ab')) v(x)",
+    );
+    expect(
+      collated.first.toColumnMap()['o'],
+      'zz-a_c,zz-ab',
+      reason:
+          "the premise: this database's collation must differ from byte "
+          'order, or the case cannot fail',
+    );
+    final r = PostgresAuthRepository(pool, tokens: tokens, echoDevCode: true);
+    expect(
+      [for (final u in (await r.listUsers()).items) u.id],
+      ['zz-ab', 'zz-a_c'],
+      reason: '[tie, collation] the tie-break must be byte order',
     );
   });
 
@@ -2592,7 +2631,8 @@ void main() {
         final w = await side.execute(
           Sql.named(
             'SELECT count(*)::int AS n FROM pg_stat_activity '
-            "WHERE wait_event_type = 'Lock' AND query LIKE @q",
+            "WHERE wait_event_type = 'Lock' AND query LIKE @q "
+            'AND datname = current_database()',
           ),
           parameters: {'q': pattern},
         );
@@ -2731,7 +2771,8 @@ void main() {
         email: x,
         emailVerified: true,
       );
-      await blockedOn('UPDATE provider_users SET google_sub%');
+      // The holder is read FOR UPDATE, so the sign-in waits there.
+      await blockedOn('SELECT id, google_sub AS linked%');
       release.complete();
       await other;
       final v = await login;
@@ -2771,7 +2812,7 @@ void main() {
       await done.future;
       final signUp = signUpByCode(x, code);
       // Today it waits on the e-mail index; built, on the code's row lock.
-      await blockedOn('%provider_%');
+      await blockedOn('%provider%');
       release.complete();
       await other;
       final ProviderVerifyResult v;
@@ -2784,6 +2825,91 @@ void main() {
         );
       }
       expect(v.error, 'otp_none', reason: '[one code, two sign-ups]');
+    });
+
+    test('[race relink] A is linked to g1 while g2, asserting X, signs in: '
+        'social_link_taken, and A keeps g1', () async {
+      final x = address('rr');
+      final a = (await signUpByCode(
+        x,
+        (await r.requestEmailOtp(x)).devCode!,
+      )).provider!;
+      final g1 = 'rr-g1-$run';
+      final linked = Completer<void>();
+      final release = Completer<void>();
+      releaseAtEnd([release]);
+      final other = side.runTx((tx) async {
+        await tx.execute(
+          Sql.named('UPDATE provider_users SET google_sub = @g WHERE id = @id'),
+          parameters: {'g': g1, 'id': a.id},
+        );
+        linked.complete();
+        await release.future;
+      });
+      await linked.future;
+      final login = r.loginWithSocial(
+        provider: 'google',
+        sub: 'rr-g2-$run',
+        email: x,
+        emailVerified: true,
+      );
+      await blockedOn('SELECT id, google_sub AS linked%');
+      release.complete();
+      await other;
+      final v = await login;
+      expect(
+        v.error,
+        'social_link_taken',
+        reason: '[race relink] g2 relinked A under a race',
+      );
+      expect((await r.accountById(a.id))!.googleSub, g1);
+    });
+
+    test('[race link sub] a sign-in links sub g to A while another account '
+        'commits g: the sign-in re-runs and reaches that account, no '
+        'throw', () async {
+      final x = address('rl');
+      final a = (await signUpByCode(
+        x,
+        (await r.requestEmailOtp(x)).devCode!,
+      )).provider!;
+      final y = address('rl-b');
+      final b = (await signUpByCode(
+        y,
+        (await r.requestEmailOtp(y)).devCode!,
+      )).provider!;
+      final g = 'rl-g-$run';
+      final linked = Completer<void>();
+      final release = Completer<void>();
+      releaseAtEnd([release]);
+      final other = side.runTx((tx) async {
+        await tx.execute(
+          Sql.named('UPDATE provider_users SET google_sub = @g WHERE id = @id'),
+          parameters: {'g': g, 'id': b.id},
+        );
+        linked.complete();
+        await release.future;
+      });
+      await linked.future;
+      final login = r.loginWithSocial(
+        provider: 'google',
+        sub: g,
+        email: x,
+        emailVerified: true,
+      );
+      // A is free, so the link's UPDATE runs, and waits on the sub index.
+      await blockedOn('UPDATE provider_users SET google_sub = %');
+      release.complete();
+      await other;
+      final ProviderVerifyResult v;
+      try {
+        v = await login;
+      } on Object catch (e) {
+        fail('[race link sub] the sign-in threw (${e.runtimeType}): a 500');
+      }
+      expect(v.ok, isTrue, reason: '[race link sub] ${v.error}');
+      expect(v.provider!.id, b.id, reason: "[race link sub] g is B's link");
+      expect((await r.accountById(a.id))!.googleSub, isNull);
     });
 
     test(

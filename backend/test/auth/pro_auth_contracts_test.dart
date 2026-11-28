@@ -16,5 +16,12 @@ void main() {
     plantUnproven: (r, id) async =>
         (r as InMemoryProviderAuthRepository).plantUnprovenEmailForTest(id),
   );
-  proSignupCodeContract(repo: repo);
+  proSignupCodeContract(
+    repo: repo,
+    expiring: () => InMemoryProviderAuthRepository(
+      tokens: tokens,
+      echoDevCode: true,
+      otpValidity: const Duration(minutes: -1),
+    ),
+  );
 }

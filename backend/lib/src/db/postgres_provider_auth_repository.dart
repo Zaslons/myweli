@@ -144,7 +144,7 @@ class PostgresProviderAuthRepository implements ProviderAuthRepository {
     required String sub,
     String? email,
     bool emailVerified = false,
-  }) {
+  }) async {
     final subColumn = switch (provider) {
       'google' => 'google_sub',
       'apple' => 'apple_sub',
@@ -163,27 +163,22 @@ class PostgresProviderAuthRepository implements ProviderAuthRepository {
         if (rows.isEmpty && emailKey != null && emailVerified) {
           // Link only on a verified email (T33/T35), only to an account that
           // PROVED the address (decision 287), and never over another sub for
-          // this provider (decision 284). `OR $subColumn = @s`: two first
-          // links of one sub in flight — the second waits on the row, finds
-          // its own sub there, and signs in (docs/design/auth-store-twins.md
-          // §5.1). The UPDATE returns the row as written (B-P1-d).
+          // this provider (decision 284): docs/design/auth-store-twins.md
+          // §5.1. The holder is read FOR UPDATE, so what it holds is what the
+          // write sees: two first links of one sub in flight — the second
+          // waits on the row, then finds its own sub there and signs in; an
+          // account deleted meanwhile is simply not found (§5.5).
           final holder = await tx.execute(
             Sql.named(
-              'SELECT id FROM provider_users '
-              'WHERE lower(email) = @e AND email_verified',
+              'SELECT id, $subColumn AS linked FROM provider_users '
+              'WHERE lower(email) = @e AND email_verified FOR UPDATE',
             ),
             parameters: {'e': emailKey},
           );
           if (holder.isNotEmpty) {
-            rows = await tx.execute(
-              Sql.named(
-                'UPDATE provider_users SET $subColumn = @s '
-                'WHERE id = @id AND ($subColumn IS NULL OR $subColumn = @s) '
-                'RETURNING *',
-              ),
-              parameters: {'s': sub, 'id': holder.first.toColumnMap()['id']},
-            );
-            if (rows.isEmpty) {
+            final h = holder.first.toColumnMap();
+            final linked = h['linked'] as String?;
+            if (linked != null && linked != sub) {
               return (
                 ok: false,
                 error: 'social_link_taken',
@@ -191,6 +186,16 @@ class PostgresProviderAuthRepository implements ProviderAuthRepository {
                 tokens: null,
               );
             }
+            // The row as written (B-P1-d). A raced 23505 on the sub index
+            // (this sub linked to another account in between) re-runs, and
+            // the re-run finds it by sub.
+            rows = await tx.execute(
+              Sql.named(
+                'UPDATE provider_users SET $subColumn = @s WHERE id = @id '
+                'RETURNING *',
+              ),
+              parameters: {'s': sub, 'id': h['id']},
+            );
           }
         }
         if (rows.isEmpty) {
@@ -214,8 +219,9 @@ class PostgresProviderAuthRepository implements ProviderAuthRepository {
     final key = email.trim().toLowerCase();
     return retriedTransaction(
       () => _pool.runTx((tx) async {
-        // Checked under its row's lock and spent in this transaction (§5.2):
-        // a refusal returns normally, so its attempt accounting commits.
+        // Checked under its row's lock and spent in this transaction
+        // (docs/design/auth-store-twins.md §5.2): a refusal returns normally,
+        // so its attempt accounting commits.
         final error = await _inspectEmailCode(tx, key, code);
         if (error != null) {
           return (ok: false, error: error, provider: null, tokens: null);

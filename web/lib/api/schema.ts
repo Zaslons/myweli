@@ -2432,7 +2432,7 @@ export interface paths {
                 401: components["responses"]["Unauthorized"];
                 403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
-                /** @description Invitation expired (`invitation_expired`) */
+                /** @description Invitation expired (`invitation_expired`); or `provider_exists`, an account was created for this identity first (a lost race included, B16.4: never a 500). */
                 409: {
                     headers: {
                         [name: string]: unknown;

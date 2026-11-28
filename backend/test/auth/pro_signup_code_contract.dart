@@ -11,7 +11,12 @@ import 'package:test/test.dart';
 /// wrong guess costs an attempt; a Google or Apple sign-up leaves a pending
 /// code alone. The same for `register` and `createMemberAccount` (an invited
 /// member).
-void proSignupCodeContract({required ProviderAuthRepository Function() repo}) {
+void proSignupCodeContract({
+  required ProviderAuthRepository Function() repo,
+  // A store whose codes are born expired (a negative validity, so no clock
+  // skew between Dart and the database can make it flake).
+  required ProviderAuthRepository Function() expiring,
+}) {
   final run = DateTime.now().microsecondsSinceEpoch;
   var n = 0;
   String address(String who) => '$who.${run}_${n++}@b164.test';
@@ -65,6 +70,38 @@ void proSignupCodeContract({required ProviderAuthRepository Function() repo}) {
       expect(v.provider!.id, a.id);
     });
 
+    test('[the code first] $name on a taken X with a WRONG code: '
+        'otp_invalid, never provider_exists (no enumeration, T32)', () async {
+      final r = repo();
+      final x = address('first');
+      final created = await signUp(r, x, await codeFor(r, x));
+      expect(created.ok, isTrue, reason: 'the premise: ${created.error}');
+      final code = await codeFor(r, x);
+      final wrong = code == '000000' ? '111111' : '000000';
+      expect(
+        (await signUp(r, x, wrong)).error,
+        'otp_invalid',
+        reason:
+            '[the code first] a taken address was answered before the '
+            'code was checked',
+      );
+    });
+
+    test('[the code first] $name on a taken X with no code pending: '
+        'otp_none, never provider_exists', () async {
+      final r = repo();
+      final x = address('none');
+      final created = await signUp(r, x, await codeFor(r, x));
+      expect(created.ok, isTrue, reason: 'the premise: ${created.error}');
+      expect(
+        (await signUp(r, x, '123456')).error,
+        'otp_none',
+        reason:
+            '[the code first] a taken address was answered before the '
+            'code was checked',
+      );
+    });
+
     test('[spent by the creation] $name: the code that created A, on X '
         'again, answers otp_none', () async {
       final r = repo();
@@ -100,6 +137,22 @@ void proSignupCodeContract({required ProviderAuthRepository Function() repo}) {
       'otp_locked',
     ]);
     expect((await signUp(r, x, code)).error, 'otp_locked');
+  });
+
+  test('[expired] a code past its validity answers otp_expired and is '
+      'deleted, at the sign-in and at the sign-up', () async {
+    final r = expiring();
+    final x = address('expired');
+    final code = await codeFor(r, x);
+    expect((await r.verifyEmailOtp(x, code)).error, 'otp_expired');
+    expect(
+      (await r.verifyEmailOtp(x, code)).error,
+      'otp_none',
+      reason: '[expired] an expired code must be deleted',
+    );
+    final again = await codeFor(r, x);
+    expect((await paths['register']!(r, x, again)).error, 'otp_expired');
+    expect((await paths['register']!(r, x, again)).error, 'otp_none');
   });
 
   test(

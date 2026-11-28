@@ -182,5 +182,21 @@ void proSocialLinkContract({
           '[unproven holder] a code on X reached an account that '
           'never proved X',
     );
+    // The dead end, pinned so it stays visible: the sign-up refuses X too.
+    // B16.4a deploys only once decision 287's read counts no such account
+    // (docs/design/auth-store-twins.md §9).
+    final up = await r.register(
+      businessName: 'B16.4',
+      businessType: 'salon',
+      phoneNumber: '+2250700000001',
+      email: x,
+      authProvider: 'email',
+      emailCode: code,
+    );
+    expect(
+      up.error,
+      'provider_exists',
+      reason: '[unproven holder] the dead end',
+    );
   });
 }

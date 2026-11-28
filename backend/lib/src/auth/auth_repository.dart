@@ -688,7 +688,8 @@ class InMemoryAuthRepository implements AuthRepository {
             return false;
           }
           if (needle != null && needle.isNotEmpty) {
-            // Each field on its own, as Postgres's three ILIKEs (§5.3).
+            // Each field on its own, as Postgres's three ILIKEs
+            // (docs/design/auth-store-twins.md §5.3).
             return [
               u.name,
               u.phoneNumber,

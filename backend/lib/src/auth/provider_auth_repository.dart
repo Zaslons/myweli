@@ -185,7 +185,11 @@ abstract interface class ProviderAuthRepository {
   /// LOGIN-ONLY email verify: a correct code with no account that proved the
   /// address returns `provider_not_found` **without consuming the code**, so
   /// the register screen can reuse it (it stays TTL/attempt-bounded).
-  /// docs/design/auth-store-twins.md §5.2.
+  /// **Not** for an address an unproven account holds (a row older than the
+  /// auth overhaul): register then answers `provider_exists`, so such an
+  /// address can neither sign in nor sign up. B16.4a deploys only once
+  /// decision 287's production read counts no such account
+  /// (docs/design/auth-store-twins.md §5.2, §9).
   Future<ProviderVerifyResult> verifyEmailOtp(String email, String code);
 
   /// Registration = identity + business fields in one shot, returning a live
@@ -460,6 +464,10 @@ class InMemoryProviderAuthRepository implements ProviderAuthRepository {
     String? email,
     bool emailVerified = false,
   }) async {
+    // Only google and apple have a link, as on Postgres (its sub column).
+    if (provider != 'google' && provider != 'apple') {
+      throw ArgumentError.value(provider, 'provider');
+    }
     final key = '$provider:$sub';
     final emailKey = email?.trim().toLowerCase();
     var account = _bySocial[key];
@@ -471,9 +479,7 @@ class InMemoryProviderAuthRepository implements ProviderAuthRepository {
       if (holder != null && holder.emailVerified) {
         final linked = provider == 'google'
             ? holder.googleSub
-            : provider == 'apple'
-            ? holder.appleSub
-            : null;
+            : holder.appleSub;
         if (linked != null && linked != sub) {
           return (
             ok: false,

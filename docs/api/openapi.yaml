@@ -1802,7 +1802,10 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409':
-          description: Invitation expired (`invitation_expired`)
+          description: >-
+            Invitation expired (`invitation_expired`); or `provider_exists`,
+            an account was created for this identity first (a lost race
+            included, B16.4: never a 500).
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
