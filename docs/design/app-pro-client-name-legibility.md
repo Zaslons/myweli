@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Approved (2026-11-28) |
+| **Status** | Built (2026-11-28, §9), PR #NNN, not merged |
 | **Approved** | by the owner, 2026-11-28, on §5: « Approve as recommended » (all five decisions) |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-11-28 |
@@ -356,9 +356,11 @@ as fixed, together with what §2.2 found.
 - **A word wider than the card itself** (about 12 letters of `titleLarge` at
   2× on 360, without the avatar) still breaks inside the word. Past that
   point, no layout has more to give.
-- **The masked number in the list's visits line** wraps between its groups at
-  2×, as it does today. It is a masked number, not a dialable one, and it is
-  outside these three rows' names.
+- **The list's visits line splits a count from its noun at 2×**
+  (« … · 12 » / « visites », « · 1 » / « visite »), as it did before; the
+  masked number itself stays whole. A no-break space between the count and
+  its noun would keep them together. It is outside these rows' names, and
+  is left for its own change.
 
 ## 8. What does not change
 
@@ -367,3 +369,51 @@ receive. Performance: two `TextFit` measurements per card and per journal
 row, from a `LayoutBuilder` outside any `IntrinsicHeight`, the same cost as
 the header's number today. The rows ship with the next Pro store build, which
 is the owner's to make. No flag.
+
+## 9. As built (2026-11-28)
+
+Branch `fix/app-client-name-legibility`, cut from `main` at `47e46cfd`; the
+draft spec was rebased onto `83af1264` (#916, docs only) before the
+approval. Then the tests red first (`f0e8b2b1`), one commit per screen, and
+the goldens.
+
+- **Red first, on today's code:** 52 of 54 tests, each for a reason §2
+  measured: the crush gate (the card at 1×, « Aïcha Koné » in 77 dp; the
+  list and the journal at 2×), the overflows at 2× (the list by 111, 96 and
+  81 dp at 360, 375 and 390; the journal by 83, 68 and 53),
+  names cut after their eighth character, the badge and « Appeler » beside
+  the name. The two green: « Tante Marie » at 375 and 390 dp × 2×, already
+  whole today.
+- **Found while building, both in the test, not the screens:**
+  - `expectNoMidWordBreak` called « Marie- » / « Laure » (360 × 2× on the
+    card) a break inside a word: its tokens keep a hyphen in, and its doc
+    says hyphenated labels are not named to it. A hyphenated name is now
+    measured by its pieces.
+  - The 8-character floor passed a name cut after its eighth character
+    (« Fatoumata Ouédr… » on a guest card at 2×). Each name is now checked
+    drawn whole (`didExceedMaxLines` false), which is decision 2.
+- **Mutations, on committed code** (each applied once, the file restored
+  from git, the failing tests read off the run): **14, all red.**
+
+| Mutation | Red |
+|---|---|
+| Card: the badge back beside the name | the four linked clients, 1× and 2×, every width (24) |
+| Card: the ellipsis back | every case where a name is longer than its line (17) |
+| Card: the actions beside the whole column | every card at 1× (21; at 2× they are under the number either way) |
+| Card: the avatar always drawn | « Kouakoussou » at 2×, every width (3) |
+| Card: the avatar never drawn | every card but « Kouakoussou » at 2× (39 of 42). First run: 38, « Marie-Laure » at 360 × 2× green, because the test measured « Marie-Laure » whole while the app splits it after its hyphen. The test now splits it too (`7ade0321`), re-run: 39 |
+| List: the chips back beside the name · the tags back at the right edge | every width and size (6 each) |
+| List: the ellipsis back | 2×, every width (3; at 1× every name fits one line) |
+| Journal: the status back at the right edge · the absences back beside the name · the time never beside · the deposit unheard | every width and size (6 each) |
+| Journal: the time always beside | 360 × 2×, « Kouakoussou » (1; at 375 it fits beside the time) |
+| Journal: the ellipsis back | 2×, every width (3) |
+
+- **Goldens, drawn on Linux** (run 46147064466), each looked at:
+  `pro_journal_day` (« Confirmé » under « Jean Kouassi », the card one line
+  taller) and five new ones: `pro_client_list_w360_x1` and `_x2`,
+  `pro_client_card_w360_x1` and `_x2`, `pro_journal_day_w360_x2`. The other
+  106 images are byte-identical (compared one by one).
+- **Existing tests:** `client_screens_test.dart` (one comment: the actions
+  are beside the number, not the name), the journal tests and every other
+  file that pumps these screens pass unchanged.
+- **Green:** the new file (54 tests) and the files that pump these screens; the full app suite on `91327557`: 4,692 passed, 112 skipped (the goldens, off Linux); analyze 0; format clean.
