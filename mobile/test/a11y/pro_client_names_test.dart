@@ -474,17 +474,25 @@ RenderParagraph _paragraphOf(WidgetTester tester, String text) =>
     );
 
 /// The width of [text]'s widest piece the engine may not break, in
-/// [paragraph]'s own style and scale.
+/// [paragraph]'s own style and scale: split at its spaces, and after a hyphen
+/// between two letters, as `TextFit.tokens` splits it — the app decides the
+/// avatar and the time on those pieces.
+///
+/// Split at the spaces alone, « Marie-Laure » (242 dp at 2×) looked too wide
+/// for the card's 232 beside the avatar, so a card that never drew its
+/// avatar passed at 360 × 2× (mutation 5, 2026-11-28).
 double _widestToken(RenderParagraph paragraph, String text) {
   var widest = 0.0;
-  for (final token in unbreakableTokens(text)) {
-    final painter = TextPainter(
-      text: TextSpan(text: token, style: paragraph.text.style),
-      textDirection: TextDirection.ltr,
-      textScaler: paragraph.textScaler,
-    )..layout();
-    widest = math.max(widest, painter.width);
-    painter.dispose();
+  for (final word in unbreakableTokens(text)) {
+    for (final piece in word.split(_afterHyphen)) {
+      final painter = TextPainter(
+        text: TextSpan(text: piece, style: paragraph.text.style),
+        textDirection: TextDirection.ltr,
+        textScaler: paragraph.textScaler,
+      )..layout();
+      widest = math.max(widest, painter.width);
+      painter.dispose();
+    }
   }
   return widest;
 }
