@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Built (2026-11-28, §9), PR #NNN, not merged |
+| **Status** | Built (2026-11-28, §9), PR #918, not merged |
 | **Approved** | by the owner, 2026-11-28, on §5: « Approve as recommended » (all five decisions) |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-11-28 |
