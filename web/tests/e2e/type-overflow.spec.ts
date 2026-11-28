@@ -837,7 +837,10 @@ const AUTHED_ROUTES: Route[] = [
     // ONE uncontained hard floor in the product. Measured here rather than
     // argued: its parent `Card` is `flex flex-wrap`, so the list wraps onto its
     // own line and 224 fits the ~240 a 320 viewport leaves. The census read the
-    // child and not the parent.
+    // child and not the parent. True at a 16 px root only: `min-w-56` is 14
+    // rem, and at a 32 px root the page was 489 px wide. It is `w-56 grow`
+    // now, and the « Signaler » block below runs this page at that root
+    // (web-report-rows-doubled-text.md §3.3).
     name: 'the pro reviews — the 224px distribution list the census flagged',
     url: '/pro/avis',
     anchor: 'Avis',
@@ -2181,6 +2184,192 @@ test.describe('every other place that draws an address (web-email-seams)', () =>
           }
         });
       });
+    });
+  }
+});
+
+/// The « Signaler » forms at doubled text (docs/design/web-report-rows-doubled-text.md).
+///
+/// A review's « Signaler » opens a form under it: a reason field, then
+/// « Annuler » and « Signaler » in a `justify-end` row. Measured on `main`
+/// before the change, at 320×568: the row did not wrap, so on the salon page
+/// the open form could not be narrower than its two buttons and grew the
+/// layout viewport to 428×760 in the Android mode (and, at normal text, ran
+/// into its card's padding and squeezed the date to three lines); on
+/// `/pro/avis` the buttons ran out at the row's START — « Annuler » outside its
+/// panel at normal text, from x −37 in the Android mode, where no page can be
+/// scrolled to, so the viewport did not grow and only the button's own box
+/// tells. With the 32 px root `/pro/avis` was 489 px wide before anything
+/// opened: the distribution list's `min-w-56`, 448 px at that root.
+const REPORT_FORM_TEXT = [{ name: 'normal text', use: {}, css: null }, ...DOUBLED_TEXT];
+
+const REPORT_FORMS = [
+  {
+    surface: 'the salon page',
+    url: '/beaute-divine',
+    pro: false,
+    anchor: (page: Page) => page.getByRole('heading', { name: 'Beauté Divine' }).first(),
+    review: (page: Page) =>
+      page.locator('section', { has: page.getByRole('heading', { name: /^Avis \(/ }) }).locator('li').first(),
+  },
+  {
+    surface: '/pro/avis',
+    url: '/pro/avis',
+    pro: true,
+    anchor: (page: Page) => page.getByRole('heading', { name: 'Avis', exact: true }),
+    review: (page: Page) => page.locator('main li').filter({ hasText: 'Service impeccable' }).first(),
+  },
+] as const;
+
+/// The open form, read in one evaluation so the drawn sizes are the ones the
+/// geometry was laid out with (Chromium's autosizer recomputes on DOM changes,
+/// WEB-SYSTEM §9): the review card's content box, the form's, the two buttons,
+/// their drawn size, the root's, and — on the salon page — the date's lines.
+async function reportForm(review: import('@playwright/test').Locator) {
+  return review.evaluate((li) => {
+    const box = (el: Element) => {
+      const r = el.getBoundingClientRect();
+      return { left: r.left, top: r.top, right: r.right, bottom: r.bottom };
+    };
+    const content = (el: Element) => {
+      const r = el.getBoundingClientRect();
+      const s = getComputedStyle(el);
+      return {
+        left: r.left + parseFloat(s.borderLeftWidth) + parseFloat(s.paddingLeft),
+        right: r.right - parseFloat(s.borderRightWidth) - parseFloat(s.paddingRight),
+      };
+    };
+    const input = li.querySelector('input[aria-label="Raison du signalement"]');
+    if (!input) return null;
+    const form = input.parentElement!;
+    const buttons = Array.from(form.querySelectorAll('button')).map((b) => ({
+      text: (b.textContent ?? '').trim(),
+      font: parseFloat(getComputedStyle(b).fontSize),
+      ...box(b),
+    }));
+    // The salon page's date shares the form's row; /pro/avis has none there.
+    const row = form.parentElement!.parentElement!;
+    const date = row.matches('.justify-between') ? row.querySelector(':scope > p') : null;
+    let dateLines = 0;
+    if (date) {
+      const range = document.createRange();
+      range.selectNodeContents(date);
+      dateLines = new Set(Array.from(range.getClientRects(), (r) => Math.round(r.top))).size;
+    }
+    return {
+      card: content(li),
+      form: box(form),
+      formContent: content(form),
+      buttons,
+      dateLines: date ? dateLines : null,
+      root: parseFloat(getComputedStyle(document.documentElement).fontSize),
+    };
+  });
+}
+
+test.describe('the « Signaler » forms at doubled text (web-report-rows-doubled-text)', () => {
+  for (const mode of REPORT_FORM_TEXT) {
+    test.describe(mode.name, () => {
+      test.use({ viewport: PHONE_320, ...mode.use });
+
+      for (const f of REPORT_FORMS) {
+        test(`${mode.name} — ${f.surface}: the open form keeps to its card and the screen at 320×568`, async ({ page }) => {
+          if (mode.css) {
+            await page.addInitScript((css) => {
+              const add = () => {
+                const style = document.createElement('style');
+                style.textContent = css;
+                document.head.appendChild(style);
+              };
+              if (document.head) add();
+              else document.addEventListener('DOMContentLoaded', add);
+            }, mode.css);
+          }
+          if (f.pro) await signInPro(page);
+          else await serveStubImages(page);
+          await page.goto(f.url);
+          await expect(f.anchor(page), `${f.url} did not render its own page (wrong DOM — vacuous scan)`).toBeVisible();
+
+          const review = f.review(page);
+          await expect(review, 'the review is not on the page — nothing below would be measured').toBeVisible();
+          // From the keyboard: on the salon page the fixed « Réserver » bar may
+          // stand over the link, and the form is what is measured, not the tap.
+          await review.getByRole('button', { name: 'Signaler' }).focus();
+          await page.keyboard.press('Enter');
+          await expect(review.getByLabel('Raison du signalement'), 'the form did not open').toBeVisible();
+
+          const read = await reportForm(review);
+          expect(read, 'the open form was not found in the review').not.toBeNull();
+          expect(read!.buttons.map((b) => b.text), 'the form’s buttons').toEqual(['Annuler', 'Signaler']);
+          // The vacuity guard for the mode, read with the geometry.
+          const androidMode = 'isMobile' in mode.use;
+          for (const b of read!.buttons) {
+            expect(b.font, `« ${b.text} » is not at the size this mode draws`).toBe(androidMode ? 28 : 14);
+          }
+          // The Android mode doubles the root's drawn size too, so the root
+          // tells the other two apart only.
+          if (!androidMode) expect(read!.root, 'the root is not at the size this mode sets').toBe(mode.css ? 32 : 16);
+
+          expect(
+            await page.evaluate(() => [window.innerWidth, window.innerHeight]),
+            'the layout viewport grew past the screen — fixed bars and toasts are placed off it',
+          ).toEqual([PHONE_320.width, PHONE_320.height]);
+          expect(await horizontalOverflow(page), 'the page scrolls sideways').toEqual([]);
+
+          expect(read!.form.left, 'the form starts before its card’s content edge').toBeGreaterThanOrEqual(read!.card.left - HAIR);
+          expect(read!.form.right, 'the form runs past its card’s content edge').toBeLessThanOrEqual(read!.card.right + HAIR);
+          for (const b of read!.buttons) {
+            expect(b.left, `« ${b.text} » starts outside its form`).toBeGreaterThanOrEqual(read!.formContent.left - HAIR);
+            expect(b.right, `« ${b.text} » runs past its form`).toBeLessThanOrEqual(read!.formContent.right + HAIR);
+            expect(b.left, `« ${b.text} » starts off the screen`).toBeGreaterThanOrEqual(-HAIR);
+            expect(b.right, `« ${b.text} » runs off the screen`).toBeLessThanOrEqual(PHONE_320.width + HAIR);
+          }
+          if (androidMode) {
+            // Two 150 px buttons cannot share a 240 or 166 px row: the guard
+            // that the wrap, and not a roomier row, is what passed above.
+            const [cancel, send] = read!.buttons;
+            expect(send.top, 'the two buttons share a line — the wrap is not what is tested').toBeGreaterThanOrEqual(cancel.bottom);
+            expect(send.top - cancel.bottom, 'the two lines are under 8 px apart (SYSTEM.md §13.2)').toBeGreaterThanOrEqual(ADJACENT - HAIR);
+          }
+          if (!f.pro) {
+            expect(read!.dateLines, 'the date is squeezed beside the open form').toBe(1);
+            // Beside the date or alone on its line, the form keeps to the
+            // right, where « Signaler » was (`ml-auto`): without it the row's
+            // `justify-between` puts a lone item at the left.
+            expect(read!.form.right, 'the open form does not keep to the right of its card').toBeGreaterThanOrEqual(
+              read!.card.right - HAIR,
+            );
+          }
+
+          expect(await overflowingText(page), 'text spills out of its own box').toEqual([]);
+          expect(await overflowingFlexRows(page), 'a nowrap flex row does not fit its own container').toEqual([]);
+          expect(await verticalClipping(page), 'text is cut off the bottom of its own box').toEqual([]);
+          // One declared loss is excused, on the Pro page only: the sidebar's
+          // salon switcher (`ProSidebar.tsx`, `// clip-ok:`, chrome in a 240 px
+          // rail, its full name in the button's accessible name and on
+          // /pro/profil). In the Android mode « Beauté Divine » is cut there,
+          // 156 of 174 px. Matched by the name the switcher shows NOW, read off
+          // the page: pro.spec renames the stub's salon to « Beauté Divine
+          // Web » from another worker (see roles.spec). Anything else
+          // truncated still fails.
+          const switcher = f.pro
+            ? await page.evaluate(
+                () =>
+                  document
+                    .querySelector('button[aria-label="Changer de salon"] > span.truncate')
+                    ?.textContent?.trim() ?? null,
+              )
+            : null;
+          const losses = (await truncationLosses(page)).filter(
+            (l) => !(switcher && l.startsWith(`<span class="truncate"> "${switcher.slice(0, 40)}"`)),
+          );
+          expect(losses, 'text is being truncated away').toEqual([]);
+
+          // Reachable: « Annuler » pressed closes the form.
+          await review.getByRole('button', { name: 'Annuler' }).click();
+          await expect(review.getByLabel('Raison du signalement'), '« Annuler » did not close the form').toHaveCount(0);
+        });
+      }
     });
   }
 });
