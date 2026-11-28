@@ -372,10 +372,10 @@ is the owner's to make. No flag.
 
 ## 9. As built (2026-11-28)
 
-Branch `fix/app-client-name-legibility`, cut from `main` at `47e46cfd`; the
-draft spec was rebased onto `83af1264` (#916, docs only) before the
-approval. Then the tests red first (`f0e8b2b1`), one commit per screen, and
-the goldens.
+Branch `fix/app-client-name-legibility`, cut from `main` at `47e46cfd`,
+rebased onto `fc687501` (#916, then #915: docs and `backend/` only, so
+`mobile/` is byte-identical before and after). The spec, the approval, the
+tests red first (`7355a314`), one commit per screen, then the goldens.
 
 - **Red first, on today's code:** 52 of 54 tests, each for a reason §2
   measured: the crush gate (the card at 1×, « Aïcha Koné » in 77 dp; the
@@ -401,7 +401,7 @@ the goldens.
 | Card: the ellipsis back | every case where a name is longer than its line (17) |
 | Card: the actions beside the whole column | every card at 1× (21; at 2× they are under the number either way) |
 | Card: the avatar always drawn | « Kouakoussou » at 2×, every width (3) |
-| Card: the avatar never drawn | every card but « Kouakoussou » at 2× (39 of 42). First run: 38, « Marie-Laure » at 360 × 2× green, because the test measured « Marie-Laure » whole while the app splits it after its hyphen. The test now splits it too (`7ade0321`), re-run: 39 |
+| Card: the avatar never drawn | every card but « Kouakoussou » at 2× (39 of 42). First run: 38, « Marie-Laure » at 360 × 2× green, because the test measured « Marie-Laure » whole while the app splits it after its hyphen. The test now splits it too (`d2410440`), re-run: 39 |
 | List: the chips back beside the name · the tags back at the right edge | every width and size (6 each) |
 | List: the ellipsis back | 2×, every width (3; at 1× every name fits one line) |
 | Journal: the status back at the right edge · the absences back beside the name · the time never beside · the deposit unheard | every width and size (6 each) |
@@ -416,4 +416,4 @@ the goldens.
 - **Existing tests:** `client_screens_test.dart` (one comment: the actions
   are beside the number, not the name), the journal tests and every other
   file that pumps these screens pass unchanged.
-- **Green:** the new file (54 tests) and the files that pump these screens; the full app suite on `91327557`: 4,692 passed, 112 skipped (the goldens, off Linux); analyze 0; format clean.
+- **Green:** the new file (54 tests) and the files that pump these screens; the full app suite on `91327557` (`8c65a96f` after the rebase, the same `mobile/`): 4,692 passed, 112 skipped (the goldens, off Linux); analyze 0; format clean.
