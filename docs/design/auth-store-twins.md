@@ -418,6 +418,10 @@ Branch `feat/b16-4a-auth-stores`, from `main` (`47e46cfd`). Built on the owner's
 - `[same sub again]` stays a control, so §8.4's m3 row was wrong to name it. Sequentially, the by-sub lookup always signs in first, so m3 can only fire through the [double link] race.
 - §8.3's « the invitation bridge is not reached » is not pinned: the route test seeds no pending invitation, because its context builds an empty membership store on each call. The bridge reads `provider_not_found` only, so a 409 cannot reach it by construction, and m4b and m4c pin the 409 itself.
 - The twin now throws on a provider other than google or apple, as Postgres does. Before, it linked any provider string.
+- **[tie, collation] runs only where the database's default collation is not byte order.**
+  - Locally it runs: `docker-compose.yml`'s database is `en_US.utf8`, and m21 is red there.
+  - CI's cluster takes the runner's `C.UTF-8`, where the tie-break cannot differ, so CI skips the case with its reason. Watched to skip on a throwaway `C` database.
+  - Production's collation is not visible from the repository, so decision 287's read now reads it too (§9).
 - **Twin differences left, below any caller:**
   - at the exact instant of expiry, the twin uses `isAfter` and Postgres `<=`;
   - Dart's `toLowerCase` and Postgres's `ILIKE` can differ on letters such as « İ ».
@@ -489,7 +493,8 @@ Its nits were folded in as well:
      - **none:** B16.4a also finds a Pro account by address only where it proved it, on both twins (decision 260's first half), and nothing changes for anyone;
      - **any:** the deploy waits, and the owner chooses with the numbers in hand;
    - accounts with a Google link, and with an Apple link: those the new refusal can ever touch;
-   - Sentry's 30 days: any unique violation on `provider_users`, the race's 500.
+   - Sentry's 30 days: any unique violation on `provider_users`, the race's 500;
+   - the database's default collation, a key name, which says whether §5.3's byte-order tie-break changes anything in production (B16.4a's build, §8.7).
 
    It cannot count past relinks (§5.1).
 3. **B16.4b, the Pro app's sentence:** its own PR. It reaches people with the next Pro build.

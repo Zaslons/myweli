@@ -2582,13 +2582,18 @@ void main() {
       "SELECT string_agg(x, ',' ORDER BY x DESC) AS o "
       "FROM (VALUES ('zz-a_c'), ('zz-ab')) v(x)",
     );
-    expect(
-      collated.first.toColumnMap()['o'],
-      'zz-a_c,zz-ab',
-      reason:
-          "the premise: this database's collation must differ from byte "
-          'order, or the case cannot fail',
-    );
+    if (collated.first.toColumnMap()['o'] != 'zz-a_c,zz-ab') {
+      // CI's cluster takes the runner's locale (C.UTF-8): text is already in
+      // byte order, so the tie-break cannot differ there. It runs where the
+      // default collation is not byte order — en_US.utf8 locally, as
+      // docker-compose.yml's database is — and decision 287's read reads
+      // production's (docs/design/auth-store-twins.md §9).
+      markTestSkipped(
+        "this database orders text in byte order: the tie-break's "
+        'collation cannot differ here',
+      );
+      return;
+    }
     final r = PostgresAuthRepository(pool, tokens: tokens, echoDevCode: true);
     expect(
       [for (final u in (await r.listUsers()).items) u.id],
