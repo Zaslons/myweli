@@ -302,7 +302,13 @@ as fixed, together with what §2.2 found.
   - `expectNoLegibilityCrush`, `expectNoUndeclaredTruncation`,
     `expectNoVerticalClip`, and no layout exception (an overflow fails the
     pump);
-  - `expectNoMidWordBreak` on each name, by name (§13.3 applies it by name);
+  - `expectNoMidWordBreak` on each name, by name (§13.3 applies it by name).
+    A hyphenated name is measured by its pieces instead: that gate keeps the
+    hyphen inside its word, so it would call « Marie- » / « Laure », §13.3's
+    legal break, a break inside a word (found while building, §8);
+  - **the name drawn whole** (`didExceedMaxLines` false): the floor passes a
+    name cut after its eighth character, as « Fatoumata Ouédr… » was on a
+    guest card at 2× (found while building, §8);
   - **the shape itself**: each chip sits below its name, and the status chip
     sits below the name in the journal. This is what makes a mutation red at
     1×, where widths may still fit;
