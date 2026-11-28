@@ -227,10 +227,11 @@ export function ManualBookingDialog({
       });
   }
 
-  // ds-ignore: viewport-relative dialog scroll box.
-  // eslint-disable-next-line tailwindcss/no-arbitrary-value
+  // The scroll box this dialog carried for itself (90 % of the screen's
+  // height, an arbitrary value under a `ds-ignore`) is now every dialog's, in
+  // `Modal` (docs/design/web-dialogs-toast-doubled-text.md §4).
   const panelCls =
-    "max-h-[90vh] w-full max-w-sm overflow-y-auto rounded-xl border border-border bg-secondary p-l";
+    "w-full max-w-sm rounded-xl border border-border bg-secondary p-l";
 
   return (
     <Modal
@@ -280,14 +281,18 @@ export function ManualBookingDialog({
           <p className="text-labelMedium font-medium uppercase text-textTertiary">
             Date &amp; heure
           </p>
-          <div className="mt-xs flex gap-s">
+          {/* Wraps (WEB-SYSTEM §9 rule 1): a date or time field's automatic
+              minimum width is its intrinsic one, so two `flex-1` fields ran
+              « Heure du rendez-vous » to x 340 on a 320 phone at normal text
+              (found by web-dialogs-toast-doubled-text.md's gate). */}
+          <div className="mt-xs flex flex-wrap gap-s">
             <input
               type="date"
               aria-label="Date du rendez-vous"
               min={todayYmd(tz)}
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="flex-1 min-h-12 rounded-control border border-primary bg-surface p-m text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
+              className="min-h-12 min-w-0 flex-auto rounded-control border border-primary bg-surface p-m text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
             />
             <input
               type="time"
@@ -295,7 +300,7 @@ export function ManualBookingDialog({
               step={900}
               value={time}
               onChange={(e) => setTime(e.target.value)}
-              className="flex-1 min-h-12 rounded-control border border-primary bg-surface p-m text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
+              className="min-h-12 min-w-0 flex-auto rounded-control border border-primary bg-surface p-m text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
             />
           </div>
         </div>
@@ -433,7 +438,9 @@ export function ManualBookingDialog({
           Ouvrir la fiche
         </Link>
       ) : null}
-      <div className="mt-l flex justify-end gap-s">
+      {/* Wraps: « Annuler » left its panel at Android's 200 % (x 0 against
+          a content edge at 41; web-dialogs-toast-doubled-text.md §2.2). */}
+      <div className="mt-l flex flex-wrap justify-end gap-s">
         <Button variant="secondary" onClick={onClose} disabled={busy}>
           Annuler
         </Button>

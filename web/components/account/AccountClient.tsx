@@ -614,16 +614,25 @@ export function AccountClient() {
 
       {/* Confidentialité (parity 11.1/11.2 — AUTH-004/005 on web) */}
       <section className="mt-l rounded-xl border border-border bg-secondary p-m">
-        <h2 className="text-titleLarge font-semibold text-textPrimary">
+        {/* One word, 291 px at 44 px in a 254 px column at Android's 200 %:
+            it hyphenates (`lang="fr"`), and breaks without a hyphen where a
+            browser has no French hyphenation (the 404's remedy,
+            web-funnel-doubled-text.md §5). */}
+        <h2 className="break-words text-titleLarge font-semibold text-textPrimary hyphens-auto">
           Confidentialité
         </h2>
-        <div className="mt-s flex items-center justify-between gap-m">
+        {/* Wraps, and the link may narrow (WEB-SYSTEM §9 rule 1): it was
+            `shrink-0`, so at Android's 200 % it alone was 289 px in a 254 px
+            row and the page grew to 466 px, and at normal text the sentence
+            got what it left, 91 px and 8 lines
+            (docs/design/web-dialogs-toast-doubled-text.md §2.1). */}
+        <div className="mt-s flex flex-wrap items-center justify-between gap-x-m gap-y-s">
           <p className="text-bodyLarge text-textSecondary">
             Recevoir une copie de vos données (profil, rendez-vous, favoris).
           </p>
           <Link
             href="/mon-compte/donnees"
-            className="shrink-0 text-bodyMedium text-textPrimary underline"
+            className="text-bodyMedium text-textPrimary underline"
           >
             Exporter mes données
           </Link>

@@ -77,8 +77,12 @@ describe('Toast + useToast', () => {
     const { rerender } = render(
       <Toast toast={{ message: 'x', kind: 'error' }} />,
     );
-    expect(screen.getByText('x').className).toContain('bg-error');
+    // The words sit in their own item inside the pill, so a word wider than
+    // the screen can break (docs/design/web-dialogs-toast-doubled-text.md):
+    // the pill is the element that holds them.
+    const pill = () => screen.getByText('x').closest('[role=status] > div')!;
+    expect(pill().className).toContain('bg-error');
     rerender(<Toast toast={{ message: 'x', kind: 'success' }} />);
-    expect(screen.getByText('x').className).toContain('bg-primary');
+    expect(pill().className).toContain('bg-primary');
   });
 });

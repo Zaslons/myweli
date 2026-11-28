@@ -118,7 +118,10 @@ const REASONS = (failed: string) =>
   ] as const;
 
 /// The toast's pill: an error wears `bg-error` and stays 6 s (SYSTEM §15).
-const pill = (sentence: string) => screen.getByText(sentence, { selector: '[role=status] > div' });
+/// The words sit in their own item inside the pill (so a word wider than the
+/// screen can break, docs/design/web-dialogs-toast-doubled-text.md): the pill
+/// is the element that holds them.
+const pill = (sentence: string) => screen.getByText(sentence).closest('[role=status] > div') as HTMLElement;
 
 describe('Médias → Photos: the toast', () => {
   for (const [reason, sentence] of REASONS('Échec de l’envoi')) {

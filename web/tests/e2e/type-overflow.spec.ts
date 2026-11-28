@@ -2152,10 +2152,10 @@ test.describe('every other place that draws an address (web-email-seams)', () =>
             expect(account.length, '/mon-compte draws the address once').toBe(1);
             expectDrawnAtItsSeams(account[0], address, { font: size(14), broken: android });
             await expectHeardWhole(page, address);
-            // No screen-size check here: in the Android mode the page is
-            // already 466 wide with ANY address — « Exporter mes données » is
-            // `shrink-0` (web-email-seams.md §7, a follow-up). The address's
-            // own edge is held above, against the screen.
+            // The page keeps the screen's size: #902 left this out, because in
+            // the Android mode « Exporter mes données » (`shrink-0`) grew it to
+            // 466 with ANY address (web-dialogs-toast-doubled-text.md §2.1).
+            await expectScreenSize(page, PHONE_320);
 
             await page.goto('/mon-compte/donnees');
             await expect(page.getByRole('heading', { level: 1, name: 'Mes données' })).toBeVisible();
@@ -2370,6 +2370,295 @@ test.describe('the « Signaler » forms at doubled text (web-report-rows-doubled
           await expect(review.getByLabel('Raison du signalement'), '« Annuler » did not close the form').toHaveCount(0);
         });
       }
+    });
+  }
+});
+
+/// The dialogs, the toast and `/mon-compte` at doubled text
+/// (docs/design/web-dialogs-toast-doubled-text.md; WEB-SYSTEM §8, §9, §15 row
+/// 40). #902's §7 named three overflows that are not about addresses; measured
+/// at 320×568 on its head (`764e7598`) before a line was written:
+///
+/// - `/mon-compte` grew the layout viewport to 466×828 in the Android mode
+///   (« Exporter mes données », `shrink-0`), and behind it to 324×576 (the
+///   heading « Confidentialité », one word wider than its column).
+/// - A dialog taller than the screen was cut at both ends and nothing
+///   scrolled: « Changer le rôle » 988–1,194 px tall in the Android mode,
+///   « Annuler » unpressable; « Inviter un membre » with « Collaborateur » 716
+///   px tall at NORMAL text, « Envoyer l’invitation » unreachable. Its fiche
+///   row ran « Créer une fiche » to x 330 and « Créer » to 343 at normal text;
+///   five footers put « Annuler » off the left at 200 % (to x −67). A fixed
+///   dialog does not grow the page, so no page gate saw any of it.
+/// - The toast's pill, as wide as its longest word, ran x −34 to 354 with a
+///   one-word salon name in the Android mode.
+
+/// Every control of the open dialog `name`, read in its panel: the panel is
+/// wholly on the screen; no control runs past the panel's content edge; no
+/// select or date/time field is squeezed narrower than its own drawing while
+/// the panel has the room (a row that does not wrap squeezes its `min-w-0`
+/// fields side by side instead of running past the panel: the mutation pass
+/// found the date and time of « Nouveau rendez-vous » cut that way, which the
+/// two checks before it could not see); each control, scrolled into view
+/// inside the panel, is wholly on the screen (a person can reach it).
+/// `scrolls`: the panel's content is taller than its box, so the scroll is
+/// what is under test (the vacuity guard).
+async function expectDialogUsable(page: Page, name: string, opts: { title: number; scrolls?: boolean }) {
+  const dialog = page.getByRole('dialog', { name });
+  await expect(dialog, `« ${name} » did not open`).toBeVisible();
+  const read = await dialog.evaluate((d) => {
+    const panel = d.querySelector<HTMLElement>(':scope > [tabindex="-1"]')!;
+    const p = panel.getBoundingClientRect();
+    const s = getComputedStyle(panel);
+    const content = {
+      left: p.left + parseFloat(s.borderLeftWidth) + parseFloat(s.paddingLeft),
+      right: p.right - parseFloat(s.borderRightWidth) - parseFloat(s.paddingRight),
+    };
+    const label = (e: Element) =>
+      ((e as HTMLInputElement).placeholder || e.getAttribute('aria-label') || e.textContent || e.tagName).trim().slice(0, 30);
+    const controls = [...panel.querySelectorAll<HTMLElement>('h2, button, select, input, textarea, a[href]')].filter(
+      (e) => e.getBoundingClientRect().width > 0,
+    );
+    const past = controls
+      .filter((e) => {
+        const b = e.getBoundingClientRect();
+        return b.left < content.left - 1 || b.right > content.right + 1;
+      })
+      .map((e) => `${label(e)} [${Math.round(e.getBoundingClientRect().left)}, ${Math.round(e.getBoundingClientRect().right)}]`);
+    // A native field draws one line and cannot wrap: narrower than its own
+    // drawing, it cuts it. Its natural width is read in place (the field
+    // sized to `max-content` for the read, then given back its style), so it
+    // keeps its fonts — and in the Android mode its text cluster's doubling.
+    const squeezed: string[] = [];
+    for (const e of panel.querySelectorAll<HTMLElement>('select, input[type="date"], input[type="time"], input[type="datetime-local"]')) {
+      const cs = getComputedStyle(e);
+      const box = e.getBoundingClientRect();
+      if (!box.width || cs.position === 'absolute' || cs.opacity === '0') continue;
+      const before = e.getAttribute('style');
+      e.style.setProperty('width', 'max-content', 'important');
+      e.style.setProperty('min-width', '0', 'important');
+      e.style.setProperty('max-width', 'none', 'important');
+      e.style.setProperty('flex', 'none', 'important');
+      const natural = e.getBoundingClientRect().width;
+      if (before === null) e.removeAttribute('style');
+      else e.setAttribute('style', before);
+      const room = content.right - content.left;
+      if (box.width < Math.min(natural, room) - 1) {
+        squeezed.push(`${label(e)}: ${Math.round(box.width)} px of its ${Math.round(natural)} (room ${Math.round(room)})`);
+      }
+    }
+    const unreachable: string[] = [];
+    for (const e of controls) {
+      e.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+      const b = e.getBoundingClientRect();
+      if (b.left < -0.5 || b.top < -0.5 || b.right > innerWidth + 0.5 || b.bottom > innerHeight + 0.5) {
+        unreachable.push(`${label(e)} [${[b.left, b.top, b.right, b.bottom].map(Math.round).join(', ')}]`);
+      }
+    }
+    panel.scrollTop = 0;
+    return {
+      panel: [p.left, p.top, p.right, p.bottom].map(Math.round),
+      screen: [innerWidth, innerHeight],
+      title: parseFloat(getComputedStyle(panel.querySelector('h2')!).fontSize),
+      scrollable: panel.scrollHeight > panel.clientHeight + 1,
+      past,
+      squeezed,
+      unreachable,
+    };
+  });
+  expect(read.title, `« ${name} »: the title is not at this mode's size — the mode did not apply`).toBe(opts.title);
+  const [left, top, right, bottom] = read.panel;
+  expect(
+    left >= 0 && top >= 0 && right <= read.screen[0] && bottom <= read.screen[1],
+    `« ${name} »: the panel is not wholly on the screen: ${JSON.stringify(read)}`,
+  ).toBe(true);
+  expect(read.past, `« ${name} »: controls past the panel`).toEqual([]);
+  expect(read.squeezed, `« ${name} »: native fields squeezed narrower than their drawing`).toEqual([]);
+  expect(read.unreachable, `« ${name} »: controls a person cannot bring on the screen`).toEqual([]);
+  if (opts.scrolls) expect(read.scrollable, `« ${name} » fits its panel here, so its scroll is untested (vacuous)`).toBe(true);
+}
+
+/// Closes the open dialog `name` by its « Annuler », pressed as a person would
+/// (Playwright refuses a control it cannot bring on the screen).
+async function cancelDialog(page: Page, name: string) {
+  const dialog = page.getByRole('dialog', { name });
+  await dialog.getByRole('button', { name: 'Annuler', exact: true }).click({ timeout: 5_000 });
+  await expect(dialog).toBeHidden();
+}
+
+/// A salon's name is data, and a brand can be one long word: at 28 px it is
+/// wider than the pill's line on a 320 phone, at 14 px it fits.
+const ONE_WORD_SALON = 'BeautéDivineCocodyRiviera';
+
+test.describe('the dialogs, the toast and /mon-compte at doubled text (web-dialogs-toast-doubled-text)', () => {
+  for (const mode of CODE_STEP_TEXT) {
+    const android = 'isMobile' in mode.use;
+    const size = (px: number) => (android ? 2 * px : px);
+
+    test.describe(mode.name, () => {
+      test.use({ viewport: PHONE_320, ...mode.use });
+
+      test(`${mode.name} at 320 — /mon-compte keeps the screen's size; « Exporter mes données » and « Confidentialité » inside their section`, async ({ page }) => {
+        await inMode(page, mode.css);
+        await signInConsumer(page);
+        await expect(page.getByRole('heading', { level: 2, name: 'Mes rendez-vous' })).toBeVisible();
+        const link = page.getByRole('link', { name: 'Exporter mes données' });
+        await expect(link).toBeVisible();
+        const read = await link.evaluate((a) => {
+          const section = a.closest('section')!;
+          const r = section.getBoundingClientRect();
+          const s = getComputedStyle(section);
+          const edge = r.right - parseFloat(s.borderRightWidth) - parseFloat(s.paddingRight);
+          const heading = section.querySelector('h2')!;
+          const textRight = (el: Element) => {
+            const range = document.createRange();
+            range.selectNodeContents(el);
+            return Math.max(...[...range.getClientRects()].map((x) => x.right));
+          };
+          return {
+            font: parseFloat(getComputedStyle(a).fontSize),
+            heading: heading.textContent?.trim(),
+            edge: Math.round(edge),
+            link: Math.round(textRight(a)),
+            headingRight: Math.round(textRight(heading)),
+          };
+        });
+        expect(read.font, 'the link is not at this mode’s size — the mode did not apply').toBe(size(14));
+        expect(read.heading).toBe('Confidentialité');
+        expect(read.link, `« Exporter mes données » runs past its section: ${JSON.stringify(read)}`).toBeLessThanOrEqual(read.edge + 1);
+        expect(read.headingRight, `« Confidentialité » runs past its section: ${JSON.stringify(read)}`).toBeLessThanOrEqual(read.edge + 1);
+        await expectScreenSize(page, PHONE_320);
+        // The deletion's confirmation is part of the same section.
+        await page.getByRole('button', { name: 'Supprimer mon compte' }).click();
+        await expect(page.getByText('Tapez SUPPRIMER pour confirmer')).toBeVisible();
+        await expectScreenSize(page, PHONE_320);
+      });
+
+      test(`${mode.name} at 320 — Équipe: « Inviter un membre », « Changer le rôle » and « Révoquer l’accès » on the screen, every control reachable`, async ({ page }) => {
+        await inMode(page, mode.css);
+        const member = { ...longMember('awa@example.com'), accountId: 'acc-long', role: 'reception', status: 'active', acceptedAt: '2026-11-21T00:00:00.000Z', expiresAt: null };
+        await page.route('**/api/pro/members', async (route) => {
+          if (route.request().method() !== 'GET') return route.fallback();
+          const r = await route.fetch();
+          const json = await r.json();
+          json.items.push(member);
+          await route.fulfill({ response: r, json });
+        });
+        await signInPro(page);
+        await page.goto('/pro/equipe');
+        const title = size(22);
+
+        for (const [opener, name] of [
+          [() => page.getByRole('button', { name: '+ Inviter un membre' }).click(), 'Inviter un membre'],
+          [
+            async () => {
+              await page.getByRole('button', { name: 'Actions pour awa@example.com' }).click();
+              await page.getByRole('button', { name: 'Changer le rôle' }).click();
+            },
+            'Changer le rôle',
+          ],
+        ] as const) {
+          await opener();
+          await expectDialogUsable(page, name, { title });
+          const dialog = page.getByRole('dialog', { name });
+          // « Collaborateur »: the fiche row (a select and « Créer une fiche »).
+          await dialog.getByRole('button', { name: /^Collaborateur/ }).click();
+          await expect(dialog.getByLabel('Fiche employé')).toBeVisible();
+          await expectDialogUsable(page, name, { title, scrolls: android });
+          // « Créer une fiche »: the name row (a field and « Créer »).
+          await dialog.getByRole('button', { name: 'Créer une fiche' }).click();
+          await expect(dialog.getByPlaceholder('Nom de l’employé')).toBeVisible();
+          await expectDialogUsable(page, name, { title, scrolls: android });
+          await cancelDialog(page, name);
+        }
+
+        await page.getByRole('button', { name: 'Actions pour awa@example.com' }).click();
+        await page.getByRole('button', { name: 'Révoquer l’accès' }).click();
+        await expectDialogUsable(page, 'Révoquer l’accès', { title });
+        await cancelDialog(page, 'Révoquer l’accès');
+        await expectScreenSize(page, PHONE_320);
+      });
+
+      test(`${mode.name} at 320 — « Ajouter un client », « Modifier le numéro » and « Nouveau rendez-vous » on the screen, every control reachable`, async ({ page }) => {
+        await inMode(page, mode.css);
+        await signInPro(page);
+        const title = size(22);
+
+        await page.goto('/pro/clients');
+        await page.getByRole('button', { name: '+ Ajouter un client' }).click();
+        await expectDialogUsable(page, 'Ajouter un client', { title });
+        await cancelDialog(page, 'Ajouter un client');
+
+        // The stub's guest card: a number of its own, editable.
+        await page.goto('/pro/clients/sc2');
+        await page.getByRole('button', { name: 'Modifier le numéro' }).click();
+        await expectDialogUsable(page, 'Modifier le numéro', { title });
+        await cancelDialog(page, 'Modifier le numéro');
+
+        await page.goto('/pro/rendez-vous');
+        await page.getByRole('button', { name: '+ Nouveau rendez-vous' }).click();
+        await expectDialogUsable(page, 'Nouveau rendez-vous', { title, scrolls: android });
+        await cancelDialog(page, 'Nouveau rendez-vous');
+      });
+
+      test(`${mode.name} at 320 — the toast: a one-word salon name stays inside the gutters, broken inside the pill`, async ({ page }) => {
+        await inMode(page, mode.css);
+        // The rejoin of roles.spec, by a former member of this test's own
+        // (`nomlong` in the stub: a sign-in re-arms its one pending
+        // invitation, and sharing roles.spec's « rejoint » across parallel
+        // workers would race). Rename-tolerant (pro.spec's « Beauté Divine
+        // Web »).
+        await page.route('**/api/pro/invitations', async (route) => {
+          if (route.request().method() !== 'GET') return route.fallback();
+          const r = await route.fetch();
+          const body = (await r.text()).replace(/Beauté Divine( Web)?/g, ONE_WORD_SALON);
+          await route.fulfill({ response: r, body });
+        });
+        await page.goto('/pro/connexion');
+        await page.getByLabel('Votre e-mail').fill('ancien.nomlong@equipe.test');
+        await page.getByRole('button', { name: 'Continuer avec e-mail' }).click();
+        await page.getByLabel('Code à 6 chiffres').fill('123456');
+        await page.getByRole('button', { name: 'Se connecter' }).click();
+        await expect(page.getByRole('heading', { level: 1, name: 'Invitations' })).toBeVisible();
+        await page.getByRole('button', { name: 'Rejoindre' }).click();
+
+        const said = page.getByRole('status').filter({ hasText: `Vous avez rejoint ${ONE_WORD_SALON}` });
+        await expect(said).toBeVisible();
+        const read = await said.evaluate((region, word) => {
+          const pill = region.firstElementChild as HTMLElement;
+          const b = pill.getBoundingClientRect();
+          const walker = document.createTreeWalker(pill, NodeFilter.SHOW_TEXT);
+          let lines = 0;
+          let textRight = 0;
+          for (let t = walker.nextNode(); t; t = walker.nextNode()) {
+            const at = (t.nodeValue ?? '').indexOf(word);
+            if (at < 0) continue;
+            const range = document.createRange();
+            range.setStart(t, at);
+            range.setEnd(t, at + word.length);
+            const rects = [...range.getClientRects()].filter((x) => x.width > 0);
+            lines = new Set(rects.map((x) => Math.round(x.top))).size;
+            textRight = Math.max(...rects.map((x) => x.right));
+          }
+          return {
+            pill: [b.left, b.right].map(Math.round),
+            screen: innerWidth,
+            font: parseFloat(getComputedStyle(pill).fontSize),
+            lines,
+            textRight: Math.round(textRight),
+          };
+        }, ONE_WORD_SALON);
+        expect(read.font, 'the toast is not at this mode’s size — the mode did not apply').toBe(size(14));
+        expect(read.lines, 'the salon’s name is not in the pill').toBeGreaterThan(0);
+        // `m`, 16 px, from each edge: the gutter the placement code keeps (EDGE).
+        expect(read.pill[0], `the pill comes nearer the left edge than 16 px: ${JSON.stringify(read)}`).toBeGreaterThanOrEqual(16);
+        expect(read.pill[1], `the pill comes nearer the right edge than 16 px: ${JSON.stringify(read)}`).toBeLessThanOrEqual(read.screen - 16);
+        expect(read.textRight, `the name runs past the pill: ${JSON.stringify(read)}`).toBeLessThanOrEqual(read.pill[1]);
+        // At 28 px the word is wider than the pill's line: it must break (the
+        // vacuity guard); at 14 px it fits on one.
+        if (android) expect(read.lines, 'the word never broke where it must (vacuous)').toBeGreaterThan(1);
+        else expect(read.lines, 'the word broke where it fits').toBe(1);
+        await expectScreenSize(page, PHONE_320);
+      });
     });
   }
 });

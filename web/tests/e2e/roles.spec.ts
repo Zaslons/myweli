@@ -183,9 +183,10 @@ test('revoked mid-session: probed out to the connexion banner', async ({
 // A former member — revoked, then re-invited — logs in. The session is live
 // but every probe answers not_a_member, so before signing out the web asks
 // for the account's own invitations: one is pending, so the « Invitations »
-// page replaces the dashboard instead of the banner. The stub's two
-// former-member fixtures re-arm at each login and sit outside the Équipe
-// roster (team.spec's seat counts never move).
+// page replaces the dashboard instead of the banner. The stub's
+// former-member fixtures (this file's two, and type-overflow.spec's own)
+// re-arm at each login and sit outside the Équipe roster (team.spec's seat
+// counts never move).
 
 test('a re-invited former member joins from « Invitations » and lands on '
   + 'their planning', async ({ page }) => {

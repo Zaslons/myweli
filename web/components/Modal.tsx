@@ -134,7 +134,22 @@ export function Modal({
         className={`absolute inset-0 ${scrimClassName}`}
         onClick={onClose}
       />
-      <div ref={panelRef} tabIndex={-1} className={`relative ${panelClassName}`}>
+      {/* A panel taller than the screen scrolls INSIDE it (WEB-SYSTEM §8):
+          at most the wrapper's height less its `m` padding, the page behind
+          not scrolled on when the panel reaches its end. Outside
+          `panelClassName`, so no dialog loses it by passing its own. Before,
+          the wrapper centred the panel and nothing scrolled, so a tall one
+          was cut at both ends: « Changer le rôle » 988 px tall on a 568 px
+          phone at Android's 200 %, « Inviter un membre » 716 px at normal
+          text, their buttons unreachable
+          (docs/design/web-dialogs-toast-doubled-text.md §2.2). Nothing in a
+          dialog is placed outside its panel, so the scroll clips nothing;
+          the Lightbox's `contents` panel has no box for these to act on. */}
+      <div
+        ref={panelRef}
+        tabIndex={-1}
+        className={`relative max-h-full overflow-y-auto overscroll-contain ${panelClassName}`}
+      >
         {title ? (
           <h2
             id={titleId}
