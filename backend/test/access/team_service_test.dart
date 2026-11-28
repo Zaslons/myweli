@@ -1030,7 +1030,13 @@ void main() {
   group('accept, B0.24', () {
     test('an invitation the salon purge deleted mid-accept answers not_found, '
         'never a 500', () async {
-      final now = DateTime.utc(2026, 11, 21);
+      // The suite's `now` (the real clock, set in setUp), as its siblings
+      // above use. This test pinned its own `DateTime.utc(2026, 11, 21)`, but
+      // the expiry it passes through is read on the REAL clock
+      // (`Member.isExpiredInvitation`), so its « 7 days » ran out at
+      // 2026-11-28T00:00Z and it answered `invitation_expired` from then on —
+      // red on main and on every PR. A test date the code does not read is a
+      // date that will come.
       final racing = _DeletedMidAccept();
       final t = TeamService(
         racing,
