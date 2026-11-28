@@ -18,6 +18,7 @@ import 'package:myweli/providers/pro_appointment_provider.dart';
 import 'package:myweli/providers/pro_artist_provider.dart';
 import 'package:myweli/providers/pro_auth_provider.dart';
 import 'package:myweli/providers/pro_availability_provider.dart';
+import 'package:myweli/providers/pro_clients_provider.dart';
 import 'package:myweli/providers/pro_dashboard_provider.dart';
 import 'package:myweli/providers/pro_deposit_settings_provider.dart';
 import 'package:myweli/providers/pro_journal_provider.dart';
@@ -28,6 +29,8 @@ import 'package:myweli/providers/pro_team_provider.dart';
 import 'package:myweli/screens/provider/appointments/appointment_list_screen.dart';
 import 'package:myweli/screens/provider/auth/pro_login_screen.dart';
 import 'package:myweli/screens/provider/availability/availability_screen.dart';
+import 'package:myweli/screens/provider/clients/client_detail_screen.dart';
+import 'package:myweli/screens/provider/clients/client_list_screen.dart';
 import 'package:myweli/screens/provider/dashboard/dashboard_screen.dart';
 import 'package:myweli/screens/provider/earnings/revenue_detail_screen.dart';
 import 'package:myweli/screens/provider/earnings/revenue_ledger_screen.dart';
@@ -45,6 +48,7 @@ import 'package:myweli/services/mock/mock_device_registration_service.dart';
 import 'package:myweli/services/mock/mock_locality_service.dart';
 import 'package:myweli/services/mock/mock_notification_service.dart';
 import 'package:myweli/services/mock/mock_pro_artist_service.dart';
+import 'package:myweli/services/mock/mock_pro_clients_service.dart';
 import 'package:myweli/services/mock/mock_pro_service.dart';
 import 'package:myweli/services/mock/mock_pro_team_service.dart';
 import 'package:myweli/services/mock/mock_push_notification_service.dart';
@@ -138,6 +142,11 @@ void main() {
       // locator's fields are `late final`, so it is one or the other), and a
       // service nobody had needed yet was simply absent.
       serviceLocator.reviewService = MockReviewService();
+      // The client list and card (app-pro-client-name-legibility.md §6): the
+      // seeded base — « Aïcha Koné » (MyWeli, VIP), « Koffi Yao » (MyWeli,
+      // two absences), « Tante Marie » (a guest, Fidèle). Its visit dates are
+      // read from the frozen clock, at first read.
+      serviceLocator.proClientsService = MockProClientsService();
       // The dashboard's bell. `_items = _seed()` is a non-`late` instance field,
       // so it is generated HERE, at construction — which is why the freeze above
       // has to precede it. The first version assigned this before any freeze and
@@ -419,6 +428,64 @@ void main() {
       expect(find.text('Salon Excellence'), findsOneWidget);
       expect(find.text('Nouveau'), findsNothing, reason: 'own mode has no FAB');
       await expectGolden(tester, 'pro_journal_own_mode');
+    });
+
+    // docs/design/app-pro-client-name-legibility.md §6 — the client's name on
+    // three Pro screens, which no picture held. Before: the card cut
+    // « Aïcha… » at the DEFAULT size (77 dp beside the badge and the two
+    // actions); the list drew « Koffi Yao » as « … » alone at 200 %; the
+    // journal « Jea… ». Now each name has its line, the chips go under it,
+    // and the card's actions sit beside the number.
+    for (final scale in [1.0, 2.0]) {
+      final x = scale.toInt();
+      testWidgets('the client list at 360 dp, ${x * 100} % text', (
+        tester,
+      ) async {
+        await _pumpPro(
+          tester,
+          const ClientListScreen(),
+          extra: [ChangeNotifierProvider(create: (_) => ProClientsProvider())],
+          size: Size(360, scale == 1 ? 800 : 1400),
+          scale: scale,
+        );
+        expect(find.text('Koffi Yao'), findsOneWidget);
+        await expectGolden(tester, 'pro_client_list_w360_x$x');
+      });
+
+      testWidgets('the client card at 360 dp, ${x * 100} % text', (
+        tester,
+      ) async {
+        await _pumpPro(
+          tester,
+          const ClientDetailScreen(clientId: 'sc1'),
+          extra: [ChangeNotifierProvider(create: (_) => ProClientsProvider())],
+          size: Size(360, scale == 1 ? 900 : 1400),
+          scale: scale,
+          rounds: 6,
+        );
+        expect(find.text('Aïcha Koné'), findsOneWidget);
+        await expectGolden(tester, 'pro_client_card_w360_x$x');
+      });
+    }
+
+    testWidgets('the journal, on a day that has appointments, at 360 dp, '
+        '200 % text', (tester) async {
+      await _pumpPro(
+        tester,
+        const ProJournalScreen(),
+        extra: [ChangeNotifierProvider(create: (_) => ProJournalProvider())],
+        size: const Size(360, 1400),
+        scale: 2,
+        rounds: 10,
+      );
+      // The day `MockData` seeds, found from the strip, as above.
+      final today = salonNow(now: kFixedNow);
+      final monday = today.subtract(Duration(days: today.weekday - 1));
+      final target = monday.add(Duration(days: today.weekday - 1 + 2));
+      await tester.tap(find.text('${target.day}'));
+      await settleMocks(tester, rounds: 10);
+      expect(find.text('Jean Kouassi'), findsOneWidget);
+      await expectGolden(tester, 'pro_journal_day_w360_x2');
     });
 
     // ---- « Revenus » (docs/design/pro-revenue-analytics.md §13.2) -------
