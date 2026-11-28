@@ -2,7 +2,8 @@
 
 | | |
 |---|---|
-| **Status** | Draft (2026-11-28), waiting for the owner's decisions in §5 |
+| **Status** | Approved (2026-11-28) |
+| **Approved** | by the owner, 2026-11-28, on §5: « Approve as recommended » (all five decisions) |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-11-28 |
 | **Module / phase** | `clients` (the list and the client card) · `journal` (the day's timeline) · V1 |
@@ -252,7 +253,7 @@ journal's deposit icon (§5 Q4).
 places follow rules it already states. §21 row 100 records the three screens
 as fixed, together with what §2.2 found.
 
-## 5. Decisions for the owner
+## 5. Decisions (answered 2026-11-28, all five as recommended)
 
 1. **The shape: the chips under the name, at every text size, on all three
    screens** (§4). *Recommended.* It is what #905 and #912 did. It is one
@@ -264,11 +265,13 @@ as fixed, together with what §2.2 found.
      stays for short rows at 1×. But the same list then mixes two shapes: any
      row with absences and a long name goes under even at 1× (§2.1: 1 and 5
      characters at 360).
+   **Approved.**
 2. **The name is never cut: it wraps between its words.** *Recommended.*
    - *Alternative:* one line with « … », in the new width. That clears the
      8-character floor, but cuts long names at 2× (« Adjoua Kouamé K… »), so
      two clients who share a first name and the start of a surname look the
      same in the list.
+   **Approved.**
 3. **A word too long for the line: the card drops its avatar, and the
    journal moves the time above the name, only for that name at that size**
    (§4.1, §4.3). *Recommended.* §13.3 says a name the salon chooses between
@@ -278,12 +281,14 @@ as fixed, together with what §2.2 found.
      a break inside such a word (« Kouakouss » / « ou ») at 2×, recorded in
      §21. #912 accepted this for an e-mail piece, but only because no layout
      had any more width to give.
+   **Approved.**
 4. **The deposit icon is heard as « Acompte ».** *Recommended:* today a
    screen reader user is never told about the deposit.
    - *Alternative:* leave it unheard, as today.
+   **Approved.**
 5. **One PR for the three screens, or one per screen.** *Recommended: one
    PR.* One spec, one test file, one golden run. Each screen has its own
-   commits, and they can be read one at a time.
+   commits, and they can be read one at a time. **Approved: one PR.**
 
 ## 6. Tests: red first, on the code before the change
 
