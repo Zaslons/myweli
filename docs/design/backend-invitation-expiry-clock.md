@@ -4,7 +4,7 @@
 |---|---|
 | **Statut** | **Construit** (cette PR, ouverte le 2026-11-28, non fusionnée). Aucun changement en production : l'horloge du service y est l'horloge réelle. |
 | **Module** | `access` (équipe, R2b) |
-| **Origine** | Depuis le 2026-11-28 à 00 h 00 UTC, « Backend — Analyze & Test », un contrôle obligatoire, échoue sur `main` (`aaac273f`) et sur chaque PR (la PR A11y #909, run 46087213500) : plus rien ne peut fusionner. |
+| **Origine** | Depuis le 2026-11-28 à 00 h 00 UTC, « Backend — Analyze & Test », un contrôle obligatoire, échouait sur `main` (`aaac273f`) et sur chaque PR (la PR A11y #909, run 46087213500) : plus rien ne pouvait fusionner. #914 (`2a96746b`, fusionnée le 2026-11-28 à 09 h 36 UTC) a rendu `main` vert en changeant le test seul : il lit désormais l'horloge réelle. Cette PR-ci corrige le défaut lui-même et pose le garde. |
 | **Régit** | `backend/lib/src/access/membership_repository.dart` (`Member.isExpiredInvitationAt`) · `backend/lib/src/access/team_service.dart` (ses trois lectures) · `backend/test/access/team_service_test.dart` · `backend/test/access/invite_contract.dart` |
 | **Liés** | [team-access-r2b-invitations.md](team-access-r2b-invitations.md) (la machine à états) · [backend-team-reinvite.md](backend-team-reinvite.md) · [backend-team-invite-caps.md](backend-team-invite-caps.md) §5.3 · [deleted-owner-salon-purge.md](deleted-owner-salon-purge.md) §6.7 (le test qui a sauté) |
 | **Skills consultés** | myweli-backend-guardrails · myweli-verification-guardrails |
@@ -57,8 +57,11 @@ cas de tous (balayage, §5).
 
 ## 4. Les tests
 
-- **Rouge d'abord :** le test B0.24 était rouge sur `main`. Il passe, quelle
-  que soit la date réelle : sa relecture renvoie `null` avant `activate`.
+- **Rouge d'abord :** le test B0.24 était rouge sur `main` (`aaac273f`) et
+  passait avec ce correctif, sans toucher au test, quelle que soit la date
+  réelle : sa relecture renvoie `null` avant `activate`. Entre-temps, #914 l'a
+  fait lire l'horloge réelle ; son commentaire, qui disait l'expiration lue
+  au mur, est mis à jour ici.
 - **Le test qui l'aurait vu tout de suite :** « invitation expiry is judged by
   the service clock, whatever the wall clock says ». Deux horloges figées loin
   d'aujourd'hui, en 2001 et en 2101, une dans chaque sens. Invitation à J,
