@@ -14,6 +14,7 @@ import '../../../core/utils/formatters.dart';
 import '../../../core/utils/salon_id.dart';
 import '../../../core/utils/salon_time.dart';
 import '../../../core/utils/status_labels.dart';
+import '../../../core/utils/text_fit.dart';
 import '../../../models/appointment.dart';
 import '../../../models/journal_day.dart';
 import '../../../providers/pro_auth_provider.dart';
@@ -793,6 +794,10 @@ class _ArtistChips extends StatelessWidget {
   }
 }
 
+/// A booking on the day's timeline (docs/design/app-pro-client-name-
+/// legibility.md §4.3): the time, then the client's name on its own line,
+/// « N prestations », and one line of chips — the status, the absences, the
+/// deposit.
 class _TimelineCard extends StatelessWidget {
   const _TimelineCard({
     required this.appt,
@@ -842,83 +847,125 @@ class _TimelineCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
         border: Border(left: BorderSide(color: _statusColor, width: 3)),
       ),
-      child: Row(
-        children: [
-          Column(
+      // **The time gives way to a long word** (§4.3): it stands beside the
+      // name while the name's widest piece fits there, and above it when it
+      // does not — « Kouakoussou » is 200dp at 2×, beside a time that leaves
+      // 195 at 360. Measured on this booking's strings, here, so it is decided
+      // again when the width, the text size or the name changes.
+      child: LayoutBuilder(
+        builder: (context, box) {
+          final fit = TextFit.of(context);
+          final name = appt.clientDisplayName ?? appt.clientName ?? 'Client';
+          final startText = Formatters.formatTime(
+            toSalonTime(appt.appointmentDate, tz: tz),
+          );
+          final endText = Formatters.formatTime(toSalonTime(end, tz: tz));
+          final timeWidth = math.max(
+            fit.lineWidth(startText, AppTextStyles.titleMedium),
+            fit.lineWidth(endText, AppTextStyles.bodySmall),
+          );
+          final nameStyle = AppTextStyles.bodyLarge.copyWith(
+            fontWeight: FontWeight.w500,
+          );
+          final besideTime = fit.holds(
+            box.maxWidth - timeWidth - AppTheme.spacingM,
+            [(text: name, style: nameStyle)],
+          );
+          final start = Text(
+            startText,
+            style: AppTextStyles.titleMedium.copyWith(
+              color: AppColors.textPrimary,
+            ),
+          );
+          final endT = Text(
+            endText,
+            style: AppTextStyles.bodySmall.copyWith(
+              color: AppColors.textTertiary,
+            ),
+          );
+          final details = Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // No ellipsis, nothing beside it: the name had 84dp at
+              // 360 × 2× (« Jea… ») and none at all beside a client's real
+              // chips, which overflowed the card by 83dp (§2.1).
               Text(
-                Formatters.formatTime(
-                  toSalonTime(appt.appointmentDate, tz: tz),
-                ),
-                style: AppTextStyles.titleMedium.copyWith(
+                name,
+                style: nameStyle.copyWith(
                   color: AppColors.textPrimary,
+                  decoration: cancelled ? TextDecoration.lineThrough : null,
                 ),
               ),
               Text(
-                Formatters.formatTime(toSalonTime(end, tz: tz)),
-                style: AppTextStyles.bodySmall.copyWith(
-                  color: AppColors.textTertiary,
+                Formatters.count(
+                  appt.serviceIds.length,
+                  'prestation',
+                  'prestations',
                 ),
+                style: AppTextStyles.bodySmall.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: AppTheme.spacingXS),
+              // The status leads the line. At the card's right edge,
+              // « Confirmé » alone took 111dp from the name at 360 × 2×.
+              Wrap(
+                spacing: AppTheme.spacingXS,
+                runSpacing: AppTheme.spacingXS,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  AppChip.status(label: statusLabel, tone: _statusTone),
+                  if ((appt.clientNoShowCount ?? 0) >= 1)
+                    AppChip.status(
+                      label: appt.clientNoShowCount == 1
+                          ? '1 absence'
+                          : '${appt.clientNoShowCount} absences',
+                      tone: (appt.clientNoShowCount ?? 0) >= 2
+                          ? AppChipTone.error
+                          : AppChipTone.neutral,
+                    ),
+                  // Heard: a screen reader was never told of the deposit
+                  // (§5 decision 4). « Acompte » is the app's word for it.
+                  if (appt.depositAmount > 0)
+                    const Icon(
+                      Icons.savings_outlined,
+                      size: AppTheme.iconXS,
+                      color: AppColors.textTertiary,
+                      semanticLabel: 'Acompte',
+                    ),
+                ],
               ),
             ],
-          ),
-          const SizedBox(width: AppTheme.spacingM),
-          Expanded(
-            child: Column(
+          );
+          // The time sits level with the name's first line.
+          if (besideTime) {
+            return Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Flexible(
-                      child: Text(
-                        appt.clientDisplayName ?? appt.clientName ?? 'Client',
-                        overflow: TextOverflow.ellipsis,
-                        style: AppTextStyles.bodyLarge.copyWith(
-                          color: AppColors.textPrimary,
-                          fontWeight: FontWeight.w500,
-                          decoration: cancelled
-                              ? TextDecoration.lineThrough
-                              : null,
-                        ),
-                      ),
-                    ),
-                    if ((appt.clientNoShowCount ?? 0) >= 1) ...[
-                      const SizedBox(width: AppTheme.spacingXS),
-                      AppChip.status(
-                        label: appt.clientNoShowCount == 1
-                            ? '1 absence'
-                            : '${appt.clientNoShowCount} absences',
-                        tone: (appt.clientNoShowCount ?? 0) >= 2
-                            ? AppChipTone.error
-                            : AppChipTone.neutral,
-                      ),
-                    ],
-                    if (appt.depositAmount > 0) ...[
-                      const SizedBox(width: AppTheme.spacingXS),
-                      const Icon(
-                        Icons.savings_outlined,
-                        size: AppTheme.iconXS,
-                        color: AppColors.textTertiary,
-                      ),
-                    ],
-                  ],
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [start, endT],
                 ),
-                Text(
-                  Formatters.count(
-                    appt.serviceIds.length,
-                    'prestation',
-                    'prestations',
-                  ),
-                  style: AppTextStyles.bodySmall.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
-                ),
+                const SizedBox(width: AppTheme.spacingM),
+                Expanded(child: details),
               ],
-            ),
-          ),
-          AppChip.status(label: statusLabel, tone: _statusTone),
-        ],
+            );
+          }
+          // Above the name: « 14:30 15:00 » on one line, and the name with
+          // the card's whole width under it.
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Wrap(
+                spacing: AppTheme.spacingS,
+                crossAxisAlignment: WrapCrossAlignment.end,
+                children: [start, endT],
+              ),
+              const SizedBox(height: AppTheme.spacingXS),
+              details,
+            ],
+          );
+        },
       ),
     );
   }

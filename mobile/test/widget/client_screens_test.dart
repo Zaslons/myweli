@@ -691,7 +691,7 @@ void main() {
       }
     }
 
-    // Where the actions are, in words: beside the name while the number
+    // Where the actions are, in words: beside the number while it
     // fits, under it when it does not.
     for (final (scale, beside) in [(1.0, true), (1.3, false)]) {
       testWidgets(

@@ -117,6 +117,11 @@ as Rendez-vous) → route `/pro/clients` (go_router, pushed).
 - Rows: initials avatar (AppColors token bg) · name · masked phone
   (`+225 07 •• •• •89`) · « {n} visites · dernière {il y a 3 j} » ·
   tag chips · red dot when noShows ≥ 2 · « MyWeli » mark when `linked`.
+  **Amended 2026-11-28** ([app-pro-client-name-legibility.md](app-pro-client-name-legibility.md)
+  §4.2): the name is the row's title alone, never cut, wrapping between its
+  words; under it one line of chips — « MyWeli », « {n} absence(s) »
+  (neutral at 1, red from 2), the first two tags — then the masked number and
+  the visits. A client with no chip keeps two lines.
 - Infinite scroll (paginated); pull-to-refresh = BrandRefresh.
 - **States:** loading skeleton (BrandLoader) · educational empty (« Vos clients
   apparaîtront ici automatiquement après leur première réservation. » + CTA
@@ -129,7 +134,12 @@ as Rendez-vous) → route `/pro/clients` (go_router, pushed).
 **Fiche client (`ClientDetailScreen`, `/pro/clients/:id`):**
 - Header: name · tags (tap → edit sheet with preset + custom chips) · phone
   row with **Appeler** / **WhatsApp** actions (url_launcher `tel:`/`wa.me`) ·
-  « MyWeli » badge when linked.
+  « MyWeli » badge when linked. **Amended 2026-11-28**
+  ([app-pro-client-name-legibility.md](app-pro-client-name-legibility.md)
+  §4.1): the name has the column's whole width and wraps, never cut; the
+  badge goes under it; the actions sit beside the number while it fits on one
+  line there, under it otherwise; the initial avatar is not drawn when the
+  name's longest word would not fit beside it.
 - Stats strip (4 tiles): Visites · Dépensé (formatFcfa) · Absences ·
   Dernière visite.
 - « Prochain rendez-vous » card when `upcoming` (taps to appointment detail).

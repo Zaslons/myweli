@@ -229,6 +229,8 @@ class _ClientListScreenState extends State<ClientListScreen> {
   }
 }
 
+/// A client in the list: the name on its own line, its chips under it, then
+/// the masked number and the visits (app-pro-client-name-legibility.md §4.2).
 class _ClientRow extends StatelessWidget {
   const _ClientRow({required this.client});
 
@@ -242,6 +244,24 @@ class _ClientRow extends StatelessWidget {
         '${client.visits} visite${client.visits > 1 ? 's' : ''}',
       if (client.lastVisitAt != null)
         'dernière ${Formatters.formatRelative(client.lastVisitAt!, midSentence: true)}',
+    ];
+    // One line of chips under the name (docs/design/app-pro-client-name-
+    // legibility.md §4.2): « MyWeli », the absences, the first two tags.
+    // Beside it they left the name 0dp at 360 × 2× (« Koffi Yao » drawn as
+    // « … ») and overflowed the row by 111dp with a client's real chips; the
+    // tags at the row's edge took width from the name at every size.
+    final chips = <Widget>[
+      if (client.linked)
+        const AppChip.status(label: 'MyWeli', tone: AppChipTone.neutral),
+      if (client.noShows >= 1)
+        AppChip.status(
+          label: client.noShows == 1
+              ? '1 absence'
+              : '${client.noShows} absences',
+          tone: client.noShows >= 2 ? AppChipTone.error : AppChipTone.neutral,
+        ),
+      for (final t in client.tags.take(2))
+        AppChip.status(label: t, tone: AppChipTone.neutral),
     ];
     return ListTile(
       contentPadding: EdgeInsets.zero,
@@ -257,48 +277,36 @@ class _ClientRow extends StatelessWidget {
           ),
         ),
       ),
-      title: Row(
+      // No ellipsis: the name has the row's whole width and wraps between
+      // its words (§5 decision 2).
+      title: Text(
+        client.displayName,
+        style: AppTextStyles.bodyLarge.copyWith(
+          color: AppColors.textPrimary,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Flexible(
-            child: Text(
-              client.displayName,
-              overflow: TextOverflow.ellipsis,
-              style: AppTextStyles.bodyLarge.copyWith(
-                color: AppColors.textPrimary,
-                fontWeight: FontWeight.w500,
+          // No chip, no line: a client with none keeps two lines.
+          if (chips.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: AppTheme.spacingXS),
+              child: Wrap(
+                spacing: AppTheme.spacingXS,
+                runSpacing: AppTheme.spacingXS,
+                children: chips,
               ),
             ),
-          ),
-          if (client.linked) ...[
-            const SizedBox(width: AppTheme.spacingXS),
-            const AppChip.status(label: 'MyWeli', tone: AppChipTone.neutral),
-          ],
-          if (client.noShows >= 1) ...[
-            const SizedBox(width: AppTheme.spacingXS),
-            AppChip.status(
-              label: client.noShows == 1
-                  ? '1 absence'
-                  : '${client.noShows} absences',
-              tone: client.noShows >= 2
-                  ? AppChipTone.error
-                  : AppChipTone.neutral,
+          Text(
+            subtitleParts.join(' · '),
+            style: AppTextStyles.bodySmall.copyWith(
+              color: AppColors.textSecondary,
             ),
-          ],
+          ),
         ],
       ),
-      subtitle: Text(
-        subtitleParts.join(' · '),
-        style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
-      ),
-      trailing: client.tags.isEmpty
-          ? null
-          : Wrap(
-              spacing: AppTheme.spacingXS,
-              children: [
-                for (final t in client.tags.take(2))
-                  AppChip.status(label: t, tone: AppChipTone.neutral),
-              ],
-            ),
     );
   }
 }

@@ -68,6 +68,11 @@ Liste — nothing removed).
   the one colour language from the grid), a deposit badge (₣) when paid, and
   the **no-show badge** (« 1 absence » neutral / « 2 absences » red) beside the
   client — the accept-moment signal, on the timeline too.
+  **Amended 2026-11-28** ([app-pro-client-name-legibility.md](app-pro-client-name-legibility.md)
+  §4.3): the client's name has its own line, never cut; « N prestations »
+  under it; then one line of chips — the status first, the absences, the
+  deposit icon, heard « Acompte ». The time stands beside the name, and goes
+  above it when the name's longest word would not fit there.
 - **Free-gap slots:** between consecutive cards, a gap ≥30 min renders a slim
   tappable **« Libre — 14 h 00 › »** row → `/pro/appointment/new` prefilled
   with that start time (+ the filtered artist, if one is selected). Story #4.

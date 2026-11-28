@@ -33,7 +33,9 @@ import '../../../widgets/common/screen_title.dart';
 /// The client card (module `clients` C1c, docs/design/clients-c1.md §5):
 /// identity + call/WhatsApp actions, tags, salon-scoped stats, upcoming
 /// booking, team-only notes, visit history, and « Nouveau rendez-vous »
-/// prefilled into manual booking.
+/// prefilled into manual booking. The header's shape — the name whole, the
+/// badge under it, the actions beside the number — is
+/// docs/design/app-pro-client-name-legibility.md §4.1.
 class ClientDetailScreen extends StatefulWidget {
   const ClientDetailScreen({super.key, required this.clientId});
 
@@ -245,9 +247,11 @@ class _Header extends StatelessWidget {
   final VoidCallback? onEditPhone;
 
   static const TextStyle _phoneStyle = AppTextStyles.bodyMedium;
+  static const TextStyle _nameStyle = AppTextStyles.titleLarge;
   static const double _avatarRadius = 24;
 
   /// What the avatar and its gap take from the name-and-number column.
+  /// `pro_client_names_test.dart` restates it as `_avatarAndGap`.
   static const double _identityIndent = 2 * _avatarRadius + AppTheme.spacingM;
 
   /// « Appeler » and « WhatsApp »: two minimum tap targets.
@@ -264,12 +268,25 @@ class _Header extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // **The name is never cut, and nothing sits beside it**
+          // (docs/design/app-pro-client-name-legibility.md §4.1, SYSTEM.md
+          // §13.3). It had 77dp at 360 × 1× beside the « MyWeli » badge and
+          // the two actions: « Aïcha… » at the default size. It now has the
+          // column's whole width and wraps between its words; the badge goes
+          // under it, the actions beside the number they act on.
+          //
           // **The number never wraps** (docs/design/amounts-that-fit.md §11
-          // Q3, SYSTEM.md §13.3): « Appeler » and « WhatsApp » sit beside it
-          // while it fits on one line there, drop under it when it does not,
-          // and at very large text the number takes the card's full width.
-          // Measured, like the stats strip: it wrapped between its pairs from
-          // 1.1× on 360dp (145dp in 136) under a fixed layout.
+          // Q3): « Appeler » and « WhatsApp » sit beside it while it fits on
+          // one line there, drop under it when it does not, and at very large
+          // text the number takes the card's full width. Measured, like the
+          // stats strip: it wrapped between its pairs from 1.1× on 360dp
+          // (145dp in 136) under a fixed layout.
+          //
+          // **The avatar gives way to a long word** (§4.1): drawn while the
+          // name's widest piece fits beside it, not drawn when it does not —
+          // « Kouakoussou » is 268dp of `titleLarge` at 2×, beside an avatar
+          // that leaves 232 at 360. Measured on the name, here, so it is
+          // decided again when the width, the text size or the name changes.
           LayoutBuilder(
             builder: (context, box) {
               final phone = client.phone == null
@@ -279,8 +296,12 @@ class _Header extends StatelessWidget {
               final needs = phone == null
                   ? 0.0
                   : fit.lineWidth(phone, _phoneStyle) + TextFit.slack;
-              final beside = box.maxWidth - _identityIndent - _actionsWidth;
-              final alone = box.maxWidth - _identityIndent;
+              final withAvatar = fit.holds(box.maxWidth - _identityIndent, [
+                (text: client.displayName, style: _nameStyle),
+              ]);
+              final indent = withAvatar ? _identityIndent : 0.0;
+              final beside = box.maxWidth - indent - _actionsWidth;
+              final alone = box.maxWidth - indent;
 
               final number = phone == null
                   ? null
@@ -331,72 +352,86 @@ class _Header extends StatelessWidget {
                 ],
               ];
               final numberInColumn = needs <= alone;
-              final identity = <Widget>[
-                CircleAvatar(
-                  radius: _avatarRadius,
-                  backgroundColor: AppColors.surfaceVariant,
-                  child: Text(
-                    client.displayName.isEmpty
-                        ? '?'
-                        : client.displayName[0].toUpperCase(),
-                    style: AppTextStyles.titleLarge.copyWith(
-                      color: AppColors.textPrimary,
-                    ),
+              final numberBeside = needs <= beside;
+              final badge = Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppTheme.spacingS,
+                  vertical: AppTheme.spacingXS,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceVariant,
+                  borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+                ),
+                child: Text(
+                  'MyWeli',
+                  style: AppTextStyles.labelSmall.copyWith(
+                    color: AppColors.textTertiary,
                   ),
                 ),
-                const SizedBox(width: AppTheme.spacingM),
+              );
+              final identity = <Widget>[
+                if (withAvatar) ...[
+                  CircleAvatar(
+                    radius: _avatarRadius,
+                    backgroundColor: AppColors.surfaceVariant,
+                    child: Text(
+                      client.displayName.isEmpty
+                          ? '?'
+                          : client.displayName[0].toUpperCase(),
+                      style: AppTextStyles.titleLarge.copyWith(
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: AppTheme.spacingM),
+                ],
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        children: [
-                          Flexible(
-                            child: Text(
-                              client.displayName,
-                              overflow: TextOverflow.ellipsis,
-                              style: AppTextStyles.titleLarge.copyWith(
-                                color: AppColors.textPrimary,
-                              ),
-                            ),
-                          ),
-                          if (client.linked) ...[
-                            const SizedBox(width: AppTheme.spacingXS),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: AppTheme.spacingS,
-                                vertical: AppTheme.spacingXS,
-                              ),
-                              decoration: BoxDecoration(
-                                color: AppColors.surfaceVariant,
-                                borderRadius: BorderRadius.circular(
-                                  AppTheme.radiusSmall,
-                                ),
-                              ),
-                              child: Text(
-                                'MyWeli',
-                                style: AppTextStyles.labelSmall.copyWith(
-                                  color: AppColors.textTertiary,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ],
+                      // No ellipsis: a name wraps between its words
+                      // (§5 decision 2) — two clients who share a first name
+                      // and the start of a surname must not read the same.
+                      Text(
+                        client.displayName,
+                        style: _nameStyle.copyWith(
+                          color: AppColors.textPrimary,
+                        ),
                       ),
-                      if (number != null && numberInColumn) number,
+                      if (client.linked) ...[
+                        const SizedBox(height: AppTheme.spacingXS),
+                        badge,
+                      ],
+                      if (number != null && numberInColumn)
+                        numberBeside
+                            ? Row(
+                                children: [
+                                  Expanded(child: number),
+                                  ...actions,
+                                ],
+                              )
+                            : number,
                     ],
                   ),
                 ),
               ];
 
-              if (needs <= beside) {
-                return Row(children: [...identity, ...actions]);
+              // The avatar sits level with the name's first line: centred on
+              // the taller column, it floated beside the number at 2×.
+              if (numberBeside || number == null) {
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: identity,
+                );
               }
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(children: identity),
-                  if (number != null && !numberInColumn) ...[
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: identity,
+                  ),
+                  if (!numberInColumn) ...[
                     const SizedBox(height: AppTheme.spacingXS),
                     number,
                   ],
