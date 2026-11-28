@@ -1,0 +1,16 @@
+- 🟡 **La ligne de résumé de la purge tourne en production, et sa première nuit se lit : les mêmes trois salons et les mêmes nombres que le compte du 2026-11-20 ; #826 consignée comme fusionnée (documentation · backend · 2026-11-28 — BACKLOG B0.24 ; décisions 153 à 158).** Non fusionné : branche `docs/records-826-night-1`, créée depuis `main` (`aaac273f`). Documentation seule : aucun code ne change, rien n’est déployé par cette PR. Spec : [deleted-owner-salon-purge.md](../../design/deleted-owner-salon-purge.md) §6.6 étape 3, §6.9, §10.
+  - **Le déploiement, le 2026-11-21, sur le « Merge and deploy » du propriétaire :**
+    - #826 fusionnée à 18:38 UTC (`a1fe8b7f`) ; la CI de `main` sur la fusion passe, 10 sur 10 ;
+    - l’envoi (run 44938432328, `image_tag=a1fe8b7`) réussit, y compris la vérification que la révision sert ;
+    - la révision `myweli-api-00054-7lb` sert 100 %, avec l’image `a1fe8b7` et `SALON_PURGE_MODE=rehearse`. Le retour arrière était `00053-5ls` ;
+    - relu ensuite : `/health` répond 200, les « Production checks » passent (11 sur 11), et la nouvelle révision n’écrit rien au-dessus d’INFO. Le contrôle : la même requête trouve 21 lignes de la révision, et des avertissements sur l’ancienne.
+  - **La première nuit, le 2026-11-22, lue à 03:47 UTC sur le oui du propriétaire, en lecture seule :**
+    - la tâche de nuit répond 200 à 03:30:01 UTC, 2 062 octets en 2,2 s (356 octets la veille, avant la purge) ;
+    - une seule ligne `salon_purge summary`, à 03:30:03 UTC, sur une ligne, sans `@` ;
+    - le mode est `rehearse` ; 3 salons répétés, les mêmes que les 3 qui seraient inscrits ; rien de reporté, d’ignoré ou d’échoué ; la limite de temps n’est pas atteinte ;
+    - chaque nombre est celui du compte du 2026-11-20 : deux salons n’ont que leur ligne, le troisième a 1 disponibilité, 6 horaires, 5 pauses, 1 ligne du journal de l’équipe et la photo qui partirait ;
+    - la migration 0046 est désormais observée : la répétition a lu sa table et répondu.
+  - **Déduit, non observé :** que ce sont les trois mêmes salons que le 2026-11-20. Ce compte ne gardait que #1 à #3, pas les identifiants ; les formes et le total concordent.
+  - **Il reste, chacun sur le oui du propriétaire :** les nuits 2 à 7 (les lignes sont gardées 30 jours), l’empreinte de chaque salon avant et après une répétition, puis `execute` limité à un salon.
+  - **Consignée comme fusionnée :** #826 (`a1fe8b7f`). Le contenu de `main` est identique à celui de la PR qu’a testé la CI, et son entrée passe au vert.
+  - **Mis à jour :** la spec (le statut, l’étape 3 du §6.6, le §6.9, le §10 et la définition de fini), la ligne T84 de BACKEND.md et BACKLOG B0.24.

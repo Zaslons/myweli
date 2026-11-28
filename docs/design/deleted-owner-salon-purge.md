@@ -3,9 +3,9 @@
 | | |
 |---|---|
 | **Module** | backend — a salon purge on the daily maintenance cron (`POST /internal/cron/maintenance`), a stamp in `ProviderAccountService.deleteAccount`, migration `0046`; then three text PRs (web, privacy policy, Play's Data safety record) |
-| **Status** | **Approved 2026-11-20: the owner answered Q1–Q6 « Approve as recommended », decisions 153–158 (§11). Built (§6.8), merged 2026-11-21 (#823, `80e65185`) and deployed the same day: revision `myweli-api-00053-5ls`, image `80e6518`, `SALON_PURGE_MODE=rehearse` (§10 step 4). Real purges are off;** each next step waits for the owner's yes (§10, §12). **The rehearsals cannot be read yet:** the run's answer is logged nowhere (§6.6 step 3). *2026-11-20: production counted read-only (§6.6 step 1): 3 salons with no owner, no member row and no shared file.* An independent review against the code found 7 problems in the first draft, all folded in (§13). Decision 138 filed this item; android-play-release step 10 needs it **decided** (this spec answered), not built |
+| **Status** | **Approved 2026-11-20: the owner answered Q1–Q6 « Approve as recommended », decisions 153–158 (§11). Built (§6.8), merged 2026-11-21 (#823, `80e65185`) and deployed the same day: revision `myweli-api-00053-5ls`, image `80e6518`, `SALON_PURGE_MODE=rehearse` (§10 step 4). Real purges are off;** each next step waits for the owner's yes (§10, §12). **Since 2026-11-21 each night's answer is logged** as one `salon_purge summary` line (§6.9: #826, `a1fe8b7f`, deployed as revision `myweli-api-00054-7lb`). Night 1 (2026-11-22) was read and matches the production count; nights 2–7 and the before/after fingerprint are owed (§6.6 step 3). *2026-11-20: production counted read-only (§6.6 step 1): 3 salons with no owner, no member row and no shared file.* An independent review against the code found 7 problems in the first draft, all folded in (§13). Decision 138 filed this item; android-play-release step 10 needs it **decided** (this spec answered), not built |
 | **Owner** | the project owner: the answers, the merge, every production read, the deploy, and the switch from rehearsals to real purges, each on the owner's yes |
-| **Last updated** | 2026-11-20 |
+| **Last updated** | 2026-11-28 |
 | **PRD ref / phase** | FR-AUTH-005 [V1] (`docs/PRD.md:344`, account deletion) · V1 · gates android-play-release step 10 (decided, not built) |
 | **BACKLOG item** | B0.24 · decision 138 (and 137, 139, 140, 142, 143, 144 for what the texts say today) · touches B0.27 (photos) and B0.28 (backups) |
 | **ROADMAP entry** | [2026-11-20-deleted-owner-salon-purge-spec.md](../roadmap/entries/2026-11-20-deleted-owner-salon-purge-spec.md) |
@@ -644,10 +644,34 @@ Each step is on the owner's yes; every read is read-only.
      03:30 on 2026-11-21, before the purge existed). The purge logs only its failures and its tripwire.
      This step said « read » with nothing to read.
    - **What it needs:** one summary line per run, ids and counts only. That is a backend change and a
-     deploy, each on the owner's yes. *Built 2026-11-21 on the owner's yes (§6.9), not deployed.*
+     deploy, each on the owner's yes. *Built and deployed 2026-11-21 on the owner's yes (§6.9); night 1 read 2026-11-22, below.*
    - **Until then:** the response size growing from the next night on, with a 200, shows the purge ran
      and answered, and that migration 0046's table exists. It does not show what the purge counted.
    - Each one's `rehearsed` counts must equal step 1's count for the same salons.
+
+   *Night 1, 2026-11-22, read at 03:47 UTC on the owner's yes, read-only (OBSERVED by that read):*
+   - **The job:** `POST /internal/cron/maintenance` answered 200 at 03:30:01 UTC on `myweli-api-00054-7lb`,
+     2,062 bytes in 2.2 s. The night before (2026-11-21, on `00052-94d`, before the purge) it was 356
+     bytes in 0.06 s.
+   - **The line:** exactly one `salon_purge summary` line, at 03:30:03 UTC from the same revision. It is
+     1,709 characters on one line, holds no `@`, and has no run of eight or more digits outside the
+     salon ids.
+   - **The answer:**
+     - `mode` `rehearse`, `unqueued` 0, `reminded` 0;
+     - `wouldRecord` lists 3 salons, the same 3 that `rehearsed` lists; `wouldStartClocks` 3;
+     - `postponed` and `skipped` empty, `listFailed` 0, `budgetHit` false;
+     - `objectsWouldDelete` 1, `keptShared` 0, `objectsLeft` 0, `stragglers` 0;
+     - `reasonsWouldErase` 0 and `queriesWouldScrub` 0.
+   - **Against step 1's count,** numbered by id the same way, each count is equal:
+     - #1 and #3 count `providers` 1, and every other table 0;
+     - #2 counts `availability` 1, `workingHours` 6, `breaks` 5, `teamLog` 1 and `providers` 1, and its
+       one photo is the file that would go.
+   - **Migration 0046 is now OBSERVED working:** the rehearsal read its queue table and answered.
+   - **INFERRED:** that these are the same three salons as step 1's. That read kept only #1–#3, not the
+     ids; the shapes and the total of three match.
+   - **Owed, each on the owner's yes:**
+     - nights 2–7 (the lines are kept 30 days);
+     - the before/after fingerprint below, a read-only database read.
    - A read-only fingerprint of every salon, taken before and after one rehearsal, must be unchanged,
      which proves the rollback.
    - Nothing is due during this time, because no clock has started (§3).
@@ -767,7 +791,7 @@ purged the same salon, three runs in three.
 ### 6.9 The nightly summary line (2026-11-21, on the owner's yes)
 
 §6.6 step 3 found nothing to read: the run's answer went to Cloud Scheduler, which keeps only the
-status. This section is the fix, `feat/salon-purge-run-log`. It is built, not deployed.
+status. This section is the fix: #826 (`a1fe8b7f`), merged and deployed on 2026-11-21 on the owner's « Merge and deploy », as revision `myweli-api-00054-7lb` (image `a1fe8b7`). The first line was read on 2026-11-22 (§6.6 step 3).
 
 - **The line.** Every run ends by printing one line: `salon_purge summary ` and then the run's answer as
   JSON. The JSON is the same map the cron answers under `salonPurge`, with nothing added and nothing
@@ -899,13 +923,32 @@ Then:
      with such SHAs.
    - **The second** (run 44909134381, 13:31 UTC) succeeded. Revision `myweli-api-00053-5ls` serves 100 %,
      with image `sha256:94c59eb6…` (the one CI tested with #823), the `commit` label `'80e6518'` and
-     `SALON_PURGE_MODE=rehearse`.
+     `SALON_PURGE_MODE=rehearse`. *2026-11-21, read again:* `94c59eb6…` is the OCI index the tag
+     `80e6518` names; the revision pins `sha256:54ee6318…`, the linux/amd64 image inside it. It is one
+     build under two digests.
    - **Read back:** `/health` answers 200 on api.myweli.com, and the deploy's own checks passed (the image,
      `ENV=prod`, the database). « Production checks », dispatched after the deploy (run 44909404118),
      passed 11 of 11. No log line at warning level since boot, but the standing demo sign-in notice.
    - **Migration 0046 is inferred applied, not observed:** the revision booted and serves the database,
      and migrations run before the port binds.
    - **The next run's `salonPurge`** cannot be read (step 3 of §6.6).
+
+   **The summary line's deploy** (§6.9), *done 2026-11-21, on the owner's « Merge and deploy »:*
+   - **#826** merged at 18:38 UTC (`a1fe8b7f`). `main`'s content equals the head CI tested (12 of 12),
+     and `main`'s own CI on the merge passed 10 of 10. The push built image `a1fe8b7` and, staging being
+     absent, deployed nothing.
+   - **The dispatch** (run 44938432328, 18:58 UTC, `image_tag=a1fe8b7`) succeeded, including the
+     workflow's own check that the revision serves.
+   - **Revision `myweli-api-00054-7lb`** serves 100 %. Its image `sha256:4b1e4ae4…` is the linux/amd64
+     image of tag `a1fe8b7`. The `commit` label is `a1fe8b7`; `SALON_PURGE_MODE` is `rehearse`, and
+     `SALON_PURGE_MAX_PER_RUN` is unset, so 10. The rollback target was `00053-5ls`.
+   - **Read back:**
+     - `/health` answers 200 on api.myweli.com;
+     - « Production checks » passed 11 of 11 (run 44938651640);
+     - no line above INFO from the new revision. As a control, the same query returned 21 lines from
+       it, and warnings from `00053-5ls`: request-log 401s from the admin console's polling and one 404
+       from a scanner asking for `/.env`.
+   - **The next run's `salonPurge`** was read the next night (§6.6 step 3, night 1).
 5. **The rehearsal reads**, then `execute` limited to 1, then the first purge read back, then the limit
    raised (§6.6 steps 3–5), each on the owner's yes.
 6. **The text PRs.** They come only once `execute` is on, since a page never promises a purge that is not
@@ -980,7 +1023,9 @@ option not taken. Q4's wording (§5.1) is still signed off in the backend PR.
 - [ ] The production count, the deploy, the rehearsal reads, `execute` limited to 1, the first purge read
       back: each on the owner's yes, each recorded. *2026-11-21: the count (2026-11-20) and the deploy
       done. The rehearsal reads wait for a summary log line (§6.6 step 3); `execute` and the first purge
-      wait for them. The line is built (§6.9); its deploy is the owner's yes.*
+      wait for them. The line is built (§6.9); its deploy is the owner's yes.* *2026-11-28: the line
+      deployed 2026-11-21 (#826, `myweli-api-00054-7lb`), and night 1 read 2026-11-22. Nights 2–7 and
+      the fingerprint are next.*
 - [ ] The three text PRs, after `execute` is on, outside the freezes.
 - [ ] Feature branches and PRs; CI green; no Claude attribution.
 
