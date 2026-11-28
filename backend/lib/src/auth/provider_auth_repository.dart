@@ -152,8 +152,12 @@ abstract interface class ProviderAuthRepository {
   // --- Auth overhaul (docs/design/pro-auth-social.md) ------------------------
 
   /// LOGIN-ONLY with verified identity-provider claims: match by [sub] → else
-  /// by **verified** [email] (linking the sub). A salon is never auto-created
-  /// (`provider_not_found`) — registration carries required business fields.
+  /// by **verified** [email], only to an account that proved that address
+  /// (decision 287), linking the sub where the account has none for this
+  /// provider. One that already has ANOTHER sub for it is never relinked: the
+  /// sign-in is refused, `social_link_taken` (decision 284). A salon is never
+  /// auto-created (`provider_not_found`) — registration carries required
+  /// business fields. Design: docs/design/auth-store-twins.md §5.1.
   Future<ProviderVerifyResult> loginWithSocial({
     required String provider,
     required String sub,
@@ -178,15 +182,24 @@ abstract interface class ProviderAuthRepository {
   /// attempt. Design: docs/design/backend-email-send-budget.md §9.
   Future<void> refundEmailOtpResend(String email);
 
-  /// LOGIN-ONLY email verify: a correct code with no account returns
-  /// `provider_not_found` **without consuming the code**, so the register
-  /// screen can reuse it (it stays TTL/attempt-bounded).
+  /// LOGIN-ONLY email verify: a correct code with no account that proved the
+  /// address returns `provider_not_found` **without consuming the code**, so
+  /// the register screen can reuse it (it stays TTL/attempt-bounded).
+  /// **Not** for an address an unproven account holds (a row older than the
+  /// auth overhaul): register then answers `provider_exists`, so such an
+  /// address can neither sign in nor sign up. B16.4a deploys only once
+  /// decision 287's production read counts no such account
+  /// (docs/design/auth-store-twins.md §5.2, §9).
   Future<ProviderVerifyResult> verifyEmailOtp(String email, String code);
 
   /// Registration = identity + business fields in one shot, returning a live
   /// session. The identity is proven EITHER by the route (Google/Apple token
-  /// verification → [googleSub]/[appleSub]) OR by [emailCode] (checked here,
-  /// atomically with creation) when [authProvider] is `email`.
+  /// verification → [googleSub]/[appleSub]) OR by [emailCode] when
+  /// [authProvider] is `email`: checked here, in the transaction that creates
+  /// the account, and spent only by that creation. A refusal
+  /// (`provider_exists`, a lost race included) leaves the code valid, and only
+  /// the e-mail path touches a code. Design: docs/design/auth-store-twins.md
+  /// §5.2 (decision 285).
   Future<ProviderVerifyResult> register({
     required String businessName,
     required String businessType,
@@ -342,6 +355,15 @@ class InMemoryProviderAuthRepository implements ProviderAuthRepository {
   final Map<String, ProviderAccount> _bySocial = {}; // '<provider>:<sub>'
   final Map<String, _Otp> _emailOtps = {}; // lowercased email
 
+  /// **A test seam, not a writer:** marks account [accountId]'s address
+  /// unproven, the state of a row older than the auth overhaul
+  /// (`email_verified` was added with `DEFAULT false`, `migrations.dart:556`),
+  /// so the link contract can hold that row on this twin as it does on
+  /// Postgres by SQL (docs/design/auth-store-twins.md §2.2, decision 287). No
+  /// route reaches it.
+  void plantUnprovenEmailForTest(String accountId) =>
+      _byId[accountId]!.emailVerified = false;
+
   @override
   Future<ProviderAccount?> accountById(String id) async => _byId[id];
 
@@ -442,17 +464,34 @@ class InMemoryProviderAuthRepository implements ProviderAuthRepository {
     String? email,
     bool emailVerified = false,
   }) async {
+    // Only google and apple have a link, as on Postgres (its sub column).
+    if (provider != 'google' && provider != 'apple') {
+      throw ArgumentError.value(provider, 'provider');
+    }
     final key = '$provider:$sub';
     final emailKey = email?.trim().toLowerCase();
     var account = _bySocial[key];
     if (account == null && emailKey != null && emailVerified) {
-      // Link only on a verified email (threat T33/T35).
-      account = _byEmail[emailKey];
-      if (account != null) {
-        _bySocial[key] = account;
-        if (provider == 'google') account.googleSub = sub;
-        if (provider == 'apple') account.appleSub = sub;
-        account.emailVerified = true;
+      // Link only on a verified email (T33/T35), only to an account that
+      // proved it (decision 287), and never over another sub for this
+      // provider (decision 284): docs/design/auth-store-twins.md §5.1.
+      final holder = _byEmail[emailKey];
+      if (holder != null && holder.emailVerified) {
+        final linked = provider == 'google'
+            ? holder.googleSub
+            : holder.appleSub;
+        if (linked != null && linked != sub) {
+          return (
+            ok: false,
+            error: 'social_link_taken',
+            provider: null,
+            tokens: null,
+          );
+        }
+        _bySocial[key] = holder;
+        if (provider == 'google') holder.googleSub = sub;
+        if (provider == 'apple') holder.appleSub = sub;
+        account = holder;
       }
     }
     if (account == null) {
@@ -511,8 +550,9 @@ class InMemoryProviderAuthRepository implements ProviderAuthRepository {
       return (ok: false, error: error, provider: null, tokens: null);
     }
     final account = _byEmail[key];
-    if (account == null) {
-      // Correct code, no salon → the register screen reuses this code.
+    if (account == null || !account.emailVerified) {
+      // Correct code, no salon that proved the address (decision 287) → the
+      // register screen reuses this code.
       return (
         ok: false,
         error: 'provider_not_found',
@@ -521,7 +561,6 @@ class InMemoryProviderAuthRepository implements ProviderAuthRepository {
       );
     }
     _emailOtps.remove(key);
-    account.emailVerified = true;
     return (
       ok: true,
       error: null,
@@ -546,8 +585,16 @@ class InMemoryProviderAuthRepository implements ProviderAuthRepository {
     final emailKey = email.trim().toLowerCase();
     // Email-identity registrations prove inbox ownership here, atomically
     // with creation (Google/Apple were verified by the route).
+    // Checked, not spent: a refusal below keeps the code, and only the
+    // creation spends it (decision 285). No `await` between the check and
+    // the creation, so this twin cannot race.
     if (authProvider == 'email') {
-      final error = _checkOtpIn(_emailOtps, emailKey, emailCode ?? '');
+      final error = _checkOtpIn(
+        _emailOtps,
+        emailKey,
+        emailCode ?? '',
+        consume: false,
+      );
       if (error != null) {
         return (ok: false, error: error, provider: null, tokens: null);
       }
@@ -580,6 +627,7 @@ class InMemoryProviderAuthRepository implements ProviderAuthRepository {
     _byEmail[emailKey] = account;
     if (googleSub != null) _bySocial['google:$googleSub'] = account;
     if (appleSub != null) _bySocial['apple:$appleSub'] = account;
+    if (authProvider == 'email') _emailOtps.remove(emailKey);
     return (
       ok: true,
       error: null,
@@ -597,8 +645,16 @@ class InMemoryProviderAuthRepository implements ProviderAuthRepository {
     String? appleSub,
   }) async {
     final emailKey = email.trim().toLowerCase();
+    // Checked, not spent: a refusal below keeps the code, and only the
+    // creation spends it (decision 285). No `await` between the check and
+    // the creation, so this twin cannot race.
     if (authProvider == 'email') {
-      final error = _checkOtpIn(_emailOtps, emailKey, emailCode ?? '');
+      final error = _checkOtpIn(
+        _emailOtps,
+        emailKey,
+        emailCode ?? '',
+        consume: false,
+      );
       if (error != null) {
         return (ok: false, error: error, provider: null, tokens: null);
       }
@@ -631,6 +687,7 @@ class InMemoryProviderAuthRepository implements ProviderAuthRepository {
     _byEmail[emailKey] = account;
     if (googleSub != null) _bySocial['google:$googleSub'] = account;
     if (appleSub != null) _bySocial['apple:$appleSub'] = account;
+    if (authProvider == 'email') _emailOtps.remove(emailKey);
     return (
       ok: true,
       error: null,

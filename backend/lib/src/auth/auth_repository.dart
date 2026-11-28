@@ -279,7 +279,12 @@ abstract interface class AuthRepository {
   /// the updated user, or null if absent.
   Future<AuthUser?> setStatus(String id, String status);
 
-  /// Admin list, filterable by status + free-text (name/phone/email), paginated.
+  /// Admin list, filterable by status + free-text, paginated. One rule on
+  /// both twins (docs/design/auth-store-twins.md §5.3, decision 286): newest
+  /// first, a tie broken by the id in byte order, both descending; [q]
+  /// matches name, phone or e-mail **each on its own**, case ignored, with
+  /// `%`, `_`, `\` and accents taken as typed. Pinned by
+  /// `test/auth/user_list_contract.dart` on both twins.
   Future<({List<AuthUser> items, int total})> listUsers({
     String? status,
     String? q,
@@ -525,6 +530,40 @@ class InMemoryAuthRepository implements AuthRepository {
     _usersByEmail[key] = user;
   }
 
+  /// **A test seam, not a writer:** gives account [id] the creation time
+  /// [at], so the user list's contract can make two accounts tie on it, as
+  /// it does on Postgres by SQL (docs/design/auth-store-twins.md §5.3). The
+  /// account is rebuilt (`createdAt` is final) and every index repointed. No
+  /// route reaches it.
+  void plantCreatedAtForTest(String id, DateTime at) {
+    final old = _usersById[id]!;
+    final copy = AuthUser(
+      id: old.id,
+      createdAt: at,
+      phoneNumber: old.phoneNumber,
+      phoneVerified: old.phoneVerified,
+      email: old.email,
+      emailVerified: old.emailVerified,
+      authProvider: old.authProvider,
+      name: old.name,
+      avatarUrl: old.avatarUrl,
+      status: old.status,
+    );
+    for (final index in [
+      _usersById,
+      _usersByPhone,
+      _usersByEmail,
+      _usersBySocial,
+    ]) {
+      for (final key in [
+        for (final e in index.entries)
+          if (identical(e.value, old)) e.key,
+      ]) {
+        index[key] = copy;
+      }
+    }
+  }
+
   @override
   Future<bool> emailIsOnlySignIn(String userId) async {
     final user = _usersById[userId];
@@ -642,17 +681,26 @@ class InMemoryAuthRepository implements AuthRepository {
     int page = 1,
     int pageSize = 20,
   }) async {
-    final all = _usersById.values.where((u) {
-      if (status != null && status.isNotEmpty && u.status != status) {
-        return false;
-      }
-      if (q != null && q.isNotEmpty) {
-        final hay = '${u.name ?? ''} ${u.phoneNumber ?? ''} ${u.email ?? ''}'
-            .toLowerCase();
-        if (!hay.contains(q.toLowerCase())) return false;
-      }
-      return true;
-    }).toList();
+    final needle = q?.toLowerCase();
+    final all =
+        _usersById.values.where((u) {
+          if (status != null && status.isNotEmpty && u.status != status) {
+            return false;
+          }
+          if (needle != null && needle.isNotEmpty) {
+            // Each field on its own, as Postgres's three ILIKEs
+            // (docs/design/auth-store-twins.md §5.3).
+            return [
+              u.name,
+              u.phoneNumber,
+              u.email,
+            ].any((f) => f != null && f.toLowerCase().contains(needle));
+          }
+          return true;
+        }).toList()..sort((a, b) {
+          final byTime = b.createdAt.compareTo(a.createdAt);
+          return byTime != 0 ? byTime : b.id.compareTo(a.id);
+        });
     final start = (page - 1) * pageSize;
     final items = start >= all.length
         ? <AuthUser>[]

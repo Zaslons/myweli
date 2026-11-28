@@ -197,11 +197,14 @@ Response providerSessionResponse(
   int successStatus = HttpStatus.ok,
 }) {
   if (!result.ok) {
-    final status = result.error == 'provider_not_found'
-        ? HttpStatus.notFound
-        : result.error == 'provider_exists'
-        ? HttpStatus.conflict
-        : HttpStatus.badRequest;
+    final status = switch (result.error) {
+      'provider_not_found' => HttpStatus.notFound,
+      'provider_exists' => HttpStatus.conflict,
+      // The address's account is linked to another Google (or Apple)
+      // identity, never relinked (docs/design/auth-store-twins.md §3).
+      'social_link_taken' => HttpStatus.conflict,
+      _ => HttpStatus.badRequest,
+    };
     return jsonError(status, result.error!);
   }
   final tokens = result.tokens!;
