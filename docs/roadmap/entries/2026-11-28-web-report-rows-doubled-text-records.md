@@ -1,0 +1,5 @@
+- 🟡 **Registres : les formulaires « Signaler » du site fusionnés et en ligne (docs · 2026-11-28 — web, la suite de #906).** PR #RECORDS_PR. Spec : [web-report-rows-doubled-text.md](../../design/web-report-rows-doubled-text.md) §9.
+  - **Les formulaires « Signaler » (#910) :** son entrée passe au vert, avec la fusion (`47e46cfd`, sur le mot du propriétaire) : l’arbre de `main` est celui de la tête testée, la CI de `main` est verte, et Vercel l’a mise en ligne sur myweli.com à 12:05 UTC. Le statut de la spec et son index le disent aussi.
+  - **Relue sur myweli.com** (spec §9) : un témoin pris avant le déploiement (le code servi portait les rangées qui ne passaient pas à la ligne, et la liste de `/pro/avis` en `min-w-56 flex-1`), puis la même lecture après (les nouvelles classes, plus aucune des anciennes ; la feuille de style définit chacune). Pas lu : le formulaire ouvert en production (aucun avis en ligne, `/pro/avis` demande une session).
+  - **Aussi :** #906 est fusionnée ; sa ligne 40 de WEB-SYSTEM §15, sa spec (§7) et son entrée renvoient à #910. L’entrée des registres des autres adresses (#913) passe au vert.
+  - **Reste :** rien pour cette tranche.

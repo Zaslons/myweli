@@ -278,7 +278,9 @@ doing the same things.
 - **The toast's half width** (decision 3), if the owner takes the wider pill.
 - **`/pro/avis` and the salon page's reviews**: two inline reply rows
   (`AvisClient`, `ReviewList`) are `flex justify-end gap-s` too; not dialogs,
-  not measured here.
+  not measured here. **Done since:** they are the « Signaler » forms,
+  measured and fixed by #910 ([web-report-rows-doubled-text.md](web-report-rows-doubled-text.md),
+  WEB-SYSTEM §15 row 41).
 - `/politique-confidentialite`, the 404, the install banner, `/` and
   `/recherche` (§15 row 38) are unchanged.
 - Measured in Chromium's mobile emulation; real phones not verified.
