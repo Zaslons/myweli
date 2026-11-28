@@ -80,7 +80,7 @@ class TeamService {
       {
         ...m.toJson(),
         if (m.artistId != null) 'artistName': artistNames[m.artistId],
-        'expired': m.isExpiredInvitation,
+        'expired': m.isExpiredInvitationAt(_now()),
       };
 
   Future<TeamResult> invite(
@@ -151,7 +151,8 @@ class TeamService {
     if (current != null &&
         (current.role == MemberRole.owner ||
             current.status == 'active' ||
-            (current.status == 'invited' && !current.isExpiredInvitation))) {
+            (current.status == 'invited' &&
+                !current.isExpiredInvitationAt(_now())))) {
       return (ok: false, error: 'member_exists', data: null);
     }
     final revived = current == null
@@ -371,7 +372,7 @@ class TeamService {
     if (isDemoIdentity(member.email)) {
       return (ok: false, error: 'not_found', data: null);
     }
-    if (member.isExpiredInvitation) {
+    if (member.isExpiredInvitationAt(_now())) {
       return (ok: false, error: 'invitation_expired', data: null);
     }
     return (ok: true, error: null, data: null);
