@@ -3,9 +3,9 @@
 | | |
 |---|---|
 | **Module** | backend: the two sign-in stores (`provider_auth_repository.dart` and `postgres_provider_auth_repository.dart` for MyWeli Pro; `auth_repository.dart` and `postgres_auth_repository.dart` for the client accounts); then one sentence in the Pro app and one on the website |
-| **Status** | **Approved 2026-11-27.** Written on the owner's « Yes, spec B16.4 » and read once by an independent reviewer (§13). The owner answered the five questions of §11 at once, « Approve as recommended »: decisions 284–288 in BACKLOG, batch 16 (#911). Docs only. Next, each on the owner's word: B16.4a (the backend), the read (decision 287), B16.4b and B16.4c, then B16.4a's deploy. |
+| **Status** | **Approved 2026-11-27.** Written on the owner's « Yes, spec B16.4 » and read once by an independent reviewer (§13). The owner answered the five questions of §11 at once, « Approve as recommended »: decisions 284–288 in BACKLOG, batch 16 (#911). **B16.4a (the backend) built 2026-11-28** (§8.7) on the owner's « Yes, build B16.4a »: red first on both twins, then green; read once by an independent reviewer (no blocker; six should-fixes folded in); 30 mutations, all red. Next, each on the owner's word: its merge, the read (decision 287), B16.4b and B16.4c, then B16.4a's deploy. |
 | **Owner** | the project owner: the answers, then each build, read, merge and deploy, each on the owner's word |
-| **Last updated** | 2026-11-27 |
+| **Last updated** | 2026-11-28 |
 | **PRD ref / phase** | FR-AUTH (the Pro sign-in) and the admin console's user list · V1 |
 | **ROADMAP entry** | [2026-11-27-auth-store-twins-spec.md](../roadmap/entries/2026-11-27-auth-store-twins-spec.md) |
 | **Skills checked** | myweli-dev-guardrails · myweli-backend-guardrails · myweli-verification-guardrails · [BACKEND.md](../BACKEND.md) §1, §3, §5 (decision 223), §7 (T32, T33, T35) |
@@ -362,6 +362,122 @@ These follow B16.3a's [race insert] (`postgres_repositories_test.dart:2410-2442`
 - `dart format` clean;
 - `openapi.yaml` linted, and the website's types regenerated (no drift).
 
+### 8.7 As built (B16.4a, 2026-11-28)
+
+Branch `feat/b16-4a-auth-stores`, from `main` (`47e46cfd`). Built on the owner's « Yes, build B16.4a »:
+- the tests red first (`96ce0569`);
+- the build (`2db35b2d`);
+- the review's fixes (`343686c5`).
+
+**Red first, on today's code** (`96ce0569`), each for its stated reason:
+- **In memory, 11 red:**
+  - [never relinked] google and apple: another identity got in;
+  - [unproven holder];
+  - [kept on a refusal] register and createMemberAccount: the twin spent the code;
+  - the user list's [order], [tie], [page 2] and [each field on its own];
+  - the Google and Apple routes answered 200, not 409.
+- **On Postgres, 11 red:**
+  - [never relinked] google and apple;
+  - [links an empty column]: the result's link was null (B-P1-d);
+  - [unproven holder];
+  - [a social sign-up leaves the code]: the code was deleted;
+  - [tie], and [wildcards] (`q=%` listed every user);
+  - [race insert], [race sub] and [one code, two sign-ups]: each threw `UniqueViolationException`, the 500;
+  - [parallel guesses]: four wrong guesses in flight cost one attempt.
+- **Green on both, as they must be:** the controls, and [double link] (m3's target).
+
+**The code** (`2db35b2d`):
+- **The Pro sign-in, both twins** (§5.1):
+  - by sub;
+  - else, on a verified address, the account that **proved** it, read `FOR UPDATE`;
+  - another sub there → `social_link_taken`;
+  - else `UPDATE … SET $sub = @s WHERE id = @id RETURNING *`.
+
+  The whole sign-in runs in `retriedTransaction(raced: true)`.
+- **Every Pro code path on Postgres** (§5.2): `_checkEmailOtp` is gone, replaced by `_inspectEmailCode` (the row `FOR UPDATE`, the attempt decremented from the locked row) inside the spending transaction.
+  - `register` and `createMemberAccount` share `_createAccount`: the code, then `provider_exists`, then the `INSERT`, then the code spent on the e-mail path only, then the session. The whole account creation runs in `retriedTransaction(raced: true)`.
+  - The sign-in: the code, then the proven account (none → `provider_not_found`, the code kept), then the code spent.
+- **The twin:** checks with `consume: false` and spends after the creation. Its sign-in links only to a proven holder and refuses another sub.
+- **The user list, both twins** (§5.3): newest first, then `id COLLATE "C"`, both descending; each field `ILIKE @q ESCAPE '\'`, with `q`'s `\`, `%` and `_` escaped. The twin sorts the same way and matches each field on its own.
+- **`retriedTransaction`** (`lib/src/db/transaction_retry.dart`): B16.3a's re-run rule, now shared by both stores; the client store's `_retried` calls it.
+- **`providerSessionResponse`:** `social_link_taken` → 409.
+- **Docs:**
+  - `openapi.yaml`: the 409 on both Pro routes, register's 409, the list's order and match;
+  - `web/lib/api/schema.ts` regenerated;
+  - BACKEND.md T32, T33 and T35;
+  - `pro-auth-social.md`'s link rule;
+  - the interface comments.
+- **Test-only seams:** `plantCreatedAtForTest`, `plantUnprovenEmailForTest`.
+
+**Where the build departs from §5:**
+- §5.1's guard is in Dart over a locked holder, not in the `UPDATE`'s `WHERE`, after the review. Its effect is the same, plus two things the `WHERE` could not do:
+  - an account deleted between the read and the write is not found, rather than answered « linked elsewhere »;
+  - a link written by another transaction in between is seen ([race relink]).
+- The link `UPDATE` no longer sets `email_verified = true`. The account it reaches has already proved the address, so the write could change nothing.
+- The code sign-in has no `UPDATE` at all. It read an account and marked it proven, but it now finds only accounts already proven. That makes its half of B-P1-d moot: it returns the row it read, which is current.
+- `[same sub again]` stays a control, so §8.4's m3 row was wrong to name it. Sequentially, the by-sub lookup always signs in first, so m3 can only fire through the [double link] race.
+- §8.3's « the invitation bridge is not reached » is not pinned: the route test seeds no pending invitation, because its context builds an empty membership store on each call. The bridge reads `provider_not_found` only, so a 409 cannot reach it by construction, and m4b and m4c pin the 409 itself.
+- The twin now throws on a provider other than google or apple, as Postgres does. Before, it linked any provider string.
+- **[tie, collation] runs only where the database's default collation is not byte order.**
+  - Locally it runs: `docker-compose.yml`'s database is `en_US.utf8`, and m21 is red there.
+  - CI's cluster takes the runner's `C.UTF-8`, where the tie-break cannot differ, so CI skips the case with its reason. Watched to skip on a throwaway `C` database.
+  - Production's collation is not visible from the repository, so decision 287's read now reads it too (§9).
+- **Twin differences left, below any caller:**
+  - at the exact instant of expiry, the twin uses `isAfter` and Postgres `<=`;
+  - Dart's `toLowerCase` and Postgres's `ILIKE` can differ on letters such as « İ ».
+
+**Green:**
+- the full backend suite on a fresh local database: 3,400 passed, 2 skipped on the build, and **3,413 passed, 2 skipped** after the review's fixes;
+- `dart analyze --fatal-infos --fatal-warnings` 0;
+- `dart format` clean.
+
+**Independent review** (read-only, told to refute the build against the spec and the code): no blocker; six should-fixes, each checked in the code, then folded in (`343686c5`):
+1. Decision 287 was built as if the read were already clean, and it leaves an unproven holder's address with no way in, neither sign-in nor sign-up. The deploy gate is now written into T35, the interface comment and this spec (§9), and [unproven holder] pins the dead end (the sign-up answers `provider_exists`).
+2. Nothing pinned the code being checked before the account lookup, and swapping them would allow address enumeration: [the code first], both twins, `register` and `createMemberAccount`.
+3. The rewritten expiry had no Postgres test: [expired], both twins, with a negative validity.
+4. An account deleted between the holder's read and the write would answer `social_link_taken`: the holder is now read `FOR UPDATE`, and [race relink] is new.
+5. The sign-in's re-run was untested: [race link sub].
+6. Overstated docs: T32 said « implemented », the invitation accept's 409 lacked `provider_exists`, and §10's records were not yet in the diff.
+
+Its nits were folded in as well:
+- `COLLATE "C"` gets a Postgres-only [tie, collation] case, using ids whose `en_US` order differs from byte order (the premise is asserted);
+- `blockedOn` counts only this database's sessions;
+- the spec is named in the comments.
+
+**30 mutations, on the committed build, every one red for its reason** (`b164a_mut.py`: each pair asserted to apply exactly the stated number of times, the tree clean before and after). m14 was first « not applied », because the formatter had re-wrapped its line; re-aimed, it went red. After the review, m1, m3, m15 and m16a were re-aimed at the locked holder, six were added, and all 30 were re-run:
+
+| | Mutation | Red, with its text |
+|---|---|---|
+| m1 | Postgres's « another sub » check removed | [never relinked] google and apple: « expected false, actual true », and [race relink] (C1, [links an empty column], green) |
+| m2 | the twin's link without its check | [never relinked] google and apple (C1 green) |
+| m3 | the check without « or this same sub » | [double link]: « expected true, actual false » ([same sub again] green) |
+| m4a, m4b | `social_link_taken` answered as `provider_not_found` (each twin) | [never relinked]: « expected 'social_link_taken', actual 'provider_not_found' »; m4b also both routes |
+| m4c | the 409 mapping removed | both routes (400) |
+| m5 | the twin spends at the check | [kept on a refusal] register and createMemberAccount |
+| m6 | Postgres spends before the `provider_exists` check | [kept on a refusal] register and createMemberAccount |
+| m7 | no re-run on a raced violation | [race insert], [race sub]: a throw |
+| m8a, m8b | the creation does not spend the code (each twin) | [spent by the creation] register and createMemberAccount: « expected 'otp_none', actual null » |
+| m9 | the code read without `FOR UPDATE` | [parallel guesses]: « expected 'otp_locked', actual 'otp_invalid' » |
+| m10 | a social sign-up deletes the pending code | [a social sign-up leaves the code] |
+| m11 | the twin's list in insertion order | [order], [tie], [page 2] ([wildcards] green) |
+| m12a, m12b | the tie-break removed (each twin) | [tie]: « expected T3, T2, T1, actual T1, T2, T3 » ([order] green) |
+| m13 | Postgres's `q` unescaped | [wildcards]: « % » listed all four ([case] green) |
+| m14 | the twin's joined haystack | [each field on its own]: « expected empty, actual ['Awa'] » |
+| m15 | the link returns the holder's row, read before the `UPDATE` | [links an empty column] ([never relinked] google green) |
+| m16a–d | an unproven holder found (Postgres and twin; Google and code) | [unproven holder] |
+| m17 | the shared re-run off | [race insert] (Pro), [race sub], [race link sub], and B16.3a's client [race insert] |
+| m18a, m18b | the account looked up before the code (each twin) | [the code first], both paths: « expected 'otp_none', actual 'provider_exists' » |
+| m19 | Postgres's expiry branch removed | [expired] |
+| m20 | no re-run in the sign-in | [race link sub]: a throw |
+| m21 | `COLLATE "C"` removed | [tie, collation]: « expected zz-ab, zz-a_c, actual zz-a_c, zz-ab » ([tie] green) |
+| m22 | the holder read without `FOR UPDATE` | [race relink]: g2 relinked A |
+
+**Not done here, each on the owner's word:**
+- the merge;
+- decision 287's read before the deploy. If it finds an unproven Pro address, the deploy waits for the owner's choice;
+- B16.4b (the Pro app's sentence) and B16.4c (the website's);
+- the deploy, once B16.4c is live and the read is clean.
+
 ---
 
 ## 9. Rollout & scope discipline
@@ -377,7 +493,8 @@ These follow B16.3a's [race insert] (`postgres_repositories_test.dart:2410-2442`
      - **none:** B16.4a also finds a Pro account by address only where it proved it, on both twins (decision 260's first half), and nothing changes for anyone;
      - **any:** the deploy waits, and the owner chooses with the numbers in hand;
    - accounts with a Google link, and with an Apple link: those the new refusal can ever touch;
-   - Sentry's 30 days: any unique violation on `provider_users`, the race's 500.
+   - Sentry's 30 days: any unique violation on `provider_users`, the race's 500;
+   - the database's default collation, a key name, which says whether §5.3's byte-order tie-break changes anything in production (B16.4a's build, §8.7).
 
    It cannot count past relinks (§5.1).
 3. **B16.4b, the Pro app's sentence:** its own PR. It reaches people with the next Pro build.
@@ -495,3 +612,4 @@ Numbered from **284**, after the A5 spec's 279–283.
 
   **Added to §12:** the invitation decline's spent code.
 - **2026-11-27, answered:** « Approve as recommended », all five (decisions 284–288, batch 16 in the BACKLOG).
+- **2026-11-28, B16.4a built** (§8.7): red first on both twins, then green; read once by an independent reviewer (no blocker, six should-fixes folded in); 30 mutations, all red.

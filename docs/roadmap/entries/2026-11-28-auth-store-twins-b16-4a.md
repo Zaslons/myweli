@@ -1,0 +1,20 @@
+- 🟡 **B16.4a : le lien Google ou Apple d’un compte Pro jamais remplacé ; chaque code Pro vérifié là où il est dépensé ; une règle de liste sur les deux doubles (backend · 2026-11-28 — BACKLOG B16.4, décisions 284–288).** Branche `feat/b16-4a-auth-stores`, créée depuis `main` (`47e46cfd`). Spec : [auth-store-twins.md](../../design/auth-store-twins.md) §5, tel que construit au §8.7. Construit sur le « Yes, build B16.4a » du propriétaire.
+  - **Rouge d’abord,** sur le code d’avant :
+    - en mémoire, 11 rouges : un second compte Google ou Apple entrait dans le compte Pro, le double dépensait le code d’une inscription refusée, la liste triait et cherchait autrement, les deux routes répondaient 200 ;
+    - sur Postgres, 11 rouges, dont trois courses forcées qui levaient la violation d’unicité, donc le 500, et quatre essais faux en vol qui ne coûtaient qu’un essai.
+  - **Ce qui change :**
+    - un compte Pro relié à un compte Google ou Apple n’est plus jamais relié à un autre : la connexion est refusée, `409 social_link_taken` ; une adresse n’atteint qu’un compte qui l’a prouvée ;
+    - chaque code Pro est vérifié sous le verrou de sa ligne, dans la transaction qui le dépense, comme ceux des comptes clients depuis B16.3a : chaque essai faux compte, une inscription refusée garde son code, une course perdue répond `provider_exists`, plus jamais 500 ;
+    - la liste des utilisateurs de la console : la plus récente d’abord, une égalité tranchée par l’identifiant, chaque champ cherché seul, `%`, `_` et `\` pris tels quels ;
+    - le contrat (`openapi.yaml`) et les types du site ; T32, T33 et T35.
+  - **Relu une fois par un lecteur indépendant,** chargé de le réfuter : aucun bloquant ; six corrections intégrées. Parmi elles :
+    - le titulaire lu `FOR UPDATE` ;
+    - le code vérifié avant le compte, pour qu’on ne puisse pas deviner quelles adresses ont un compte ;
+    - une course de plus ;
+    - la condition du déploiement écrite.
+  - **Vert :** la suite backend entière sur une base neuve, 3 413 tests ; 30 mutations, toutes rouges.
+  - **Reste, sur le mot du propriétaire :**
+    - la fusion ;
+    - la lecture de la décision 287 : aucun compte Pro dont l’adresse n’est pas prouvée, sinon le déploiement attend son choix ;
+    - B16.4b (la phrase de l’application Pro) et B16.4c (celle du site) ;
+    - le déploiement, une fois celle du site en ligne.
