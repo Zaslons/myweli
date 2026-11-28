@@ -61,10 +61,19 @@ class Member {
   /// « @ »; a phone number never does.
   String? get emailOrNull => email.contains('@') ? email : null;
 
-  bool get isExpiredInvitation =>
+  /// Whether this is an invitation whose window has closed at [now].
+  ///
+  /// The caller says what « now » is: the service passes ITS clock. A getter
+  /// that read the wall clock once stood here, and TeamService — whose clock
+  /// is injected — judged expiry by the wall clock anyway: a test frozen at
+  /// 2026-11-21 with a 7-day invitation went red when the real date passed
+  /// 2026-11-28, and blocked every merge (docs/design/
+  /// backend-invitation-expiry-clock.md). No wall-clock variant is kept, so
+  /// no caller can fall back to it unawares.
+  bool isExpiredInvitationAt(DateTime now) =>
       status == 'invited' &&
       expiresAt != null &&
-      DateTime.now().toUtc().isAfter(expiresAt!);
+      now.toUtc().isAfter(expiresAt!);
 
   Map<String, dynamic> toJson() => {
     'id': id,
