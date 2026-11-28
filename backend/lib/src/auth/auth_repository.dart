@@ -279,7 +279,12 @@ abstract interface class AuthRepository {
   /// the updated user, or null if absent.
   Future<AuthUser?> setStatus(String id, String status);
 
-  /// Admin list, filterable by status + free-text (name/phone/email), paginated.
+  /// Admin list, filterable by status + free-text, paginated. One rule on
+  /// both twins (docs/design/auth-store-twins.md §5.3, decision 286): newest
+  /// first, a tie broken by the id in byte order, both descending; [q]
+  /// matches name, phone or e-mail **each on its own**, case ignored, with
+  /// `%`, `_`, `\` and accents taken as typed. Pinned by
+  /// `test/auth/user_list_contract.dart` on both twins.
   Future<({List<AuthUser> items, int total})> listUsers({
     String? status,
     String? q,
@@ -676,17 +681,25 @@ class InMemoryAuthRepository implements AuthRepository {
     int page = 1,
     int pageSize = 20,
   }) async {
-    final all = _usersById.values.where((u) {
-      if (status != null && status.isNotEmpty && u.status != status) {
-        return false;
-      }
-      if (q != null && q.isNotEmpty) {
-        final hay = '${u.name ?? ''} ${u.phoneNumber ?? ''} ${u.email ?? ''}'
-            .toLowerCase();
-        if (!hay.contains(q.toLowerCase())) return false;
-      }
-      return true;
-    }).toList();
+    final needle = q?.toLowerCase();
+    final all =
+        _usersById.values.where((u) {
+          if (status != null && status.isNotEmpty && u.status != status) {
+            return false;
+          }
+          if (needle != null && needle.isNotEmpty) {
+            // Each field on its own, as Postgres's three ILIKEs (§5.3).
+            return [
+              u.name,
+              u.phoneNumber,
+              u.email,
+            ].any((f) => f != null && f.toLowerCase().contains(needle));
+          }
+          return true;
+        }).toList()..sort((a, b) {
+          final byTime = b.createdAt.compareTo(a.createdAt);
+          return byTime != 0 ? byTime : b.id.compareTo(a.id);
+        });
     final start = (page - 1) * pageSize;
     final items = start >= all.length
         ? <AuthUser>[]

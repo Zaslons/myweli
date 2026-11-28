@@ -2112,7 +2112,7 @@ export interface paths {
                 };
                 401: components["responses"]["Unauthorized"];
                 404: components["responses"]["NotFound"];
-                /** @description An account already exists for this identity (provider_exists) */
+                /** @description An account already exists for this identity (`provider_exists`), a lost race included: another sign-up committed the address or the sub first. An e-mail `code` it was given stays valid (docs/design/auth-store-twins.md §5.2, B16.4). */
                 409: {
                     headers: {
                         [name: string]: unknown;
@@ -2139,7 +2139,7 @@ export interface paths {
         put?: never;
         /**
          * Salon sign-in with a Google ID token (LOGIN-ONLY, auth overhaul P4)
-         * @description Verified against Google's JWKS. A salon is never auto-created — no account → 404 `provider_not_found` (the client offers registration), UNLESS the verified email holds pending team invitations (module `access` R2b) → 202 with the invitation cards.
+         * @description Verified against Google's JWKS. A salon is never auto-created — no account → 404 `provider_not_found` (the client offers registration), UNLESS the verified email holds pending team invitations (module `access` R2b) → 202 with the invitation cards. A verified address reaches only an account that proved it, and links only where that account has no Google link: one linked to ANOTHER Google account → 409 `social_link_taken`, never relinked (B16.4, decisions 284 and 287; docs/design/auth-store-twins.md §5.1).
          */
         post: {
             parameters: {
@@ -2179,6 +2179,15 @@ export interface paths {
                 400: components["responses"]["BadRequest"];
                 401: components["responses"]["Unauthorized"];
                 404: components["responses"]["NotFound"];
+                /** @description `social_link_taken` — the token's verified address belongs to a Pro account linked to another Google account. Nothing changes; the client points to the e-mail code. */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
                 429: components["responses"]["RateLimited"];
             };
         };
@@ -2197,7 +2206,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Salon Sign in with Apple (LOGIN-ONLY seam, auth overhaul P4) */
+        /**
+         * Salon Sign in with Apple (LOGIN-ONLY seam, auth overhaul P4)
+         * @description The Apple twin of `/auth/provider/google`: a verified address reaches only an account that proved it, and links only where that account has no Apple link; one linked to ANOTHER Apple ID → 409 `social_link_taken`, never relinked (B16.4, decisions 284 and 287).
+         */
         post: {
             parameters: {
                 query?: never;
@@ -2230,6 +2242,15 @@ export interface paths {
                 400: components["responses"]["BadRequest"];
                 401: components["responses"]["Unauthorized"];
                 404: components["responses"]["NotFound"];
+                /** @description `social_link_taken` — the token's verified address belongs to a Pro account linked to another Apple ID. Nothing changes; the client points to the e-mail code. */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
                 429: components["responses"]["RateLimited"];
             };
         };
@@ -6811,7 +6832,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Consumer management list (B-admin) */
+        /**
+         * Consumer management list (B-admin)
+         * @description Newest first; a tie broken by the id, descending, in byte order. `q` matches the name, the phone or the e-mail, each on its own, case ignored, with `%`, `_`, `\` and accents taken as typed (B16.4, decision 286; docs/design/auth-store-twins.md §5.3).
+         */
         get: {
             parameters: {
                 query?: {

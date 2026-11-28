@@ -5,6 +5,7 @@ import 'package:postgres/postgres.dart';
 import '../auth/auth_repository.dart';
 import '../auth/tokens.dart';
 import 'refresh_exchange.dart';
+import 'transaction_retry.dart';
 
 /// Postgres-backed [AuthRepository]. Same security logic as
 /// [InMemoryAuthRepository] (OTP hashed + attempt/resend budgets; refresh
@@ -189,17 +190,10 @@ class PostgresAuthRepository implements AuthRepository {
   ///   or a holder proving it). Re-run, it finds that holder.
   /// Each run rolled back whole, a code's consumption included, so a re-run
   /// is the first run against newer data. Three runs at most, then the error.
-  Future<T> _retried<T>(Future<T> Function() run, {bool raced = false}) async {
-    for (var attempt = 1; ; attempt++) {
-      try {
-        return await run();
-      } on ServerException catch (e) {
-        final again =
-            e.code == '40P01' || (raced && e is UniqueViolationException);
-        if (!again || attempt >= 3) rethrow;
-      }
-    }
-  }
+  /// The rule itself is [retriedTransaction], shared with MyWeli Pro's store
+  /// since B16.4.
+  Future<T> _retried<T>(Future<T> Function() run, {bool raced = false}) =>
+      retriedTransaction(run, raced: raced);
 
   /// The holder of an address it never proved loses it (B16.3 §5.1): its
   /// account, sessions and other sign-ins stay. [except] keeps the changing
@@ -688,10 +682,18 @@ class PostgresAuthRepository implements AuthRepository {
       params['status'] = status;
     }
     if (q != null && q.isNotEmpty) {
+      // Each field on its own, with `\`, `%` and `_` taken as typed: escaped
+      // here, then read with `ESCAPE '\'` (docs/design/auth-store-twins.md
+      // §5.3, decision 286). No `unaccent`: accents count as typed.
       conditions.add(
-        '(name ILIKE @q OR phone_number ILIKE @q OR email ILIKE @q)',
+        "(name ILIKE @q ESCAPE '\\' OR phone_number ILIKE @q ESCAPE '\\' "
+        "OR email ILIKE @q ESCAPE '\\')",
       );
-      params['q'] = '%$q%';
+      final escaped = q
+          .replaceAll(r'\', r'\\')
+          .replaceAll('%', r'\%')
+          .replaceAll('_', r'\_');
+      params['q'] = '%$escaped%';
     }
     final where = conditions.isEmpty ? '' : 'WHERE ${conditions.join(' AND ')}';
     final count = await _pool.execute(
@@ -701,7 +703,11 @@ class PostgresAuthRepository implements AuthRepository {
     final rows = await _pool.execute(
       Sql.named(
         'SELECT * FROM users $where '
-        'ORDER BY created_at DESC LIMIT @ps OFFSET @off',
+        // A tie by the id in byte order (`"C"`): under the database's default
+        // collation `_` can be ignored at the first level, and Dart's
+        // compareTo, the twin's, is byte order (§5.3).
+        'ORDER BY created_at DESC, id COLLATE "C" DESC '
+        'LIMIT @ps OFFSET @off',
       ),
       parameters: {...params, 'ps': pageSize, 'off': (page - 1) * pageSize},
     );

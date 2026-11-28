@@ -1571,7 +1571,11 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409':
-          description: An account already exists for this identity (provider_exists)
+          description: >-
+            An account already exists for this identity (`provider_exists`),
+            a lost race included: another sign-up committed the address or
+            the sub first. An e-mail `code` it was given stays valid
+            (docs/design/auth-store-twins.md §5.2, B16.4).
         '429': { $ref: '#/components/responses/RateLimited' }
 
   /auth/provider/google:
@@ -1582,7 +1586,11 @@ paths:
         Verified against Google's JWKS. A salon is never auto-created — no
         account → 404 `provider_not_found` (the client offers registration),
         UNLESS the verified email holds pending team invitations (module
-        `access` R2b) → 202 with the invitation cards.
+        `access` R2b) → 202 with the invitation cards. A verified address
+        reaches only an account that proved it, and links only where that
+        account has no Google link: one linked to ANOTHER Google account →
+        409 `social_link_taken`, never relinked (B16.4, decisions 284 and
+        287; docs/design/auth-store-twins.md §5.1).
       requestBody:
         required: true
         content:
@@ -1614,12 +1622,25 @@ paths:
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: >-
+            `social_link_taken` — the token's verified address belongs to a
+            Pro account linked to another Google account. Nothing changes;
+            the client points to the e-mail code.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
         '429': { $ref: '#/components/responses/RateLimited' }
 
   /auth/provider/apple:
     post:
       tags: [auth]
       summary: Salon Sign in with Apple (LOGIN-ONLY seam, auth overhaul P4)
+      description: >
+        The Apple twin of `/auth/provider/google`: a verified address reaches
+        only an account that proved it, and links only where that account has
+        no Apple link; one linked to ANOTHER Apple ID → 409
+        `social_link_taken`, never relinked (B16.4, decisions 284 and 287).
       requestBody:
         required: true
         content:
@@ -1657,6 +1678,14 @@ paths:
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: >-
+            `social_link_taken` — the token's verified address belongs to a
+            Pro account linked to another Apple ID. Nothing changes; the
+            client points to the e-mail code.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
         '429': { $ref: '#/components/responses/RateLimited' }
 
   /auth/provider/email/otp/request:
@@ -4774,6 +4803,11 @@ paths:
     get:
       tags: [admin]
       summary: Consumer management list (B-admin)
+      description: >
+        Newest first; a tie broken by the id, descending, in byte order. `q`
+        matches the name, the phone or the e-mail, each on its own, case
+        ignored, with `%`, `_`, `\` and accents taken as typed (B16.4,
+        decision 286; docs/design/auth-store-twins.md §5.3).
       security: [{ bearerAuth: [] }]
       parameters:
         - { in: query, name: status, schema: { type: string, enum: [active, banned] } }

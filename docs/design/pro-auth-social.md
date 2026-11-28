@@ -14,6 +14,7 @@ Move **salon (pro) auth** off phone-OTP to **Google + Email OTP** (+ the same fl
 A consumer login may **auto-create** an account (find-or-create). A salon login must **not** — registration carries required business fields. So:
 
 - **Login** (`POST /auth/provider/google`, `/auth/provider/email/otp/request|verify`): verify identity → find by `google_sub` / **verified email** → ProviderSession. **No account → 404 `provider_not_found`** (the client offers « Créer un compte ») — same code the phone flow uses today.
+  - **Since B16.4a** ([auth-store-twins.md](auth-store-twins.md) §5.1, decisions 284 and 287): the verified email finds only an account that **proved** it, and links the sub only where that account has none for the provider (or already this one). An account linked to **another** Google or Apple identity is never relinked: the sign-in answers **409 `social_link_taken`**, and the clients point to the e-mail code. Until then, Postgres replaced the account's sub.
 - **Registration** (`POST /auth/provider/register`, evolved): **identity proof + business fields in ONE request** — either `{idToken, …}` (Google) or `{email, code, …}` (email OTP, code requested via the same request endpoint). Verify identity → create account → session immediately (no second verify step — better than today's register→OTP dance).
   - Fields: `businessName` (req) · `businessType` (req) · **`phoneNumber` (req — salon contact; clients/Myweli must be able to call)** · `address?`.
 
