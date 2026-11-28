@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Module** | backend: every repository with an in-memory twin (`lib/src/**`) and a Postgres twin (`lib/src/db/postgres_*.dart`) |
-| **Status** | **Answered 2026-11-24, « Approve as recommended »** (§6: decisions 219–223, batch 16); **merged** (#855, `adaae165`). Docs only: a survey, then each fix through its own short spec. B16.1's: [provider-category-column.md](provider-category-column.md). |
+| **Status** | **Answered 2026-11-24, « Approve as recommended »** (§6: decisions 219–223, batch 16); **merged** (#855, `adaae165`). Docs only: a survey, then each fix through its own short spec. B16.1's: [provider-category-column.md](provider-category-column.md). B16.4's (the auth group): [auth-store-twins.md](auth-store-twins.md), which probed this group's rows on both twins: B-P1-b is also a production behaviour (Postgres replaces a Pro account's link), B-P1-a sits beside a sign-up race that answers 500, and B-P2-b was closed by B16.3a. |
 | **Owner** | the project owner: the answers, then each spec, build, merge and deploy, each on the owner's word |
 | **Last updated** | 2026-11-24 |
 | **PRD ref / phase** | none: test fidelity, and three production defects it turned up · V1 |
