@@ -11,6 +11,13 @@ import 'package:myweli_backend/src/salon_visibility.dart';
 /// `GET /providers/{id}/reviews?page=&pageSize=` — public, paginated, newest
 /// first. Design: docs/design/consumer-reviews.md.
 ///
+/// **`summary` rides every page** (A5-api, docs/design/salon-team-and-reviews.md
+/// §3): the salon's average, count and 5 → 1 split over ALL its visible
+/// reviews, the same `ReviewsService.summary` the salon's own
+/// `GET /me/provider/reviews` sends. The client's « Avis » card is drawn from
+/// it, so it never describes only the page it holds. Read after the gate
+/// below: a salon that is not public answers 404 before anything is counted.
+///
 /// **Decision C: hidden AND unknown both 404, and that symmetry is the point.**
 /// This route had no provider read at all, so an unknown id answered
 /// `200 {items: []}`. Closing only the hidden case would have made 404 mean
@@ -35,17 +42,15 @@ Future<Response> onRequest(RequestContext context, String id) async {
   final page = int.tryParse(q['page'] ?? '') ?? 1;
   final pageSize = int.tryParse(q['pageSize'] ?? '') ?? 20;
 
-  final r = await context.read<ReviewsService>().list(
-    id,
-    page: page,
-    pageSize: pageSize,
-  );
+  final reviews = context.read<ReviewsService>();
+  final r = await reviews.list(id, page: page, pageSize: pageSize);
   return Response.json(
     body: {
       'items': r.items,
       'page': r.page,
       'pageSize': r.pageSize,
       'total': r.total,
+      'summary': await reviews.summary(id),
     },
   );
 }

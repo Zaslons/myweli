@@ -1,0 +1,18 @@
+- 🟡 **MyWeli Pro, le « Profil » d’un membre et l’inscription Android (E3) : l’adresse du compte entière, coupée seulement à ses jointures (app · 2026-11-27, [app-pro-profile-email-seams.md](../../design/app-pro-profile-email-seams.md)).** PR #912, branche `fix/app-pro-profile-email-seams`, créée depuis celle de #905, dont elle reprend `EmailSentence` et le `within:` du garde-fou, puis rebasée sur `main` (`0bc14543`) une fois #905 et #902 fusionnés. Règle : [SYSTEM.md](../../design/SYSTEM.md) §13.3, §21 ligne 99. Les deux derniers endroits connus de l’app qui dessinent une adresse (#905 §7).
+  - **Mesuré avant de construire** (vraie police, 360 dp, 1× et 2×, avec des domaines de douze caractères : `@hotmail.com`, `@outlook.com`, `@myweli.com`).
+    - **« Profil » :** un membre invité par e-mail n’a pas de nom (le serveur n’en enregistre aucun), donc le titre de sa carte est son adresse, à côté de la pastille du rôle. Elle était coupée au-delà d’environ 25 caractères à 1×, et toujours à 200 % (« awa@exe… », 173 dp à côté de « Manager »). Puis l’adresse était dessinée une seconde fois dessous, et entendue deux fois. Cette seconde ligne se coupait au milieu d’un mot : « aminata.kone@exe » / « mple.ci », « retard@myweli.co » / « m ».
+    - **E3 :** « Compte : {adresse} » se coupait au milieu d’un mot à 200 % (« Compte : aminata.ko » / « ne@exemple.ci »), et commençait sur la ligne de « Compte : » à 1×.
+  - **Accordé par le propriétaire :** « Person, then chip » et « Secondary », les deux recommandations.
+  - **Ce qui change :**
+    - « Profil » : le nom s’il y en a un, puis l’adresse, chacun sur sa ligne, puis la pastille du rôle dessous, comme sur le site et dans la feuille d’« Équipe » ; l’adresse n’est dessinée et entendue qu’une fois ;
+    - E3 : « Compte : » (en secondaire, comme « Entrez le code reçu par e-mail à » sur le même écran), puis l’adresse sur sa propre ligne, à l’encre ; un lecteur d’écran entend « Compte : {adresse} », comme avant.
+  - **Rouge d’abord,** sur le code d’avant : 11 tests, chacun pour sa raison (le titre coupé : 174 dp pour une adresse qui en demande 531 ; la coupure au milieu d’un mot ; l’adresse sur la ligne de « Compte : » ; l’adresse dessinée et entendue deux fois ; la pastille à côté du nom).
+  - **Vert :** toute la suite de l’app sur `5ed6c5d3`, avant le rebasage (son `mobile/` est identique à celui de `be6262b9`) : 4 636 réussis, 107 ignorés (les images de référence, hors Linux) ; analyze 0 ; format propre.
+  - **Images de référence** faites sous Linux (run 46066515146) et regardées : les deux nouvelles, `pro_profile_member_w360_x2` (« adjoua.kouame » / « .konan » / « @hotmail.com », une seule fois, la pastille dessous) et `pro_sign_up_carried_w360_x2` (« Compte : », puis « awa.kone.nouvelle » / « @outlook.com »). Les 105 autres sont identiques à l’octet, comparées une à une.
+  - **Mutations, sur le code commité :** 12, toutes rouges, l’arbre propre avant et après chacune (dont l’alternative écartée au §5 : la pastille entre le nom et l’adresse).
+  - **Reste ouvert :**
+    - un seul morceau plus large qu’une ligne se coupe encore dedans (« ouattaraaminatakone », 314 dp à 2×) ;
+    - les membres de démonstration ont un nom, les vrais n’en ont pas : les données de démonstration montrent une carte qu’aucun vrai membre ne voit ;
+    - les deux limites de garde-fou que #905 §7 a notées ;
+    - vu sur l’image à 200 %, hors de ce périmètre : la ligne « Mes salons » coupe le nom du salon avec « … » (« Salon Excelle… »).
+  - **Reste, sur le mot du propriétaire :** la fusion, puis la prochaine version de MyWeli Pro, qui la porte.

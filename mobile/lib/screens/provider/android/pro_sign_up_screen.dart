@@ -26,6 +26,7 @@ import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/app_text_field.dart';
 import '../../../widgets/common/code_sent_to.dart';
 import '../../../widgets/common/commune_picker_sheet.dart';
+import '../../../widgets/common/email_sentence.dart';
 import '../../../widgets/common/google_g_logo.dart';
 import '../../../widgets/common/inline_feedback.dart';
 import '../../../widgets/common/legal_consent_text.dart';
@@ -810,10 +811,18 @@ class _ProSignUpScreenState extends State<ProSignUpScreen> {
   );
 
   /// E3: the carried address, one button, and the way out of it.
+  ///
+  /// « Compte : », then the address on a line of its own, in ink, broken only
+  /// at its seams (SYSTEM.md §13.3, docs/design/app-pro-profile-email-seams.md
+  /// §4.2). Inline, at 200 % it broke mid-word: « Compte : aminata.ko » /
+  /// « ne@exemple.ci ». The label is secondary, as the code step's
+  /// « Entrez le code reçu par e-mail à » is; a screen reader hears
+  /// « Compte : {adresse} », one node.
   List<Widget> _carriedIdentity(bool busy) => [
-    Text(
-      'Compte : ${_carried?.email ?? ''}',
-      style: AppTextStyles.bodyLarge.copyWith(color: AppColors.textPrimary),
+    EmailSentence.addressLast(
+      lead: 'Compte :',
+      address: _carried?.email ?? '',
+      style: AppTextStyles.bodyLarge.copyWith(color: AppColors.textSecondary),
     ),
     const SizedBox(height: AppTheme.spacingM),
     AppButton(

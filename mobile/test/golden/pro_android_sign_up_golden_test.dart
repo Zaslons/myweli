@@ -22,6 +22,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../support/frozen_clock.dart';
 import '../support/golden.dart';
+import '../support/pro_sign_up.dart';
 
 /// Android's sign-in and sign-up, photographed at the floor — 360dp, 200%
 /// text, where a chip, a heading or a button runs out of room first
@@ -155,6 +156,27 @@ void main() {
       await tapVisible(tester, 'Continuer avec Google');
       expect(find.text('Vous êtes invité(e)'), findsOneWidget);
       await expectGolden(tester, 'pro_sign_up_invited_w360_x2');
+    });
+
+    // docs/design/app-pro-profile-email-seams.md §6: E3 at §13.3's contract
+    // point. The sign-in by e-mail found no account, and the sign-up carries
+    // that address: « Compte : », then the address on a line of its own —
+    // « awa.kone.nouvelle » / « @outlook.com ». Inline, it read « Compte :
+    // awa.kone.n » / « ouvelle@outlook.co » / « m ».
+    testWidgets('the sign-up from E3, the carried address', (tester) async {
+      const address = 'awa.kone.nouvelle@outlook.com';
+      await pumpAndroid(tester, height: 3600);
+      await tester.enterText(input('Votre e-mail'), address);
+      await tapVisible(tester, 'Continuer avec e-mail');
+      await tester.enterText(
+        input('Code à 6 chiffres'),
+        MockAuthService.demoOtp,
+      );
+      await tapVisible(tester, 'Se connecter');
+      expect(find.text(kNoProAccountMessage), findsOneWidget);
+      await openSignUp(tester);
+      expect(find.text('Compte :'), findsOneWidget, reason: 'E3');
+      await expectGolden(tester, 'pro_sign_up_carried_w360_x2');
     });
   }, skip: kGoldensSkip);
 }

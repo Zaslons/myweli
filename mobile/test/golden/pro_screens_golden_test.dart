@@ -8,6 +8,7 @@ import 'package:myweli/core/utils/app_clock.dart';
 import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/core/utils/salon_time.dart';
 import 'package:myweli/models/api_response.dart';
+import 'package:myweli/models/provider_user.dart';
 import 'package:myweli/models/revenue_analytics.dart';
 import 'package:myweli/models/salon_subscription.dart';
 import 'package:myweli/models/team_member.dart';
@@ -32,12 +33,14 @@ import 'package:myweli/screens/provider/earnings/revenue_detail_screen.dart';
 import 'package:myweli/screens/provider/earnings/revenue_ledger_screen.dart';
 import 'package:myweli/screens/provider/earnings/revenue_screen.dart';
 import 'package:myweli/screens/provider/journal/pro_journal_screen.dart';
+import 'package:myweli/screens/provider/profile/pro_profile_screen.dart';
 import 'package:myweli/screens/provider/reviews/reviews_screen.dart';
 import 'package:myweli/screens/provider/settings/deposit_settings_screen.dart';
 import 'package:myweli/screens/provider/team/pro_invitations_screen.dart';
 import 'package:myweli/screens/provider/team/team_screen.dart';
 import 'package:myweli/services/interfaces/pro_service_interface.dart';
 import 'package:myweli/services/mock/mock_auth_service.dart';
+import 'package:myweli/services/mock/mock_data.dart';
 import 'package:myweli/services/mock/mock_device_registration_service.dart';
 import 'package:myweli/services/mock/mock_locality_service.dart';
 import 'package:myweli/services/mock/mock_notification_service.dart';
@@ -52,6 +55,7 @@ import 'package:provider/provider.dart';
 import 'package:provider/single_child_widget.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../support/drawn_email.dart';
 import '../support/frozen_clock.dart';
 import '../support/golden.dart';
 import '../support/rejoin.dart';
@@ -224,6 +228,45 @@ void main() {
         scale: 2,
       );
       await expectGolden(tester, 'pro_team_w360_x2');
+    });
+
+    // docs/design/app-pro-profile-email-seams.md §6: a member's Profil at
+    // §13.3's contract point. A member invited by e-mail has no name, so the
+    // address is the card's title. It was cut beside the role chip
+    // (« adjoua.ko… ») and drawn again under it, broken mid-word
+    // (« adjoua.kouame.ko » / « nan@hotmail.com »). Now drawn once, broken
+    // only at its seams — « adjoua.kouame » / « .konan » / « @hotmail.com »,
+    // a twelve-character domain whole — with the chip under it.
+    testWidgets('a nameless member\'s Profil at 360 dp, 200 % text', (
+      tester,
+    ) async {
+      const address = 'adjoua.kouame.konan@hotmail.com';
+      final i = MockData.providerUsers.indexWhere((p) => p.id == 'member_awa');
+      final seeded = MockData.providerUsers[i];
+      addTearDown(() => MockData.providerUsers[i] = seeded);
+      MockData.providerUsers[i] = ProviderUser(
+        id: seeded.id,
+        phoneNumber: '',
+        businessName: '',
+        businessType: BusinessType.other,
+        email: address,
+        createdAt: seeded.createdAt,
+      );
+      final j = MockData.teamMembers.indexWhere((m) => m.id == 'mem_manager1');
+      MockData.teamMembers[j] = TeamMember.fromJson({
+        ...MockData.teamMembers[j].toJson(),
+        'email': address,
+      });
+      await _pumpPro(
+        tester,
+        const ProProfileScreen(),
+        extra: [ChangeNotifierProvider(create: (_) => ProTeamProvider())],
+        size: const Size(360, 1400),
+        scale: 2,
+        email: address,
+      );
+      expect(drawnEmail(address), findsOneWidget, reason: 'the title, once');
+      await expectGolden(tester, 'pro_profile_member_w360_x2');
     });
 
     testWidgets('the deposit policy form', (tester) async {
