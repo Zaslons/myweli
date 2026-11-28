@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Built (2026-11-27), mutation pass done, not merged |
+| **Status** | Built (2026-11-27), mutation pass done. **Merged and live on myweli.com 2026-11-27** (#902, `0bc14543`, on the owner's « merge #902 »; Vercel production 21:10 UTC; read back: §8) |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-11-27 |
 | **Approved** | by the owner, 2026-11-27, on §4 and §5: « Approved, build it » · toasts « Drop the address » · store-linked pages « Unfrozen, include them » |
@@ -212,3 +212,34 @@ exception and « a toast does not carry an address »; §15 row 39 closes.
   covered five other sites.
 - The Pro sidebar at the 32 px root on a 320 phone was not measured: the
   drawer did not come fully on screen in the probe.
+
+## 8. Merged, and read back on myweli.com (2026-11-27)
+
+- **The rebases:** `main` moved four times before the merge could land: #900 (the revenue
+  analytics on the website), then #903 and #904 (docs) and #905 (the app's
+  « Équipe »). Each rebase was clean. #900 touched two of the same test files
+  (each change additive) and two docs; on that rebase the web unit suite
+  passed locally (3618, 1 skipped), with the typecheck and `npm run lint`
+  clean. The other three touched no file under `web/`: `web/` stayed
+  byte-identical from `27b35e85` to `a4a9e511`. CI was green, 12 of 12, on
+  each head: `27b35e85`, `2e9412bb`, `2371d411`, `a4a9e511`.
+- **The owner's word:** « merge #902 ».
+- **The merge:** squash, pinned to `a4a9e511` (`--match-head-commit`), by a
+  script that merged only once every check had passed and GitHub called the
+  PR clean, at 21:06 UTC → `0bc14543`. Main's tree is the head's tree
+  (`50140de6`). Main's CI on `0bc14543` is green (10 of 10) and the Vercel
+  production deployment succeeded at 21:10 UTC.
+- **The control, taken before the deployment landed:** `/support`,
+  `/mentions-legales` and `/pro/suppression-compte` as myweli.com served
+  them. No link was named by an `aria-label`, and `/pro/suppression-compte`'s
+  three links drew `support@<wbr/>myweli.com` (a break after the « @ »),
+  named from that drawing.
+- **After:** every support link on the three pages (1, 1 and 3) is served as
+  `aria-label="support@myweli.com"` around an `aria-hidden`
+  `support<wbr/>@myweli.com`.
+- **Not read:** the signed-in pages (« Équipe » and its dialogs, the Pro
+  sidebar, Profil, « Alertes par e-mail », `/mon-compte`,
+  `/mon-compte/donnees`). They need a session; their layout is held by the
+  e2e gate (§6), on CI's Linux.
+- **Since:** the app's team screen (§7's fourth item) is merged with #905
+  (`c5e1d708`, [app-team-email-seams.md](app-team-email-seams.md)).
