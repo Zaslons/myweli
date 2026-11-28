@@ -373,9 +373,10 @@ is the owner's to make. No flag.
 ## 9. As built (2026-11-28)
 
 Branch `fix/app-client-name-legibility`, cut from `main` at `47e46cfd`,
-rebased onto `fc687501` (#916, then #915: docs and `backend/` only, so
-`mobile/` is byte-identical before and after). The spec, the approval, the
-tests red first (`7355a314`), one commit per screen, then the goldens.
+rebased onto `e9f67684` (#916, #915 and #906: docs, `backend/` and `web/`
+only, so `mobile/` is byte-identical before and after). The spec, the
+approval, the tests red first, one commit per screen, then the goldens. The
+hashes below are the ones the runs were made on, before the last rebase.
 
 - **Red first, on today's code:** 52 of 54 tests, each for a reason §2
   measured: the crush gate (the card at 1×, « Aïcha Koné » in 77 dp; the
