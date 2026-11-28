@@ -1,0 +1,10 @@
+- 🟡 **Serveur, B0.24 : un test qui vieillissait mal, réparé — la CI de `main` repasse au vert (tests · 2026-11-28 — BACKLOG B0.24).** Branche `fix/b0-24-test-real-clock`, depuis `main` `aaac273f`. Aucun code de l’app ni du serveur ne change : un seul test.
+  - **Ce qui s’est passé :** depuis le 2026-11-28 à 00:00 UTC, la vérification du serveur échouait sur `main` et sur chaque PR, sur un seul test (3352 réussis, 1 en échec) : « une invitation supprimée par la purge du salon pendant son acceptation répond « introuvable », jamais une erreur 500 ».
+  - **Pourquoi :** le test fixait sa propre date, le 2026-11-21, et donnait sept jours à l’invitation. Mais l’expiration se lit sur l’horloge réelle (`Member.isExpiredInvitation`) : l’invitation a expiré le 28 à minuit, et le test recevait « invitation expirée » au lieu d’« introuvable ».
+  - **La réparation :** le test prend l’horloge réelle de la suite, comme ses trois voisins.
+  - **Vérifié :**
+    - le test rouge avant (la CI de `main` sur `aaac273f`, et en local à 01:35 UTC), vert après ;
+    - une mutation (l’invitation disparue lève une erreur au lieu de répondre « introuvable ») le fait passer au rouge : il garde ce pour quoi il a été écrit ;
+    - la suite complète du serveur : 2972 réussis, 13 ignorés.
+  - **Cherché ailleurs :** les autres tests à date fixe du serveur ont une date déjà passée et réussissent, ou donnent une horloge fixe au code qu’ils testent (les revenus). Aucun autre n’attend son jour. La famille reste possible : un test qui fixe une date que le code ne lit pas finit par la voir arriver.
+  - **Reste :** la fusion, sur le mot du propriétaire. Rien à déployer.
