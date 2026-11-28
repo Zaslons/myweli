@@ -393,7 +393,8 @@ tests red first (`7355a314`), one commit per screen, then the goldens.
     (« Fatoumata Ouédr… » on a guest card at 2×). Each name is now checked
     drawn whole (`didExceedMaxLines` false), which is decision 2.
 - **Mutations, on committed code** (each applied once, the file restored
-  from git, the failing tests read off the run): **14, all red.**
+  from git, the failing tests read off the run): **18, all red.** The last
+  four isolate one check each, its failure message read off the run.
 
 | Mutation | Red |
 |---|---|
@@ -407,6 +408,10 @@ tests red first (`7355a314`), one commit per screen, then the goldens.
 | Journal: the status back at the right edge · the absences back beside the name · the time never beside · the deposit unheard | every width and size (6 each) |
 | Journal: the time always beside | 360 × 2×, « Kouakoussou » (1; at 375 it fits beside the time) |
 | Journal: the ellipsis back | 2×, every width (3) |
+| List: the chips drawn after the visits line (still under the name) | the spoken order alone: « VIP » heard after the visits line |
+| Journal: the deposit icon beside the name | the deposit check alone (390 × 1×) |
+| Card: the name in a 150 dp box | the hyphen-piece measure alone: « N’Guessan » needs 213 dp (360 × 2×) |
+| Card: the ellipsis back, « Fatoumata Ouédraogo » at 360 × 2× | the drawn-whole check alone: the 8-character floor passed it |
 
 - **Goldens, drawn on Linux** (run 46147064466), each looked at:
   `pro_journal_day` (« Confirmé » under « Jean Kouassi », the card one line
