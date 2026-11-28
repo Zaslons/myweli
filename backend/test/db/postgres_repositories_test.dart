@@ -3374,6 +3374,54 @@ void main() {
       },
     );
 
+    // A5-api (docs/design/salon-team-and-reviews.md §3) on the real schema:
+    // `ORDER BY created_at DESC` alone left reviews of one instant in whatever
+    // order the planner returned them, so OFFSET could put one on two pages and
+    // skip another. The in-memory twin's test asserts the same list.
+    test(
+      'equal dates: newest first, then by id — pages never overlap',
+      () async {
+        final r = PostgresReviewsRepository(pool);
+        Map<String, dynamic> at(String id, DateTime when) => {
+          ...rv('1'),
+          'id': 'rev_tie_$id',
+          'appointmentId': 'appt_tie_$id',
+          'userId': 'u_tie_$id',
+          'createdAt': when.toIso8601String(),
+        };
+        final same = DateTime.utc(2030, 6, 20, 9);
+        // Inserted out of id order, all in the same instant, plus one older.
+        for (final id in ['c', 'a', 'e', 'b', 'd']) {
+          await r.upsertByAppointment(at(id, same));
+        }
+        await r.upsertByAppointment(at('z', DateTime.utc(2030, 6, 1, 9)));
+
+        final ids = <String>[];
+        for (final page in [1, 2, 3]) {
+          final res = await r.listForProvider(
+            'provider1',
+            page: page,
+            pageSize: 2,
+          );
+          expect(res.total, 6);
+          ids.addAll(res.items.map((m) => m['id'] as String));
+        }
+        expect(ids, [
+          'rev_tie_e',
+          'rev_tie_d',
+          'rev_tie_c',
+          'rev_tie_b',
+          'rev_tie_a',
+          'rev_tie_z',
+        ]);
+        // The salon read's embedded preview is the same order: page 1.
+        expect(
+          (await r.recentForProvider('provider1', 3)).map((m) => m['id']),
+          ['rev_tie_e', 'rev_tie_d', 'rev_tie_c'],
+        );
+      },
+    );
+
     test(
       'ratingDistribution: per star, visible only (salon-reviews-summary)',
       () async {

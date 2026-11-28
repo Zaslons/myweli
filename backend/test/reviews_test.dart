@@ -105,6 +105,46 @@ void main() {
       expect(byArtist['artist1']!.count, 1);
       expect(byArtist['artist1']!.rating, 2);
     });
+
+    // A5-api (docs/design/salon-team-and-reviews.md §3): the order ends on the
+    // id, as the Postgres twin's. With the date alone, five reviews of one
+    // instant kept whatever order the list happened to hold, and a client
+    // paging through them could see one twice and miss another.
+    test('equal dates: newest first, then by id — pages never overlap', () async {
+      // Inserted out of id order, all in the same instant, plus one older.
+      for (final id in ['c', 'a', 'e', 'b', 'd']) {
+        await reviewsRepo.upsertByAppointment({
+          ...r('appt_$id'),
+          'id': 'rev_$id',
+          'createdAt': '2030-06-20T09:00:00.000Z',
+        });
+      }
+      await reviewsRepo.upsertByAppointment({
+        ...r('appt_old'),
+        'id': 'rev_z',
+        'createdAt': '2030-06-01T09:00:00.000Z',
+      });
+
+      final ids = <String>[];
+      for (final page in [1, 2, 3]) {
+        final res = await reviewsRepo.listForProvider(
+          'provider1',
+          page: page,
+          pageSize: 2,
+        );
+        ids.addAll(res.items.map((m) => m['id'] as String));
+      }
+      // Same instant → id descending; the older one last despite its larger id.
+      expect(ids, ['rev_e', 'rev_d', 'rev_c', 'rev_b', 'rev_a', 'rev_z']);
+      // The embedded preview is the same order: page 1 at its size.
+      expect(
+        (await reviewsRepo.recentForProvider(
+          'provider1',
+          3,
+        )).map((m) => m['id']),
+        ['rev_e', 'rev_d', 'rev_c'],
+      );
+    });
   });
 
   group('ReviewsService', () {
@@ -260,6 +300,16 @@ void main() {
       expect((await get('live')).statusCode, HttpStatus.ok);
     });
 
+    test(
+      'a hidden salon 404s before anything is counted — no summary',
+      () async {
+        // T51: the summary would be a count of a draft salon's reviews.
+        final res = await get('stopped');
+        expect(res.statusCode, HttpStatus.notFound);
+        expect((await res.json() as Map).containsKey('summary'), isFalse);
+      },
+    );
+
     test('AND SO DOES AN UNKNOWN ID — or the 404 is the oracle', () async {
       // THE assertion of this gate. The route had no provider read at all, so
       // an unknown id returned `200 {items: []}`. Closing only the hidden case
@@ -271,6 +321,75 @@ void main() {
       expect(unknown.statusCode, HttpStatus.notFound);
       expect(unknown.statusCode, hidden.statusCode);
       expect(await unknown.json(), await hidden.json());
+    });
+  });
+
+  // A5-api (docs/design/salon-team-and-reviews.md §3): the client's « Avis »
+  // screen draws its card from the server, never from the page it holds — the
+  // same promise `GET /me/provider/reviews` keeps for the salon's own.
+  group('the public list carries the WHOLE salon\'s summary', () {
+    Future<Map<String, dynamic>> page(int n) async {
+      final c = _MockRequestContext();
+      when(() => c.request).thenReturn(
+        Request.get(
+          Uri.parse('http://localhost/providers/provider1/reviews?page=$n'),
+        ),
+      );
+      when(() => c.read<TokenService>()).thenReturn(tokens);
+      when(() => c.read<ReviewsService>()).thenReturn(service);
+      when(() => c.read<ProvidersRepository>()).thenReturn(providers);
+      final res = await list_route.onRequest(c, 'provider1');
+      expect(res.statusCode, HttpStatus.ok);
+      return (await res.json() as Map).cast<String, dynamic>();
+    }
+
+    Future<void> review(int n, int rating, {bool hidden = false}) =>
+        reviewsRepo.upsertByAppointment({
+          'id': 'r${n.toString().padLeft(3, '0')}',
+          'providerId': 'provider1',
+          'userId': 'u$n',
+          'appointmentId': 'a$n',
+          'rating': rating,
+          'createdAt': DateTime.utc(2026, 1, 1, 0, n).toIso8601String(),
+          if (hidden) 'moderationStatus': 'hidden',
+        });
+
+    test('45 reviews, pages of 20: page 1 and page 3 both count 45', () async {
+      // 25 × 5★, 15 × 4★, 5 × 2★ → (125 + 60 + 10) / 45 = 4.333… → 4.3
+      for (var i = 0; i < 45; i++) {
+        await review(i, i < 25 ? 5 : (i < 40 ? 4 : 2));
+      }
+      for (final n in [1, 3]) {
+        final body = await page(n);
+        expect(body['total'], 45);
+        expect(body['summary'], {
+          'average': 4.3,
+          'count': 45,
+          'distribution': {'5': 25, '4': 15, '3': 0, '2': 5, '1': 0},
+        });
+      }
+      expect((await page(3))['items'], hasLength(5)); // the page is the page
+    });
+
+    test('a hidden review counts nowhere', () async {
+      await review(1, 5);
+      await review(2, 1, hidden: true);
+      final body = await page(1);
+      expect(body['total'], 1);
+      expect(body['summary'], {
+        'average': 5.0,
+        'count': 1,
+        'distribution': {'5': 1, '4': 0, '3': 0, '2': 0, '1': 0},
+      });
+    });
+
+    test('no review yet: zeros, never null', () async {
+      final body = await page(1);
+      expect(body['summary'], {
+        'average': 0,
+        'count': 0,
+        'distribution': {'5': 0, '4': 0, '3': 0, '2': 0, '1': 0},
+      });
     });
   });
 
