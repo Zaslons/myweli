@@ -85,7 +85,7 @@ dependencies:
   # SHA-256 for Apple's nonce. Design: docs/design/app-auth-social.md.
   google_sign_in: ^7.2.0
   sign_in_with_apple: ^8.2.0
-  crypto: ^3.0.3
+  crypto: ^3.0.8
 
   # UI Components
   cached_network_image: ^3.3.1
