@@ -125,6 +125,32 @@ void main() {
       ]);
     });
 
+    test('an account linked to another Apple ID → 409 social_link_taken, '
+        'nothing exchanged (B16.4 §3, decision 284)', () async {
+      await repo.register(
+        businessName: 'Élégance',
+        businessType: 'salon',
+        phoneNumber: '+2250544556677',
+        email: 'salon@privaterelay.appleid.com',
+        authProvider: 'apple',
+        appleSub: 'a-sub-first',
+      );
+      final res = await p_apple.onRequest(
+        ctx(
+          post('/auth/provider/apple', {
+            'identityToken': 'tok',
+            'authorizationCode': 'code-1',
+          }),
+        ),
+      );
+      expect(res.statusCode, HttpStatus.conflict);
+      expect(
+        (await res.json() as Map<String, dynamic>)['error'],
+        'social_link_taken',
+      );
+      expect(appleTokens.kept, isEmpty);
+    });
+
     test('no code → nothing exchanged', () async {
       await appleAccount();
       final res = await p_apple.onRequest(

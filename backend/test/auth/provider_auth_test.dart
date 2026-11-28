@@ -713,6 +713,29 @@ void main() {
       },
     );
 
+    test('provider google login: an account linked to another Google '
+        'account → 409 social_link_taken (B16.4 §3, decision 284)', () async {
+      // A holds the token's address with another Google sub; the token's
+      // own sub has no account.
+      final a = await repo.register(
+        businessName: 'Élégance',
+        businessType: 'salon',
+        phoneNumber: _phone,
+        email: _googleClaims.email!,
+        authProvider: 'google',
+        googleSub: 'g-sub-first',
+      );
+      final res = await p_google.onRequest(
+        ctx(post('/auth/provider/google', {'idToken': 'tok'})),
+      );
+      expect(res.statusCode, HttpStatus.conflict);
+      expect((await jsonOf(res))['error'], 'social_link_taken');
+      expect(
+        (await repo.accountById(a.provider!.id))!.googleSub,
+        'g-sub-first',
+      );
+    });
+
     test('provider email OTP routes: 202 devCode → login-only 404 → after '
         'register a fresh code logs in (200)', () async {
       final sent = await pe_request.onRequest(

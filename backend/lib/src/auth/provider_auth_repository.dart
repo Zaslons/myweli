@@ -342,6 +342,15 @@ class InMemoryProviderAuthRepository implements ProviderAuthRepository {
   final Map<String, ProviderAccount> _bySocial = {}; // '<provider>:<sub>'
   final Map<String, _Otp> _emailOtps = {}; // lowercased email
 
+  /// **A test seam, not a writer:** marks account [accountId]'s address
+  /// unproven, the state of a row older than the auth overhaul
+  /// (`email_verified` was added with `DEFAULT false`, `migrations.dart:556`),
+  /// so the link contract can hold that row on this twin as it does on
+  /// Postgres by SQL (docs/design/auth-store-twins.md §2.2, decision 287). No
+  /// route reaches it.
+  void plantUnprovenEmailForTest(String accountId) =>
+      _byId[accountId]!.emailVerified = false;
+
   @override
   Future<ProviderAccount?> accountById(String id) async => _byId[id];
 

@@ -525,6 +525,40 @@ class InMemoryAuthRepository implements AuthRepository {
     _usersByEmail[key] = user;
   }
 
+  /// **A test seam, not a writer:** gives account [id] the creation time
+  /// [at], so the user list's contract can make two accounts tie on it, as
+  /// it does on Postgres by SQL (docs/design/auth-store-twins.md §5.3). The
+  /// account is rebuilt (`createdAt` is final) and every index repointed. No
+  /// route reaches it.
+  void plantCreatedAtForTest(String id, DateTime at) {
+    final old = _usersById[id]!;
+    final copy = AuthUser(
+      id: old.id,
+      createdAt: at,
+      phoneNumber: old.phoneNumber,
+      phoneVerified: old.phoneVerified,
+      email: old.email,
+      emailVerified: old.emailVerified,
+      authProvider: old.authProvider,
+      name: old.name,
+      avatarUrl: old.avatarUrl,
+      status: old.status,
+    );
+    for (final index in [
+      _usersById,
+      _usersByPhone,
+      _usersByEmail,
+      _usersBySocial,
+    ]) {
+      for (final key in [
+        for (final e in index.entries)
+          if (identical(e.value, old)) e.key,
+      ]) {
+        index[key] = copy;
+      }
+    }
+  }
+
   @override
   Future<bool> emailIsOnlySignIn(String userId) async {
     final user = _usersById[userId];

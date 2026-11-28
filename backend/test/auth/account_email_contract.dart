@@ -303,6 +303,26 @@ void accountEmailContract({
       expect(bAfter.emailVerified, isTrue);
     });
 
+    test('[no address] a sign-in that brings no address gets an account '
+        'without one, never an existing one (B-P2-b, B16.4 §5.4)', () async {
+      final r = repo();
+      final x = address('x');
+      final held = await byCode(r, x);
+      final v = await r.loginWithSocial(provider: 'apple', sub: sub('ap'));
+      expect(v.ok, isTrue, reason: 'the premise: ${v.error}');
+      expect(
+        v.user!.id,
+        isNot(held.id),
+        reason: '[no address] it reached an existing account',
+      );
+      expect(
+        v.user!.email,
+        isNull,
+        reason: '[no address] it gained an address',
+      );
+      expect(v.user!.emailVerified, isFalse);
+    });
+
     test('a proven address with an EMPTY sub for that provider links, '
         'as before', () async {
       final r = repo();

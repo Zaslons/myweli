@@ -20,7 +20,7 @@ import 'package:myweli_backend/src/auth/auth_repository.dart'
         TokenPair,
         kRefreshReuseGrace;
 import 'package:myweli_backend/src/auth/provider_auth_repository.dart'
-    show KycWrite, kycKeysOf;
+    show KycWrite, ProviderVerifyResult, kycKeysOf;
 import 'package:myweli_backend/src/auth/tokens.dart';
 import 'package:myweli_backend/src/boot_config.dart';
 import 'package:myweli_backend/src/clients/clients_repository.dart'
@@ -69,6 +69,9 @@ import '../appointments/appointment_repository_contract.dart';
 import '../auth/account_email_contract.dart';
 import '../auth/apple_token_repository_contract.dart';
 import '../auth/kyc_write_contract.dart';
+import '../auth/pro_signup_code_contract.dart';
+import '../auth/pro_social_link_contract.dart';
+import '../auth/user_list_contract.dart';
 import '../clients/display_names_contract.dart';
 import '../demo/demo_reset_restore_contract.dart';
 import '../demo/demo_snapshot_contract.dart';
@@ -2507,6 +2510,327 @@ void main() {
   // (docs/design/backend-refresh-rotation-atomic.md §8). Here and not in a file
   // of its own because this file TRUNCATEs both tables in `setUp`: a second
   // file would race that. Admin is pinned in postgres_admin_auth_test.dart.
+  // B16.4 (docs/design/auth-store-twins.md §8): the sign-in stores' twin
+  // contracts, on Postgres. Here because this file TRUNCATEs `users` and
+  // `provider_users` in setUp, so each case starts from an empty store.
+  group('a Pro account\'s link — the twin contract (B16.4)', () {
+    proSocialLinkContract(
+      repo: () => PostgresProviderAuthRepository(
+        pool,
+        tokens: tokens,
+        echoDevCode: true,
+      ),
+      // A row older than the auth overhaul: `email_verified` was added with
+      // DEFAULT false (migrations.dart:556).
+      plantUnproven: (_, id) async {
+        await pool.execute(
+          Sql.named(
+            'UPDATE provider_users SET email_verified = false WHERE id = @id',
+          ),
+          parameters: {'id': id},
+        );
+      },
+    );
+  });
+
+  group('a Pro sign-up\'s code — the twin contract (B16.4)', () {
+    proSignupCodeContract(
+      repo: () => PostgresProviderAuthRepository(
+        pool,
+        tokens: tokens,
+        echoDevCode: true,
+      ),
+    );
+  });
+
+  group('the user list — the twin contract (B16.4)', () {
+    userListContract(
+      repo: () =>
+          PostgresAuthRepository(pool, tokens: tokens, echoDevCode: true),
+      plantCreatedAt: (_, ids, at) async {
+        await pool.execute(
+          Sql.named(
+            'UPDATE users SET created_at = @t WHERE id = ANY(@ids:_text)',
+          ),
+          parameters: {'t': at, 'ids': ids},
+        );
+      },
+    );
+  });
+
+  // B16.4 §8.2: the races, each FORCED on a side pool — never hoped for. The
+  // in-memory twin cannot race (no `await` between its check and its write),
+  // so these are the batch's own defect class: a test that passes while
+  // production differs. B16.3a's [race insert] is the method.
+  group('the Pro sign-in and sign-up — the races, forced (B16.4)', () {
+    late Pool<void> side;
+    setUpAll(() => side = createPool(url));
+    tearDownAll(() => side.close());
+    // Lazily: the group is declared before setUpAll opens `pool`.
+    late final r = PostgresProviderAuthRepository(
+      pool,
+      tokens: tokens,
+      echoDevCode: true,
+    );
+    final run = DateTime.now().microsecondsSinceEpoch;
+    var n = 0;
+    String address(String who) => '$who.${run}_${n++}@b164.test';
+
+    /// Completes [gates] when the test ends, whatever happened: a failed
+    /// premise must not leave the side transaction open.
+    void releaseAtEnd(List<Completer<void>> gates) => addTearDown(() {
+      for (final g in gates) {
+        if (!g.isCompleted) g.complete();
+      }
+    });
+
+    /// Waits until [count] statements matching the LIKE [pattern] wait on a
+    /// lock — the side's own statements never wait, so these are the
+    /// repository's.
+    Future<void> blockedOn(String pattern, {int count = 1}) async {
+      for (var i = 0; i < 250; i++) {
+        final w = await side.execute(
+          Sql.named(
+            'SELECT count(*)::int AS n FROM pg_stat_activity '
+            "WHERE wait_event_type = 'Lock' AND query LIKE @q",
+          ),
+          parameters: {'q': pattern},
+        );
+        if (w.first.toColumnMap()['n'] == count) return;
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+      }
+      fail('the premise: not $count statement(s) blocked on « $pattern »');
+    }
+
+    Future<ProviderVerifyResult> signUpByCode(String email, String code) =>
+        r.register(
+          businessName: 'B16.4',
+          businessType: 'salon',
+          phoneNumber: '+2250700000001',
+          email: email,
+          authProvider: 'email',
+          emailCode: code,
+        );
+
+    Future<void> sideAccount(
+      Session tx, {
+      required String id,
+      required String email,
+      String? googleSub,
+    }) => tx.execute(
+      Sql.named(
+        'INSERT INTO provider_users (id, phone_number, business_name, '
+        'business_type, email, email_verified, auth_provider, google_sub) '
+        "VALUES (@id, '+2250700000002', 'Side', 'salon', @e, true, "
+        "@ap, @gs:text)",
+      ),
+      parameters: {
+        'id': id,
+        'e': email,
+        'ap': googleSub == null ? 'email' : 'google',
+        'gs': googleSub,
+      },
+    );
+
+    test('[race insert] another account commits X while an e-mail sign-up '
+        'creates it: provider_exists, no throw, and the code kept', () async {
+      final x = address('ri');
+      final code = (await r.requestEmailOtp(x)).devCode!;
+      final inserted = Completer<void>();
+      final release = Completer<void>();
+      releaseAtEnd([release]);
+      final other = side.runTx((tx) async {
+        await sideAccount(tx, id: 'ri-side-$run', email: x);
+        inserted.complete();
+        await release.future;
+      });
+      await inserted.future;
+      final signUp = signUpByCode(x, code);
+      await blockedOn('%INSERT INTO provider_users%');
+      release.complete();
+      await other;
+      final ProviderVerifyResult v;
+      try {
+        v = await signUp;
+      } on Object catch (e) {
+        fail('[race insert] the sign-up threw (${e.runtimeType}): a 500');
+      }
+      expect(v.error, 'provider_exists', reason: '[race insert]');
+      final login = await r.verifyEmailOtp(x, code);
+      expect(
+        login.ok,
+        isTrue,
+        reason: '[race insert] the rollback must keep the code: ${login.error}',
+      );
+      expect(login.provider!.id, 'ri-side-$run');
+    });
+
+    test('[race sub] another account commits a Google sub while a Google '
+        'sign-up creates it: provider_exists, no throw', () async {
+      final g = 'rs-g-$run';
+      final inserted = Completer<void>();
+      final release = Completer<void>();
+      releaseAtEnd([release]);
+      final other = side.runTx((tx) async {
+        await sideAccount(
+          tx,
+          id: 'rs-side-$run',
+          email: address('rs-side'),
+          googleSub: g,
+        );
+        inserted.complete();
+        await release.future;
+      });
+      await inserted.future;
+      final signUp = r.register(
+        businessName: 'B16.4',
+        businessType: 'salon',
+        phoneNumber: '+2250700000001',
+        email: address('rs'),
+        authProvider: 'google',
+        googleSub: g,
+      );
+      await blockedOn('%INSERT INTO provider_users%');
+      release.complete();
+      await other;
+      final ProviderVerifyResult v;
+      try {
+        v = await signUp;
+      } on Object catch (e) {
+        fail('[race sub] the sign-up threw (${e.runtimeType}): a 500');
+      }
+      expect(v.error, 'provider_exists', reason: '[race sub]');
+    });
+
+    test('[double link] two first links with one sub in flight: the second '
+        'signs in, never social_link_taken', () async {
+      final x = address('dl');
+      final a = (await signUpByCode(
+        x,
+        (await r.requestEmailOtp(x)).devCode!,
+      )).provider!;
+      final g = 'dl-g-$run';
+      final linked = Completer<void>();
+      final release = Completer<void>();
+      releaseAtEnd([release]);
+      final other = side.runTx((tx) async {
+        await tx.execute(
+          Sql.named(
+            'UPDATE provider_users SET google_sub = @g, email_verified = true '
+            'WHERE id = @id',
+          ),
+          parameters: {'g': g, 'id': a.id},
+        );
+        linked.complete();
+        await release.future;
+      });
+      await linked.future;
+      final login = r.loginWithSocial(
+        provider: 'google',
+        sub: g,
+        email: x,
+        emailVerified: true,
+      );
+      await blockedOn('UPDATE provider_users SET google_sub%');
+      release.complete();
+      await other;
+      final v = await login;
+      expect(
+        v.ok,
+        isTrue,
+        reason: '[double link] the rightful owner was refused: ${v.error}',
+      );
+      expect(v.provider!.id, a.id);
+    });
+
+    test('[one code, two sign-ups] the first holds the code and creates X: '
+        'the second answers otp_none, no throw', () async {
+      final x = address('oc');
+      final code = (await r.requestEmailOtp(x)).devCode!;
+      final done = Completer<void>();
+      final release = Completer<void>();
+      releaseAtEnd([release]);
+      // The side plays the first sign-up: the code's row locked, the account
+      // created, the code spent, not yet committed.
+      final other = side.runTx((tx) async {
+        await tx.execute(
+          Sql.named(
+            'SELECT 1 FROM provider_email_otp_codes WHERE email = @e '
+            'FOR UPDATE',
+          ),
+          parameters: {'e': x},
+        );
+        await sideAccount(tx, id: 'oc-side-$run', email: x);
+        await tx.execute(
+          Sql.named('DELETE FROM provider_email_otp_codes WHERE email = @e'),
+          parameters: {'e': x},
+        );
+        done.complete();
+        await release.future;
+      });
+      await done.future;
+      final signUp = signUpByCode(x, code);
+      // Today it waits on the e-mail index; built, on the code's row lock.
+      await blockedOn('%provider_%');
+      release.complete();
+      await other;
+      final ProviderVerifyResult v;
+      try {
+        v = await signUp;
+      } on Object catch (e) {
+        fail(
+          '[one code, two sign-ups] the second threw (${e.runtimeType}): '
+          'a 500',
+        );
+      }
+      expect(v.error, 'otp_none', reason: '[one code, two sign-ups]');
+    });
+
+    test(
+      '[parallel guesses] wrong guesses in flight each cost an attempt',
+      () async {
+        final x = address('pg');
+        final code = (await r.requestEmailOtp(x)).devCode!;
+        final wrong = code == '000000' ? '111111' : '000000';
+        final locked = Completer<void>();
+        final release = Completer<void>();
+        releaseAtEnd([release]);
+        // The side holds the code's row, so every guess is in flight at once:
+        // built, they queue on the row lock and are counted one by one; today
+        // they all read 5 first, and each writes back 4.
+        final other = side.runTx((tx) async {
+          await tx.execute(
+            Sql.named(
+              'SELECT 1 FROM provider_email_otp_codes WHERE email = @e '
+              'FOR UPDATE',
+            ),
+            parameters: {'e': x},
+          );
+          locked.complete();
+          await release.future;
+        });
+        await locked.future;
+        // The pool holds four connections (kMaxConnectionsPerInstance).
+        final guesses = [
+          for (var i = 0; i < 4; i++) r.verifyEmailOtp(x, wrong),
+        ];
+        await blockedOn('%provider_email_otp_codes%', count: 4);
+        release.complete();
+        await other;
+        final answers = [for (final g in await Future.wait(guesses)) g.error];
+        expect(answers, everyElement('otp_invalid'));
+        expect(
+          (await r.verifyEmailOtp(x, wrong)).error,
+          'otp_locked',
+          reason:
+              '[parallel guesses] four guesses in flight cost fewer than four '
+              'attempts',
+        );
+        expect((await r.verifyEmailOtp(x, code)).error, 'otp_locked');
+      },
+    );
+  });
+
   group('refresh exchange — atomic, 30 s grace', () {
     // A second pool, so eight exchanges can hold eight connections AT ONCE —
     // one pool is capped at four per instance (kMaxConnectionsPerInstance).
