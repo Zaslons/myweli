@@ -408,7 +408,7 @@ void _expectGates(WidgetTester tester, String where, Iterable<String> names) {
   expectNoUndeclaredTruncation(tester, context: where);
   expectNoVerticalClip(tester, context: where);
   for (final name in names) {
-    expectNoMidWordBreak(tester, name, '« $name » on $where');
+    _expectBreaksOnlyBetweenWords(tester, name, '« $name » on $where');
     // Decision 2: never cut. The floor above passes a name cut after its
     // eighth character — « Fatoumata Ouédr… » on a guest card at 2× today.
     final p = _paragraphOf(tester, name);
@@ -419,6 +419,51 @@ void _expectGates(WidgetTester tester, String where, Iterable<String> names) {
           '« $name » is cut on $where. Spec §5 decision 2: a name wraps '
           'between its words and is never cut',
     );
+  }
+}
+
+/// A hyphen between two letters: the engine may break after it, and §13.3
+/// calls that break legal (« Marie- » / « Laure »).
+final RegExp _afterHyphen = RegExp(r'(?<=\p{L}-)(?=\p{L})', unicode: true);
+
+/// [expectNoMidWordBreak], and for a hyphenated name its pieces.
+///
+/// That gate keeps a hyphen inside its word (`unbreakableTokens`, « on the
+/// strict side »), so it calls « Marie- » / « Laure » a break inside a word,
+/// and its doc says hyphenated labels are not named to it. A hyphenated name
+/// is measured here piece by piece instead, in its own paragraph's style:
+/// each piece must fit the box, so a break anywhere but after the hyphen
+/// still fails. « Marie-Laure N'Guessan » at 360 × 2×: « Marie-Laure » needs
+/// 242 dp of the card's 232, and is drawn « Marie- » / « Laure ».
+void _expectBreaksOnlyBetweenWords(
+  WidgetTester tester,
+  String name,
+  String where,
+) {
+  if (!_afterHyphen.hasMatch(name)) {
+    expectNoMidWordBreak(tester, name, where);
+    return;
+  }
+  final p = _paragraphOf(tester, name);
+  for (final word in unbreakableTokens(name)) {
+    for (final piece in word.split(_afterHyphen)) {
+      final painter = TextPainter(
+        text: TextSpan(text: piece, style: p.text.style),
+        textDirection: TextDirection.ltr,
+        textScaler: p.textScaler,
+      )..layout();
+      final needs = painter.width;
+      painter.dispose();
+      expect(
+        p.size.width + 0.5,
+        greaterThanOrEqualTo(needs),
+        reason:
+            '$where: the box is ${p.size.width.toStringAsFixed(1)} dp and '
+            '« $piece » needs ${needs.toStringAsFixed(1)}, so it is broken '
+            'inside a word. §13.3: a name wraps between its words, or after '
+            'a hyphen',
+      );
+    }
   }
 }
 
