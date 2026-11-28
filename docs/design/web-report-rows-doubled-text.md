@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Built (2026-11-27), mutation pass done, not merged (§8) |
+| **Status** | Built (2026-11-27), mutation pass done. **Merged and live on myweli.com 2026-11-28** (#910, `47e46cfd`, on the owner's « yes »; Vercel production 12:05 UTC; read back: §9) |
 | **Approved** | by the owner, 2026-11-27, on §4: « Approve as recommended » (all three decisions as recommended) |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-11-27 |
@@ -289,3 +289,46 @@ On `fix/web-report-rows-doubled-text`, from `main` (`b097e330`).
   now reads the name the switcher shows (`9870cbed`), green with that rename
   run first. Lint, typecheck and the unit suite (238 files, 3,594 tests)
   green.
+
+## 9. Merged, and read back on myweli.com (2026-11-28)
+
+- **Keeping up with `main`:** it moved nine times before the merge could
+  land. Two rebases (#905, then #902), then, at the owner's request, five
+  merges of `main` into the branch (#907, #908 and #912; #914; #911; #909;
+  #913). The conflicts: the design-spec index three times, and on the #902
+  rebase WEB-SYSTEM §15 rows 38–39 and the two blocks appended to
+  `type-overflow.spec.ts`; each time both sides were kept. After that rebase,
+  and after the merge that brought #908 (it changed `web/lib/api/schema.ts`),
+  lint, the typecheck, the unit suite (3,623) and `type-overflow.spec.ts`
+  (214) passed locally; the other merges changed nothing under `web/`. CI was
+  green, 12 of 12, on `6f6fbcc9`, `287b3d66`, `4e6fcc0a`, `4de26c2e`,
+  `d084f930` and `ee4566c6`. It was red on `08090f04`, on a backend test
+  (`team_service_test.dart`, B0.24's mid-accept case) that failed on `main`
+  too, at `aaac273f`, until #914.
+- **The owner's word:** « yes », to « Merge #910, which deploys myweli.com? ».
+- **The merge:** squash, by a script that merged only once every check had
+  passed. Branch protection requires a branch up to date with `main`, and
+  `main` moved during CI twice (#909, #913): GitHub refused the merge both
+  times, and it was not bypassed. At 12:02:25 UTC → `47e46cfd`. Main's tree is
+  the tested head's (`ee4566c6`). Main's CI on `47e46cfd` is green (10 of
+  10), and Vercel's production deployment of it completed at 12:05:18 UTC.
+- **The control, taken before the deployment** (11:18 UTC), from the code
+  myweli.com served: the salon page's chunk (`2035-4b7c9e50dcdf79c6.js`, found
+  on `/test-3` by « Raison du signalement ») held the date row
+  `mt-xs flex items-center justify-between gap-m` and the button row
+  `mt-s flex justify-end gap-s`, once each, and none of the new classes;
+  `/pro/avis`'s chunk (`page-16b8d6497a972ca4.js`) held `min-w-56 flex-1` and
+  the same button row, and neither `w-56 grow` nor a wrapping row.
+- **After** (12:06 UTC): the salon page's chunk (`2035-e4b66b790eff2509.js`)
+  holds `mt-xs flex flex-wrap items-center justify-between gap-x-m gap-y-xs`,
+  `ml-auto text-right` and `mt-s flex flex-wrap justify-end gap-s`, once each,
+  and none of the old rows; `/pro/avis`'s (`page-89fa660ff0ae5419.js`) holds
+  `w-56 grow` and the wrapping row, and neither old string. The live
+  stylesheet defines every utility used: `.flex-wrap`, `.ml-auto`,
+  `.gap-x-m` (16 px), `.gap-y-xs` (row-gap 4 px), `.w-56` (14 rem), `.grow`.
+- **Not read:** the open form in production. The one public salon
+  (`/test-3`) has no review, so it draws no « Signaler », and `/pro/avis`
+  needs a session. The layout is held by the e2e gate (§5), on CI's Linux.
+- **Since:** #906 is merged (`e9f67684`); its §15 row 40 and its §7 now point
+  here.
+
