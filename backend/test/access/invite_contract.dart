@@ -22,6 +22,9 @@ void inviteContract({
   required Future<String> Function(String email) account,
 }) {
   final p = providerId;
+  // The wall clock, on purpose: the repositories judge a window against
+  // their own clock (Postgres `now()`, the twin `DateTime.now()`), and every
+  // expiry here is relative to it — never a frozen date.
   DateTime inDays(int days) => DateTime.now().toUtc().add(Duration(days: days));
 
   Future<List<Member>> rowsFor(MembershipRepository r, String email) async => [
@@ -123,7 +126,7 @@ void inviteContract({
     expect(again.revokedAt, isNull);
     expect(again.accountId, acc, reason: 'kept until activate rewrites it');
     expect(again.expiresAt!.difference(expires).inSeconds.abs(), lessThan(2));
-    expect(again.isExpiredInvitation, isFalse);
+    expect(again.isExpiredInvitationAt(DateTime.now()), isFalse);
     final rows = await rowsFor(r, 'back@contract.pro');
     expect(rows, hasLength(1));
     expect(rows.single.status, 'invited');
@@ -137,7 +140,11 @@ void inviteContract({
       role: 'reception',
       expiresAt: inDays(-1),
     );
-    expect(inv!.isExpiredInvitation, isTrue, reason: 'the control');
+    expect(
+      inv!.isExpiredInvitationAt(DateTime.now()),
+      isTrue,
+      reason: 'the control',
+    );
 
     final again = await r.invite(
       providerId: p,
@@ -149,7 +156,7 @@ void inviteContract({
     expect(again, isNotNull);
     expect(again!.id, inv.id);
     expect(again.status, 'invited');
-    expect(again.isExpiredInvitation, isFalse);
+    expect(again.isExpiredInvitationAt(DateTime.now()), isFalse);
     expect(await rowsFor(r, 'late@contract.pro'), hasLength(1));
   });
 

@@ -1063,6 +1063,71 @@ void main() {
     });
   });
 
+  // The B0.24 test above froze its clock at 2026-11-21 with a 7-day
+  // invitation, and went red on 2026-11-28: expiry was read off the WALL
+  // clock, not the service's. Two clocks frozen far from today, one in each
+  // direction, so a wall-clock read fails here at once rather than on some
+  // future date. Every site that judges expiry in the service is exercised:
+  // the roster's flag, the duplicate check, checkAcceptable.
+  // docs/design/backend-invitation-expiry-clock.md
+  group('invitation expiry is judged by the service clock, whatever the '
+      'wall clock says', () {
+    for (final epoch in [DateTime.utc(2001, 1, 1), DateTime.utc(2101, 1, 1)]) {
+      test('clock frozen at ${epoch.year}', () async {
+        now = epoch;
+        final ownerId = await owner();
+        final inv = await team().invite(
+          ownerId,
+          'p1',
+          email: 'clock@b.com',
+          role: 'manager',
+        );
+        expect(inv.ok, isTrue);
+        final id = (inv.data! as Map)['id'] as String;
+        expect(
+          DateTime.parse((inv.data! as Map)['expiresAt'] as String),
+          epoch.add(TeamService.invitationValidity),
+        );
+
+        Future<bool?> expiredFlag() async {
+          final items =
+              ((await team().list(ownerId, 'p1')).data! as Map)['items']
+                  as List;
+          return (items.cast<Map<String, dynamic>>().singleWhere(
+                (m) => m['email'] == 'clock@b.com',
+              ))['expired']
+              as bool?;
+        }
+
+        // Inside the window, by the service's clock.
+        now = epoch.add(const Duration(days: 6));
+        expect(await expiredFlag(), isFalse);
+        expect(
+          (await team().invite(
+            ownerId,
+            'p1',
+            email: 'clock@b.com',
+            role: 'reception',
+          )).error,
+          'member_exists',
+          reason: 'a live invitation holds the address',
+        );
+        expect(
+          (await team().checkAcceptable(id, accountEmail: 'clock@b.com')).ok,
+          isTrue,
+        );
+
+        // Past the window, by the service's clock.
+        now = epoch.add(const Duration(days: 8));
+        expect(await expiredFlag(), isTrue);
+        expect(
+          (await team().checkAcceptable(id, accountEmail: 'clock@b.com')).error,
+          'invitation_expired',
+        );
+      });
+    }
+  });
+
   group('list', () {
     test('owner first, artist names joined, expired flag set', () async {
       final ownerId = await owner();
@@ -1275,6 +1340,10 @@ void main() {
         role: 'manager',
       );
       final id = (inv.data! as Map)['id'] as String;
+      // Eight days later: the service's clock moves on. This test used to
+      // accept with the clock still eight days back and passed only because
+      // expiry was read off the wall clock, not the service's.
+      now = DateTime.now().toUtc();
       expect(
         (await team().accept(
           id,
